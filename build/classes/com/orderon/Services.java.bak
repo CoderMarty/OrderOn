@@ -1,0 +1,3720 @@
+package com.orderon;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.orderon.AccessManager.Attendance;
+import com.orderon.AccessManager.Bank;
+import com.orderon.AccessManager.Customer;
+import com.orderon.AccessManager.Discount;
+import com.orderon.AccessManager.Employee;
+import com.orderon.AccessManager.Expense;
+import com.orderon.AccessManager.Hotel;
+import com.orderon.AccessManager.KitchenDisplayOrders;
+import com.orderon.AccessManager.KitchenStation;
+import com.orderon.AccessManager.MPNotification;
+import com.orderon.AccessManager.MenuItem;
+import com.orderon.AccessManager.MonthReport;
+import com.orderon.AccessManager.Notification;
+import com.orderon.AccessManager.Order;
+import com.orderon.AccessManager.OrderItem;
+import com.orderon.AccessManager.OrderTables;
+import com.orderon.AccessManager.Report;
+import com.orderon.AccessManager.ServiceLog;
+import com.orderon.AccessManager.Stock;
+import com.orderon.AccessManager.Table;
+import com.orderon.AccessManager.TableUsage;
+import com.orderon.AccessManager.User;
+import com.orderon.AccessManager.YearlyReport;
+
+import jdk.nashorn.internal.scripts.JS;
+import jersey.repackaged.com.google.common.collect.HashMultimap;
+
+import java.awt.List;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+
+@Path("/Services")
+public class Services {
+	
+	//static Logger logger = Logger.getLogger(Services.class);
+	private static final String api_version = "1.01A rev.10023";
+		
+	  @GET
+	  @Path("/v1/heartbeat")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String hearbeat() {
+		  JSONObject outObj = new JSONObject();
+		  try {
+			  outObj.put("status", true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/validateUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String validateUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.validUser(inObj.getString("hotelId"),inObj.getString("userId"), inObj.getString("passwd")));
+			  if (outObj.getBoolean("status")) {
+				  AccessManager.User user = dao.getUserById(inObj.getString("hotelId"),inObj.getString("userId")); 
+				  outObj.put("fullName",dao.getEmployeeById(inObj.getString("hotelId"), user.getEmployeeId()).getFullName());
+				  outObj.put("type",user.getUserType());
+			  }
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/validateMPUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String validateMPUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  String authToken = dao.validMPUser(inObj.getString("hotelId"),inObj.getString("userId"), inObj.getString("passwd"));
+			  
+			  if(authToken == null){
+				  outObj.put("status", false);
+			  }else{
+				  outObj.put("status", true);
+			  }
+			  
+			  if (outObj.getBoolean("status")) {
+				  AccessManager.User user = dao.getUserById(inObj.getString("hotelId"),inObj.getString("userId")); 
+				  outObj.put("fullName",dao.getEmployeeById(inObj.getString("hotelId"), user.getEmployeeId()).getFullName());
+				  outObj.put("type",user.getUserType());
+				  outObj.put("authToken",user.getAuthToken());
+			  }
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/validateManager")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String validateManager(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(dao.validateManager(inObj.getString("hotelId"),inObj.getString("userId"), inObj.getString("passwd"))){
+				  outObj.put("status", true);
+			  }else{
+				  outObj.put("status", false);
+			  }
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/validateKDSUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String validateKDSUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  String authToken = dao.validKDSUser(inObj.getString("hotelId"),inObj.getString("userId"), inObj.getString("passwd"));
+			  
+			  if(authToken == null){
+				  outObj.put("status", false);
+			  }else{
+				  outObj.put("status", true);
+			  }
+			  
+			  if (outObj.getBoolean("status")) {
+				  AccessManager.User user = dao.getUserById(inObj.getString("hotelId"),inObj.getString("userId")); 
+				  outObj.put("fullName",dao.getEmployeeById(inObj.getString("hotelId"), user.getEmployeeId()).getFullName());
+				  outObj.put("type",user.getUserType());
+				  outObj.put("authToken",user.getAuthToken());
+			  }
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/validateToken")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String validateToken(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  UserType userType = dao.validateToken(inObj.getString("hotelId"), inObj.getString("userId"), 
+					  inObj.getString("authToken"));
+			  if(userType != UserType.UNAUTHORIZED){
+				  outObj.put("status", true);
+			  }	
+			  outObj.put("userType", userType.toString());
+		  }	
+		  catch(NullPointerException e) {
+			  System.out.print(e);
+		  }		
+		  catch(JSONException e) {
+			  System.out.print(e);
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  
+	  @POST
+	  @Path("/v1/removeToken")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String removeToken(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  if(dao.removeToken(inObj.getString("hotelId"), inObj.getString("userId"))){
+				  outObj.put("status", "true");
+			  }
+		  }	
+		  catch(NullPointerException e) {
+			  System.out.print(e);
+		  }		
+		  catch(JSONException e) {
+			  System.out.print(e);
+		  }	
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/isExistingCollection")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String isExistingCollection(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  dao.initDatabase();
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.collectionExists(inObj.getString("hotelId"),inObj.getString("name")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/addUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+
+			  int userType = UserType.valueOf(inObj.getString("userType")).getValue();
+			  
+			  outObj.put("status",dao.addUser(inObj.getString("hotelId"),inObj.getString("userId"),
+					  inObj.getString("employeeId"), userType, inObj.getString("userPasswd")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getUser(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject userDetails = new JSONObject();
+		  try {
+			   	  User user = dao.getUserById(hotelId, userId);
+			   	  userDetails.put("fullName", dao.getEmployeeById(hotelId, user.getEmployeeId()).getFullName());
+				  userDetails.put("userType",  UserType.getType(user.getUserType()).toString());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return userDetails.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getOnlineUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getOnlineUser(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray outArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject userDetails = null;
+		  ArrayList<User> users = dao.getOnlineUsers(hotelId);
+		  try {
+			  	for(int i=0; i<users.size(); i++){
+			  		userDetails = new JSONObject();
+			   	    userDetails.put("fullName", dao.getEmployeeById(hotelId, users.get(i).getEmployeeId()).getFullName());
+				    userDetails.put("authToken",  users.get(i).getAuthToken());
+				    outArr.put(userDetails);
+			  	}
+			  	outObj.put("user", outArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return userDetails.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addMenuItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addMenuItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(dao.itemExists(inObj.getString("hotelId"),inObj.getString("title"))){
+				  outObj.put("status", false);
+				  outObj.put("error", "Item Exists");
+			  }else{
+				  String menuId = dao.addMenuItem(inObj.getString("hotelId"),inObj.getString("title"), inObj.getString("description")
+					  , inObj.getString("category"), inObj.getString("station"), inObj.getString("flags"), inObj.getString("preparationTime"), 
+					  inObj.getInt("rate"), inObj.getInt("inhouseRate"), inObj.getInt("costPrice"), inObj.getInt("vegType"), 
+					  inObj.getString("image"));
+
+				  if(!menuId.equals("")){
+					  outObj.put("status", true);
+					  outObj.put("menuId", menuId);
+				  }
+			  }
+			  
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addEmployee")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addEmployee(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  String employeeId = dao.addEmployee(inObj.getString("hotelId"),inObj.getString("firstName"),
+					  inObj.getString("middleName"),inObj.getString("surName"), inObj.getString("address"),
+					  inObj.getString("contactNumber"), inObj.getString("dob"), inObj.getString("sex"), 
+					  inObj.getString("hiringDate"), inObj.getString("designation"), inObj.getString("department"), 
+					  inObj.getInt("salary"), inObj.getInt("bonus"), inObj.getString("image"), 
+					  inObj.getString("email"));
+			  
+			  if(!employeeId.equals("")){
+				  outObj.put("status", true);
+				  outObj.put("employeeId", employeeId);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/updateEmployee")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateEmployee(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(inObj.getString("image") != "No image"){
+				  deleteFile(inObj.getString("hotelId"), inObj.getString("employeeId") + ".jpg", "Employees");
+			  }
+			  
+			  outObj.put("status",dao.updateEmployee(inObj.getString("hotelId"),inObj.getString("employeeId"),inObj.getString("firstName"),
+					  inObj.getString("middleName"),inObj.getString("surName"), inObj.getString("address"),
+					  inObj.getString("contactNumber"), inObj.getString("dob"), inObj.getString("sex"), 
+					  inObj.getString("hiringDate"), inObj.getString("designation"), inObj.getString("department"), 
+					  inObj.getInt("salary"), inObj.getInt("bonus"), inObj.getString("image"), 
+					  inObj.getString("email")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/deleteEmployee")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deteleEmployee(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteEmployee(inObj.getString("hotelId"), inObj.getString("employeeId")));
+			  deleteFile(inObj.getString("hotelId"), inObj.getString("employeeId") + ".jpg", "Employees");
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateMenuItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateMenuItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(inObj.getString("image") != "No image"){
+				  deleteFile(inObj.getString("hotelId"), inObj.getString("menuId") + ".jpg", "MenuItems");
+			  }
+			  
+			  outObj.put("status",dao.updateMenuItem(inObj.getString("hotelId"), inObj.getString("menuId"), inObj.getString("title"), inObj.getString("description")
+					  , inObj.getString("category"), inObj.getString("station"), inObj.getString("flags"), inObj.getString("preparationTime"), 
+					  inObj.getInt("rate"), inObj.getInt("inhouseRate"), inObj.getInt("costPrice"), inObj.getInt("vegType"), inObj.getString("image")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/changeState")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String changeState(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  outObj.put("status",dao.changeState(inObj.getString("hotelId"), inObj.getString("menuId"), inObj.getInt("state")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateMenuItemState")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateMenuItemState(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  outObj.put("status",dao.updateMenuItemState(inObj.getString("hotelId"), inObj.getString("menuId"), inObj.getInt("state")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }	  
+	  
+	  @POST
+	  @Path("/v1/transferTable")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String transferTable(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  outObj.put("status",dao.transferTable(inObj.getString("hotelId"), inObj.getString("oldTableId"), inObj.getString("newTableId"), inObj.getString("orderId")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			   outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  int userType = UserType.valueOf(inObj.getString("userType")).getValue();
+			  boolean isValid = dao.checkPassword(inObj.getString("userId"),inObj.getString("oldPassword"), 
+					  inObj.getString("hotelId"));
+			  if (isValid) //Jason , checking correctness of old password
+			  {
+			  outObj.put("status",dao.updateUser(inObj.getString("hotelId"), 
+					  inObj.getString("userId"), inObj.getString("userPass")
+					  		, userType));
+			  } else { //old password is incorrect
+				  outObj.put("status", "incorrect"); //Jason
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getAllUsers")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllUsers(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("users", outArr);
+			  ArrayList<User> users = dao.getAllUsers(hotelId);
+			  for(int i=0; i<users.size(); i++) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("userId", users.get(i).getUserId());
+				  obj.put("userName", dao.getEmployeeById(hotelId, users.get(i).getEmployeeId()).getFullName());
+				  obj.put("userType", UserType.getType(users.get(i).getUserType()).toString());
+				  outArr.put(obj);
+			  }
+			  outObj.put("users", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getAllEmployees")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllEmployees(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("users", outArr);
+			  String imgLocation;
+			  ArrayList<Employee> employees = dao.getAllEmployee(hotelId);
+			  for(int i=0; i<employees.size(); i++) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("employeeId", employees.get(i).getEmployeeId());
+				  obj.put("firstName", employees.get(i).getFirstName());
+				  obj.put("surName", employees.get(i).getSurName());
+				  obj.put("address", employees.get(i).getAddress());
+				  obj.put("contactNumber", employees.get(i).getContactNumber());
+				  obj.put("dob", employees.get(i).getDob());
+				  obj.put("sex", employees.get(i).getSex());
+				  obj.put("hiringDate", employees.get(i).getHiringDate());
+				  obj.put("designation", employees.get(i).getDesignation());
+				  obj.put("department", employees.get(i).getDepartment());
+				  obj.put("salary", employees.get(i).getSalary());
+				  obj.put("bonus", employees.get(i).getBonus());
+				  
+				  imgLocation = "/hotels/"+hotelId+"/Employees/"+employees.get(i).getEmployeeId() + ".jpg";
+
+				  obj.put("image", imgLocation);
+				  outArr.put(obj);
+			  }
+			  outObj.put("employees", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getEmployee")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getEmployee(@QueryParam("hotelId") String hotelId, @QueryParam("employeeId") String employeeId) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+		  	  Employee employee = dao.getEmployeeById(hotelId, employeeId);
+			  outObj.put("employeeId", employeeId);
+			  outObj.put("firstName", employee.getFirstName());
+			  outObj.put("middleName", employee.getMiddleName());
+			  outObj.put("surName", employee.getSurName());
+			  outObj.put("address", employee.getAddress());
+			  outObj.put("contactNumber", employee.getContactNumber());
+			  outObj.put("dob", employee.getDob());
+			  outObj.put("sex", employee.getSex());
+			  outObj.put("hiringDate", employee.getHiringDate());
+			  outObj.put("designation", employee.getDesignation());
+			  outObj.put("department", employee.getDepartment());
+			  outObj.put("salary", employee.getSalary());
+			  outObj.put("bonus", employee.getBonus());
+			  outObj.put("image", "/hotels/"+hotelId+"/Employees/"+employeeId + ".jpg");
+			  outObj.put("email", employee.getEmail());
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getAllAttendance")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllAttendance(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("users", outArr);
+			  ArrayList<Attendance> attendance = dao.getAllAttendance(hotelId);
+			  for(int i=0; i<attendance.size(); i++) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("employeeId", attendance.get(i).getEmployeeId());
+				  obj.put("checkInTime", attendance.get(i).getCheckInTime());
+				  obj.put("checkOutTime", attendance.get(i).getCheckOutTime());
+				  obj.put("checkInDate", attendance.get(i).getCheckInDate());
+				  obj.put("checkOutDate", attendance.get(i).getCheckOutDate());
+				  outArr.put(obj);
+			  }
+			  outObj.put("attendance", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getHotelName")
+	  @Produces(MediaType.TEXT_PLAIN)
+	  public String getHotel(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  AccessManager.Hotel hotel = dao.getHotelById(hotelId);
+		  if (hotel!=null) {
+			  return hotel.getHotelName();
+		  }
+		  return "";
+	  }
+	  
+	  @GET
+	  @Path("/v1/getHotelDetails")
+	  @Produces(MediaType.TEXT_PLAIN)
+	  public String getHotelDetails(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+		  	  Hotel hotel = dao.getHotelById(hotelId);
+			  outObj.put("hotelName", hotel.getHotelName());
+			  outObj.put("hotelAddress", hotel.getHotelAddress());
+			  outObj.put("hotelContact", hotel.getHotelContact());
+			  outObj.put("vatNumber", hotel.getVatNumber());
+			  outObj.put("gstNumber", hotel.getGstNumber());
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getUserStatistics")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getUserStatistics(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  Calendar c = Calendar.getInstance();
+		  JSONArray weeklyOrders = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject dayStats = null;
+		  int dow = c.get(Calendar.DAY_OF_WEEK);
+		  int dayCount = (dow==1?6:(dow-Calendar.MONDAY));
+		  c.add(Calendar.DAY_OF_MONTH, -dayCount);
+		  try {
+			  for (int i=0;i<=dayCount; i++) {
+				  dayStats = getDayStats(hotelId, userId, c.getTime());
+				  weeklyOrders.put(dayStats);
+				  c.add(Calendar.DAY_OF_MONTH, 1);
+			  }
+			  outObj.put("orders", weeklyOrders);
+			  outObj.put("targetOrders", getTargetOrders(weeklyOrders));
+			  outObj.put("rating", getRating(weeklyOrders));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getUserTables")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getUserTables(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray tablesArr = new JSONArray();
+		  JSONObject tableDetails = null;
+		  ArrayList<TableUsage> tables = dao.getTableUsage(hotelId, userId);
+		  try {
+			  for (int i=0;i<tables.size(); i++) {
+				  tableDetails = new JSONObject();
+				  tableDetails.put("tableId", tables.get(i).getTableId());
+				  tableDetails.put("orderId", tables.get(i).getOrderId());
+				  tableDetails.put("userId", tables.get(i).getUserId());
+				  tablesArr.put(tableDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return tablesArr.toString();
+	  }	 
+	  
+	  @POST
+	  @Path("/v1/addCollection")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addCollection(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+
+			  if(dao.addCollection(inObj.getString("hotelId"),inObj.getString("name"), inObj.getString("image"))){
+				  outObj.put("status", true);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getCollections")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getCollections(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray collectionArr = new JSONArray();
+		  ArrayList<AccessManager.MenuCollection> collections = dao.getCollections(hotelId);
+		  for (int i=0;i<collections.size(); i++) {
+			  collectionArr.put(collections.get(i).getCollection());
+		  }
+		  return collectionArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getUnit")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getUnit() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(Unit unit : Unit.values()) {
+				  JSONObject obj = new JSONObject();
+				  
+				  if(unit == Unit.TABLESPOONGM)
+					  obj.put("unit", "TABLESPOON (GM)");
+				  else if(unit == Unit.TABLESPOONML)
+					  obj.put("unit", "TABLESPOON (ML)");
+				  else if(unit == Unit.TEASPOONGM)
+					  obj.put("unit", "TEASPOON (GM)");
+				  else if(unit == Unit.TEASPOONML)
+					  obj.put("unit", "TEASPOON (ML)");
+				  else
+					  obj.put("unit", unit);
+				  
+				  obj.put("association", unit.getAssociation());
+				  obj.put("value", unit.getConversion());
+				  outArr.put(obj);
+			  }
+			  outObj.put("units", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getOrder(@QueryParam("hotelId") String hotelId, @QueryParam("tableId") String tableId, @QueryParam("orderId") String orderId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONArray tablesArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  JSONObject tableDetails = null;
+		  ArrayList<OrderItem> orderItems = dao.getOrderedItems(hotelId, orderId);
+		  ArrayList<Table> joinedTables = dao.getJoinedTables(hotelId, orderId);
+		  try {
+			  if (!dao.isTakeAwayOrder(hotelId, orderId)) {
+				  if (!dao.isHomeDeliveryOrder(hotelId, orderId)) {
+					  if (!dao.isTableOrder(hotelId, tableId, orderId)) {
+						  outObj.put("status", -1);
+						  outObj.put("message", "Order not available for this table");
+						  return outObj.toString();
+					  }
+				  }
+			  }
+			  Double total = 0.0;
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  itemDetails.put("specs", orderItems.get(i).getSpecifications());
+				  itemsArr.put(itemDetails);
+				  total += (orderItems.get(i).getQty()*orderItems.get(i).getRate());
+			  }
+			  if (!dao.isHomeDeliveryOrder(hotelId, orderId)) {
+				  for (int i=0;i<joinedTables.size(); i++) {
+					  tableDetails = new JSONObject();
+					  tableDetails.put("tableId", joinedTables.get(i).getTableId());
+					  tablesArr.put(tableDetails);
+				  }
+			  }
+			  orderObj.put("tables", tablesArr);
+			  orderObj.put("items", itemsArr);
+			  orderObj.put("total", total);
+			  Order order = dao.getOrderById(hotelId, orderId);
+			  orderObj.put("items", itemsArr);
+			  orderObj.put("customer", order.getCustomerName());
+			  orderObj.put("address", order.getCustomerAddress());
+			  orderObj.put("phone", order.getCustomerNumber());
+			  orderObj.put("noOfGuests", order.getNumberOfGuests());
+			  orderObj.put("inHouse", order.getInHouse());
+			  
+			  outObj.put("status", 0);
+			  outObj.put("order",orderObj);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getOrderDetails")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getOrderDetails(@QueryParam("hotelId") String hotelId, @QueryParam("orderId") String orderId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<OrderItem> orderItems = dao.getOrderedItems(hotelId, orderId);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("subOrderDate", orderItems.get(i).getSubOrderDate());
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("vegType", orderItems.get(i).getVegType());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  itemDetails.put("station", orderItems.get(i).getStation());
+				  itemsArr.put(itemDetails);
+			  }
+			  orderObj.put("items", itemsArr);
+			  orderObj.put("tableId", getTablesForOrder(dao, hotelId, orderId));
+			  Order order = dao.getOrderById(hotelId, orderId);
+			  orderObj.put("customer", order.getCustomerName());
+			  orderObj.put("noOfGuests", order.getNumberOfGuests());
+			  orderObj.put("orderNumber", order.getOrderNumber());
+			  orderObj.put("customerName", order.getCustomerName());
+			  orderObj.put("customerAddress", order.getCustomerAddress());
+			  orderObj.put("customerNumber", order.getCustomerNumber());
+			  orderObj.put("inhouse", order.getInHouse());
+			  orderObj.put("orderId", order.getOrderId());
+			  orderObj.put("state", order.getState());
+			  orderObj.put("reason", order.getReason());
+			  orderObj.put("authId", order.getAuthId());
+			  orderObj.put("tableNumber", order.getTableId().length() == 3||order.getTableId().length() == 2 ? order.getTableId().replace(",", ""): order.getTableId());
+			  
+			  outObj.put("order",orderObj);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  @GET
+	  @Path("/v1/getReturnedItems")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getReturnedItems(@QueryParam("hotelId") String hotelId, @QueryParam("orderId") String orderId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<OrderItem> orderItems = dao.getReturnedItems(hotelId, orderId);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  itemDetails.put("reason", orderItems.get(i).getReason());
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("items", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getAllOrders")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllOrders(@QueryParam("hotelId") String hotelId, @QueryParam("dateFilter") String dateFilter
+			  , @QueryParam("query") String query) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  int orderState = 0;
+		  ArrayList<Order> order;
+		  if(dateFilter.length() > 0){
+			  dateFilter = dateFilter.substring(6, 10) + "/" + dateFilter.substring(3,6) + dateFilter.substring(0, 2);
+			  order = dao.getAllOrders(hotelId, dateFilter, query);
+		  }else {
+			  order = dao.getAllOrders(hotelId, dateFilter, query);
+		  }
+		  try {
+			  for(int i =0; i<order.size(); i++){
+				  
+				  orderState = order.get(i).getState();
+				  
+				  itemDetails = new JSONObject();
+				  itemDetails.put("orderId", order.get(i).getOrderId());
+				  itemDetails.put("orderNumber", order.get(i).getOrderNumber());
+				  itemDetails.put("customerName", order.get(i).getCustomerName());
+				  itemDetails.put("customerAddress", order.get(i).getCustomerAddress());
+				  itemDetails.put("orderDate", order.get(i).getOrderDate().toString().substring(0, 10));
+				  itemDetails.put("amountRecieved", dao.getTotalPaidAmount(hotelId, order.get(i).getOrderId()));
+				  itemDetails.put("inhouse", order.get(i).getInHouse());
+				  itemDetails.put("state", orderState);
+				  itemDetails.put("foodBill", order.get(i).getFoodBill());
+				  itemDetails.put("barBill", order.get(i).getBarBill());
+				  itemDetails.put("discount", orderState == 99 ? 0 : dao.getAppliedDiscount(hotelId, order.get(i).getOrderId()));
+				  itemDetails.put("billNo", order.get(i).getBillNo());
+				  itemsArr.put(itemDetails);
+			  }
+			  orderObj.put("orders", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return orderObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/deleteOrderedItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deteleOrderedItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  String type = inObj.getString("type");
+			  int quantity = inObj.getInt("qty");
+			 
+			  if(type.equals("return")){
+				  	quantity = quantity - 1;
+			  		dao.updateOrderItemLog(inObj.getString("hotelId"), inObj.getString("orderId"), inObj.getString("subOrderId"),
+					  inObj.getString("menuId"), inObj.getString("reason"), type, 1, inObj.getInt("rate"));
+			  		
+			  }else
+			  {
+				  	quantity = 0;
+			  		dao.updateOrderItemLog(inObj.getString("hotelId"), inObj.getString("orderId"), inObj.getString("subOrderId"),
+					  inObj.getString("menuId"), inObj.getString("reason"), type, inObj.getInt("qty"), inObj.getInt("rate"));
+			  }
+			  boolean isRemoved = dao.removeSubOrder(inObj.getString("hotelId"), inObj.getString("orderId"), inObj.getString("subOrderId"),
+					  inObj.getString("menuId"), quantity);
+			  
+			  if(isRemoved)
+				  dao.updateFoodBill(inObj.getString("hotelId"), inObj.getString("orderId"), inObj.getString("subOrderId"),
+						  inObj.getString("menuId"), quantity, true);
+			  
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/voidOrder")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String voidOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  dao.voidOrder(inObj.getString("hotelId"), inObj.getString("orderId"), inObj.getString("reason")
+					  , inObj.getString("authId"));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getCompletedOrders")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getCompletedOrders(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<Order> orderItems = dao.getAllOrders(hotelId, "", "");
+		  int state = 0;
+		  try {
+			  for(int i =0; i<orderItems.size(); i++){
+				  state = orderItems.get(i).getState();
+				  if(state == 1){
+					  itemDetails = new JSONObject();
+					  itemDetails.put("orderId", orderItems.get(i).getOrderId());
+					  itemDetails.put("tableId", orderItems.get(i).getTableId().length() == 3||orderItems.get(i).getTableId().length() == 2 ? orderItems.get(i).getTableId().replace(",", ""): orderItems.get(i).getTableId());
+					  itemDetails.put("customerName", orderItems.get(i).getCustomerName());
+					  itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
+					  itemDetails.put("customerNumber", orderItems.get(i).getCustomerNumber());
+					  itemDetails.put("orderNumber", orderItems.get(i).getOrderNumber());
+					  itemDetails.put("pax", orderItems.get(i).getNumberOfGuests());
+					  itemDetails.put("inhouse", orderItems.get(i).getInHouse());
+					  itemDetails.put("foodBill", orderItems.get(i).getFoodBill());
+					  itemDetails.put("barBill", orderItems.get(i).getBarBill());
+					  itemDetails.put("billNo", orderItems.get(i).getBillNo());
+					  itemsArr.put(itemDetails);
+				  }
+			  }
+			  orderObj.put("orders", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return orderObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getActiveOrders")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getActiveOrders(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<Order> orderItems = dao.getActiveOrders(hotelId);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("orderId", orderItems.get(i).getOrderId());
+				  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderItems.get(i).getOrderId()));
+				  itemDetails.put("customerName", orderItems.get(i).getCustomerName());
+				  itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
+				  itemDetails.put("customerNumber", orderItems.get(i).getCustomerNumber());
+				  itemDetails.put("orderNumber", orderItems.get(i).getOrderNumber());
+				  itemDetails.put("pax", orderItems.get(i).getNumberOfGuests());
+				  itemDetails.put("inhouse", orderItems.get(i).getInHouse());
+				  itemDetails.put("foodBill", orderItems.get(i).getFoodBill());
+				  itemDetails.put("barBill", orderItems.get(i).getBarBill());
+				  itemDetails.put("billNo", orderItems.get(i).getBillNo());
+				  itemsArr.put(itemDetails);
+			  }
+			  orderObj.put("orders", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return orderObj.toString();
+	  }
+	  
+	  private String getTablesForOrder(AccessManager dao, String hotelId, String orderId) {
+		  ArrayList<Table> joinedTables = dao.getJoinedTables(hotelId, orderId);
+		  if (joinedTables.size()==1) {
+			  return joinedTables.get(0).getTableId();
+		  }
+		  else {
+			  String tableIds = "[";
+			  for (int i=0;i<joinedTables.size();i++) {
+				  if (!tableIds.equals("[")) {
+					  tableIds += "," + joinedTables.get(i).getTableId();
+				  }
+				  else {
+					  tableIds += joinedTables.get(i).getTableId();
+				  }
+			  }
+			  tableIds += "]";
+			  return tableIds;
+		  }
+	  }
+	  
+	  @GET
+	  @Path("/v1/getKDSOrdersStateQueue")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getKDSOrdersStateQueue(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersStateQueue(hotelId);
+		  
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  
+				  itemDetails = new JSONObject();
+				  itemDetails.put("orderId", orderItems.get(i).getOrderId());
+				  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderItems.get(i).getOrderId()));
+				  itemDetails.put("subOrderDate", orderItems.get(i).getSubOrderDate());
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("station", orderItems.get(i).getStation());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  itemDetails.put("prepTime", orderItems.get(i).getPrepTime());
+				  itemDetails.put("station", orderItems.get(i).getStation());
+				  itemsArr.put(itemDetails);
+				  
+			  }
+			  outObj.put("items", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getKDSOrdersStateProcessing")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getKDSOrdersStateProcessing(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersStateProcessing(hotelId);
+		  
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  
+				  itemDetails = new JSONObject();
+				  itemDetails.put("orderId", orderItems.get(i).getOrderId());
+				  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderItems.get(i).getOrderId()));
+				  itemDetails.put("subOrderDate", orderItems.get(i).getSubOrderDate());
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("station", orderItems.get(i).getStation());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("specs", orderItems.get(i).getSpecs());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  itemDetails.put("prepTime", orderItems.get(i).getPrepTime());
+				  itemDetails.put("station", orderItems.get(i).getStation());
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("items", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getKDSOrdersListView")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getKDSOrdersListView(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersListView(hotelId);
+		  
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  
+				  itemDetails = new JSONObject();
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("orderId", orderItems.get(i).getOrderId());
+				  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderItems.get(i).getOrderId()));
+				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("qty", orderItems.get(i).getQty());
+				  itemDetails.put("specs", orderItems.get(i).getSpecs());
+				  itemDetails.put("state", orderItems.get(i).getOrderState());
+				  itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
+				  itemDetails.put("customerName", orderItems.get(i).getCustomerName());
+				  itemDetails.put("inhouse", orderItems.get(i).getInhouse());
+				  itemDetails.put("vegType", orderItems.get(i).getVegType());
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("items", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMenu")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMenu(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<MenuItem> orderItems = dao.getMenu(hotelId);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("category", orderItems.get(i).getCategory());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("description", orderItems.get(i).getDescription());
+				  itemDetails.put("flags", orderItems.get(i).getFlags());
+				  itemDetails.put("vegType", orderItems.get(i).getVegType());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("inHouseRate", orderItems.get(i).getInhouseRate());
+				  itemDetails.put("image", orderItems.get(i).getImage());
+				  itemDetails.put("costPrice", orderItems.get(i).getCostPrice());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMenuMP")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMenuMP(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<MenuItem> orderItems = dao.getMenuMP(hotelId);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("category", orderItems.get(i).getCategory());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("description", orderItems.get(i).getDescription());
+				  itemDetails.put("flags", orderItems.get(i).getFlags());
+				  itemDetails.put("vegType", orderItems.get(i).getVegType());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("inHouseRate", orderItems.get(i).getInhouseRate());
+				  itemDetails.put("image", orderItems.get(i).getImage());
+				  itemDetails.put("costPrice", orderItems.get(i).getCostPrice());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getDeliveryPersons")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getDeliveryPersons(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray personsArr = new JSONArray();
+		  JSONObject personDetails = null;
+		  ArrayList<Employee> persons = dao.getAllDeliveryEmployee(hotelId);
+		  try {
+			  for (int i=0;i<persons.size(); i++) {
+				  personDetails = new JSONObject();
+				  personDetails.put("deliveryPersonId", persons.get(i).getEmployeeId());
+				  personDetails.put("name", persons.get(i).getFirstName());
+				  
+				  personsArr.put(personDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return personsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMenuItem")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMenuItem(@QueryParam("hotelId") String hotelId,@QueryParam("menuId") String menuId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject itemDetails = new JSONObject();
+		   try {
+			   	  MenuItem orderItems = dao.getMenuById(hotelId, menuId);
+			   	  itemDetails.put("menuId", orderItems.getMenuId());
+				  itemDetails.put("category", orderItems.getCategory());
+				  itemDetails.put("title", orderItems.getTitle());
+				  itemDetails.put("description", orderItems.getDescription());
+				  itemDetails.put("flags", orderItems.getFlags());
+				  itemDetails.put("vegType", orderItems.getVegType());
+				  itemDetails.put("rate", orderItems.getRate());
+				  itemDetails.put("inhouseRate", orderItems.getInhouseRate());
+				  itemDetails.put("image", orderItems.getImage());
+				  itemDetails.put("preparationTime", orderItems.getPreparationTime());
+				  itemDetails.put("station", orderItems.getStation());
+				  itemDetails.put("costPrice", orderItems.getCostPrice());
+				  itemDetails.put("state", orderItems.getState());
+				  itemDetails.put("shortForm", orderItems.getShortForm());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemDetails.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMenuItemBySearch")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMenuItemBySearch(@QueryParam("hotelId") String hotelId,@QueryParam("query") String query) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<MenuItem> orderItems = dao.getMenuItemBySearch(hotelId, query);
+		  try {
+			  for (int i=0;i<orderItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				  itemDetails.put("category", orderItems.get(i).getCategory());
+				  itemDetails.put("title", orderItems.get(i).getTitle());
+				  itemDetails.put("description", orderItems.get(i).getDescription());
+				  itemDetails.put("flags", orderItems.get(i).getFlags());
+				  itemDetails.put("vegType", orderItems.get(i).getVegType());
+				  itemDetails.put("rate", orderItems.get(i).getRate());
+				  itemDetails.put("inHouseRate", orderItems.get(i).getInhouseRate());
+				  itemDetails.put("image", orderItems.get(i).getImage());
+				  itemDetails.put("costPrice", orderItems.get(i).getCostPrice());
+				  itemDetails.put("state", orderItems.get(i).getState());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/newOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String newOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  JSONArray tablesArr = inObj.getJSONArray("tableIds");
+			  String[] tableIds = new String[tablesArr.length()];
+			  for (int i=0;i<tableIds.length;i++) {
+				  tableIds[i] = tablesArr.getString(i);
+			  }
+			  outObj = dao.newOrder(inObj.getString("hotelId"), inObj.getString("userId"), tableIds, inObj.getInt("peopleCount"), inObj.getString("customer"));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/newOrder2")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String newOrder2(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  JSONArray tablesArr = inObj.getJSONArray("tableIds");
+			  String[] tableIds = new String[tablesArr.length()];
+			  for (int i=0;i<tableIds.length;i++) {
+				  tableIds[i] = tablesArr.getString(i);
+			  }
+			  outObj = dao.newOrder2(inObj.getString("hotelId"), inObj.getString("userId"), tableIds, inObj.getInt("peopleCount"), inObj.getString("customer"), inObj.getString("contactNumber"));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/editOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String editOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(true);
+		  try {
+			  dao.beginTransaction();
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  JSONArray newItems = inObj.getJSONArray("newItems");
+			  String subOrderId = dao.getNextSubOrderId(inObj.getString("hotelId"), inObj.getString("orderId"));
+			  for (int i=0;i<newItems.length();i++) {
+				  JSONObject subOrder = null;
+				  subOrder = dao.newSubOrder(inObj.getString("hotelId"),
+						  inObj.getString("orderId"), 
+						  newItems.getJSONObject(i).getString("menuId"), 
+						  newItems.getJSONObject(i).getInt("qty"), newItems.getJSONObject(i).getString("spec"),
+						  subOrderId);
+				  if (subOrder==null || subOrder.getInt("status")==-1) {
+					  dao.rollbackTransaction();
+					  if (subOrder != null) {
+						  outObj.put("message", subOrder.get("message"));
+					  }
+					  return outObj.toString();
+				  }
+			  }
+			  JSONArray changeStateItems = inObj.getJSONArray("changeStateItems");
+			  for (int i=0;i<changeStateItems.length();i++) {
+				  if(!dao.changeOrderStatus(inObj.getString("hotelId"),inObj.getString("orderId"), changeStateItems.getJSONObject(i).getString("subOrderId"),changeStateItems.getJSONObject(i).getString("menuId")))
+				  {
+					  dao.rollbackTransaction();
+					  outObj.put("message", "Failed to close sub order");
+					  return outObj.toString();
+				  }
+			  }
+			  JSONArray changeQtyItems = inObj.getJSONArray("changeQtyItems");
+			  for (int i=0;i<changeQtyItems.length();i++) {
+				  if (!dao.editSubOrder(inObj.getString("hotelId"),inObj.getString("orderId"), changeQtyItems.getJSONObject(i).getString("subOrderId"),
+						  changeQtyItems.getJSONObject(i).getString("menuId"), changeQtyItems.getJSONObject(i).getInt("qty")))
+				  {
+					  dao.rollbackTransaction();
+					  outObj.put("message", "Failed to edit sub order");
+					  return outObj.toString();
+				  }
+				  else
+					  dao.updateFoodBill(inObj.getString("hotelId"),inObj.getString("orderId"), changeQtyItems.getJSONObject(i).getString("subOrderId"), 
+							  changeQtyItems.getJSONObject(i).getString("menuId"), 1, true);
+			  }
+			  outObj.put("status", 0);
+			  outObj.put("message", "Edited order successfully!");
+			  dao.commitTransaction();
+		  }
+		  catch(Exception e) {
+			  dao.rollbackTransaction();
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/editStatus")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String editStatus(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(true);
+		  dao.beginTransaction();
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  if (!dao.changeOrderStatus(inObj.getString("hotelId"),inObj.getString("orderId"), inObj.optString("subOrderId"), inObj.optString("menuId")))
+			  {
+				  dao.rollbackTransaction();
+				  outObj.put("message", "Failed to change status");
+				  return outObj.toString();
+			  }
+			  outObj.put("status", 0);
+			  outObj.put("message", "Edited order successfully!");
+			  dao.commitTransaction();
+		  }
+		  catch(Exception e) {
+			  dao.rollbackTransaction();
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/changeOrderStatus")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String changeOrderStatus(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(true);
+		  dao.beginTransaction();
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  if (!dao.changeOrderStatus(inObj.getString("hotelId"),inObj.getString("orderId")))
+			  {
+				  dao.rollbackTransaction();
+				  outObj.put("message", "Failed to change status");
+				  return outObj.toString();
+			  }
+			  outObj.put("status", 0);
+			  outObj.put("message", "Edited order successfully!");
+			  dao.commitTransaction();
+		  }
+		  catch(Exception e) {
+			  dao.rollbackTransaction();
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/checkoutOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String checkoutOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  inObj = new JSONObject(jsonObject);
+			  if (!dao.checkOutOrder(inObj.getString("hotelId"),inObj.getString("orderId"))) {
+				  outObj.put("status", -1);
+				  outObj.put("message", "Failed to checkout order");
+			  }
+			  else {
+				  outObj.put("status", 0);
+				  outObj.put("message", "checkout order successful");
+			  }
+		  }
+		  catch (Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/assignDeliveryAndCheckoutOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String assignAndCheckoutOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  inObj = new JSONObject(jsonObject);
+			  if (!dao.checkOutOrder(inObj.getString("hotelId"),inObj.getString("orderId"), inObj.getString("deliveryPersonId"))) {
+				  outObj.put("status", -1);
+				  outObj.put("message", "Failed to checkout order");
+			  }
+			  else {
+				  outObj.put("status", 0);
+				  outObj.put("message", "checkout order successful");
+			  }
+		  }
+		  catch (Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/submitRatings")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String submitRatings(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  inObj = new JSONObject(jsonObject);
+			  if (!dao.submitRatings(inObj.getString("hotelId"),inObj.getString("orderId"), inObj.getString("customerName"),
+					  inObj.getString("customerNumber"), inObj.getString("customerBirthdate"), inObj.getString("customerAnniversary"), 
+					  inObj.getString("reviewSuggestions"),  inObj.getJSONObject("ratings"))) {
+				  outObj.put("status", -1);
+				  outObj.put("message", "Failed to submit ratings");
+			  }
+			  else {
+				  outObj.put("status", 0);
+				  outObj.put("message", "Ratings submitted successful");
+			  }
+		  }
+		  catch (Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getActiveHomeDeliveries")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getActiveHomeDeliveries(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray deliveriesArr = new JSONArray();
+		  JSONObject deliveryDetails = null;
+		  ArrayList<AccessManager.HomeDelivery> homeDeliveries = dao.getActiveHomeDeliveries(hotelId, userId);
+		  try {
+			  for (int i=0;i<homeDeliveries.size(); i++) {
+				  deliveryDetails = new JSONObject();
+				  deliveryDetails.put("customer", homeDeliveries.get(i).getCustomer());
+				  deliveryDetails.put("phone", homeDeliveries.get(i).getMobileNo());
+				  deliveryDetails.put("address", homeDeliveries.get(i).getAddress());
+				  deliveryDetails.put("orderId", homeDeliveries.get(i).getOrderId());
+				  deliveryDetails.put("state", dao.getHomeDeliveryOrderState(hotelId, homeDeliveries.get(i).getOrderId()));
+				  deliveryDetails.put("total", dao.getOrderTotal(hotelId, homeDeliveries.get(i).getOrderId()));
+				  deliveriesArr.put(deliveryDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return deliveriesArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getActiveTakeAway")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getActiveTakeAway(@QueryParam("hotelId") String hotelId, @QueryParam("userId") String userId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray deliveriesArr = new JSONArray();
+		  JSONObject deliveryDetails = null;
+		  ArrayList<AccessManager.HomeDelivery> homeDeliveries = dao.getActiveTakeAway(hotelId, userId);
+		  try {
+			  for (int i=0;i<homeDeliveries.size(); i++) {
+				  deliveryDetails = new JSONObject();
+				  deliveryDetails.put("customer", homeDeliveries.get(i).getCustomer());
+				  deliveryDetails.put("phone", homeDeliveries.get(i).getMobileNo());
+				  deliveryDetails.put("orderId", homeDeliveries.get(i).getOrderId());
+				  deliveryDetails.put("state", dao.getHomeDeliveryOrderState(hotelId, homeDeliveries.get(i).getOrderId()));
+				  deliveryDetails.put("total", dao.getOrderTotal(hotelId, homeDeliveries.get(i).getOrderId()));
+				  deliveriesArr.put(deliveryDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return deliveriesArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getCustomerDetails")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getCustomerDetails(@QueryParam("hotelId") String hotelId, @QueryParam("mobileNo") String mobileNo) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject out = new JSONObject();
+		  AccessManager.Customer customer = dao.getCustomerDetails(hotelId, mobileNo);
+		  try {
+			  out.put("customer", "");
+			  out.put("address", "");
+			  if (customer!=null ) {
+				  out.put("customer", customer.getCustomer());
+				  out.put("address", customer.getAddress());
+				  out.put("mobileNo",customer.getMobileNo());
+				  out.put("birthdate", customer.getBirthdate());
+				  out.put("anniversary", customer.getAnniversary());
+				  out.put("isPriviledged", customer.getIsPriviledged());
+				  out.put("remarks", customer.getRemarks());
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return out.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getAllCustomerDetails")	
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllCustomerDetails(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  
+		  JSONArray cusArray  = new JSONArray();
+		  ArrayList<Customer> customers = dao.getAllCustomerDetails(hotelId);
+		 // for (Customer c: customers)
+			//  System.out.println(c.getCustomer());
+		  
+		 //System.out.println("WAIT");
+		  try {
+			  if (customers!=null ) {
+				  for (int i=0;i<customers.size();i++) {
+				  JSONObject out = new JSONObject();
+				  out.put("customerName", customers.get(i).getCustomer());
+				  out.put("address", customers.get(i).getAddress());
+				  out.put("birthdate", customers.get(i).getBirthdate());
+				  out.put("anniversary", customers.get(i).getAnniversary());
+				  out.put("mobileNo", customers.get(i).getMobileNo());
+				  out.put("isPriviledged", customers.get(i).getIsPriviledged());
+				  out.put("remarks", customers.get(i).getRemarks());
+				  cusArray.put(out);
+				  //System.out.println(customers.get(i).getCustomer());
+			  }
+			  }
+			  for (int i=0; i<cusArray.length();i++) { } 
+				  //System.out.println(cusArray.get(i));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return cusArray.toString();
+	  }
+	  @POST
+	  @Path("/v1/updateCustomer")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON) //JASON
+	  public String updateCustomer(String jsonObject) {
+		  boolean result = false; 
+		  try {
+			  JSONObject inObj = new JSONObject(jsonObject);
+			  JSONObject outObj = new JSONObject();
+			  System.out.println("callEd");
+			  System.out.println(inObj);
+			  System.out.println(inObj.get("birthday"));
+			  AccessManager dao = new AccessManager(false);
+			  result = dao.updateCustomer(inObj.getString("name"),
+					  inObj.getString("address"),
+					  inObj.getString("mobnumber"),
+					  inObj.getString("birthday"),
+					  inObj.getString("anni"),
+					  inObj.getString("remarks"));
+		  } catch (JSONException je) { }
+		  return result ? "true" : "false";
+	  }
+
+	  @POST
+	  @Path("/v1/newHomeDeliveryOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String newHomeDeliveryOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  outObj = dao.newHomeDeliveryOrder(inObj.getString("hotelId"), inObj.getString("userId"), inObj.getString("customer"),inObj.getString("mobile"),inObj.getString("address"));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/newTakeAwayOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String newTakeAwayOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  outObj = dao.newTakeAwayOrder(inObj.getString("hotelId"), inObj.getString("userId"), inObj.getString("customer"),inObj.getString("mobile"));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/cancelOrder")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String cancelOrder(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(true);
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("message","Unknown Error");
+			  inObj = new JSONObject(jsonObject);
+			  dao.beginTransaction();
+			  if (!dao.cancelOrder(inObj.getString("hotelId"), inObj.getString("orderId"))) {
+				  dao.rollbackTransaction();
+				  outObj.put("message","Failed to cancel the order");
+				  return outObj.toString();
+			  }
+			  dao.commitTransaction();
+			  outObj.put("status", true);
+			  outObj.put("message","Success");
+			  return outObj.toString();
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  private int getTargetOrders(JSONArray weeklyOrders) {
+		  int max = Configurator.getMinOrders();
+		  try {
+			  for (int i=0; i<weeklyOrders.length();i++) {
+				  max = Math.max(max, weeklyOrders.getJSONObject(i).getInt("count"));
+			  }
+		  }
+		  catch (Exception e) {
+			  e.printStackTrace();
+		  }
+		  return max;
+	  }
+
+	  private JSONObject getDayStats(String hotelId, String userId, Date dt) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject dayStats = new JSONObject();
+		  try {
+			  dayStats.put("count", dao.getOrderCount(hotelId, userId, dt));
+			  dayStats.put("points_ambiance", dao.getAmbiancePoints(hotelId, userId, dt));
+			  dayStats.put("points_qof", dao.getQoFPoints(hotelId, userId, dt));
+			  dayStats.put("points_service", dao.getServicePoints(hotelId, userId, dt));
+			  dayStats.put("points_hygiene", dao.getHygienePoints(hotelId, userId, dt));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return dayStats;
+	  }
+	  
+	  private JSONObject getRating(JSONArray weeklyOrders) {
+		  JSONObject outObj = new JSONObject();
+		  int ambiance=0, qof=0,service=0, hygiene=0, count=0;
+		  
+		  try {
+			  for (int i=0;i<weeklyOrders.length();i++) {
+				  count += weeklyOrders.getJSONObject(i).getInt("count");
+				  ambiance += weeklyOrders.getJSONObject(i).getInt("points_ambiance");
+				  qof += weeklyOrders.getJSONObject(i).getInt("points_qof");
+				  service += weeklyOrders.getJSONObject(i).getInt("points_service");
+				  hygiene += weeklyOrders.getJSONObject(i).getInt("points_hygiene");
+			  }
+			  outObj.put("ambianceRating", (count!=0)?Math.round(ambiance/count):0);
+			  outObj.put("qualityOfFoodRating", (count!=0)?Math.round(qof/count):0);
+			  outObj.put("serviceRating", (count!=0)?Math.round(service/count):0);
+			  outObj.put("hygiene", (count!=0)?Math.round(hygiene/count):0);
+		  }
+		  catch (Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj;
+	  }
+	 
+	  @Path("/version")
+	  @GET
+	  @Produces(MediaType.TEXT_HTML)
+	  public String returnVersion() {
+	    return "<p>Version: " + api_version + "</p>";
+	  }
+	   
+	  @POST
+		@Path("/v1/upload")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		public String uploadFile(@FormDataParam("hotelId") String hotelId, 
+								@FormDataParam("directory") String directory,
+								@FormDataParam("image_file") InputStream uploadedInputStream, 
+								@FormDataParam("image_file") FormDataContentDisposition fileDetail, 
+								@FormDataParam("itemId") String itemId, 
+								@FormDataParam("category") String category) throws Exception {
+		    OutputStream os = null;
+		    String originalName = fileDetail.getFileName();
+		    try {
+		    	String[] ext = originalName.split("\\.");
+		        
+		        String fileName = itemId + "." + ext[ext.length - 1];
+		        
+		        File fileToUpload = new File(Configurator.getImagesLocation()+"/hotels/"+hotelId+"/"+directory+"/"+fileName); 
+				    	
+		        os = new FileOutputStream(fileToUpload);
+		        byte[] b = new byte[2048];
+		        int length;
+		        while ((length = uploadedInputStream.read(b)) != -1) {
+		            os.write(b, 0, length);
+		        }
+		    } catch (IOException ex) {
+		        ex.printStackTrace();
+		    } finally {
+		        try {
+		            os.close();
+		        } catch (IOException ex) {
+		            ex.printStackTrace();
+		        }
+		    }
+		    return originalName;
+		}
+	  
+	  public boolean deleteFile(String hotelId, String originalName, String folder){
+	     File fileToDelete = new File(Configurator.getImagesLocation()+"/hotels/"+hotelId+ folder + originalName);
+	     return fileToDelete.delete();
+	  }
+
+	  @GET
+	  @Path("/v1/getStations")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getStations(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<KitchenStation> stations = dao.getKitchenStations(hotelId);
+		  try {
+			  for (int i=0;i<stations.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("station", stations.get(i).getStation());
+				  itemsArr.put(itemDetails);
+			  }
+			  orderObj.put("st", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return orderObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/deleteItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deteleItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteItem(inObj.getString("hotelId"), inObj.getString("menuId")));
+			  deleteFile(inObj.getString("hotelId"), inObj.getString("menuId") + ".jpg", "MenuItems");
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/deleteCollection")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deleteCollection(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteCollection(inObj.getString("hotelId"), inObj.getString("collectionName")));
+			  deleteFile(inObj.getString("hotelId"), inObj.getString("collectionName") + ".jpg", "Collections");
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/deleteUser")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deteleUser(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteUser(inObj.getString("hotelId"), inObj.getString("userId")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/isExistingDiscount")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String isExistingDiscount(@QueryParam("hotelId") String hotelId, @QueryParam("name") String name) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  if(dao.discountExists(hotelId, name)){
+				  outObj.put("status", true);
+				  outObj.put("usageLimit", dao.getDiscountUsageLimit(hotelId, name));
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+
+	  @POST
+	  @Path("/v1/addDiscount")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addDiscount(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  if(dao.discountExists(inObj.getString("hotelId"),inObj.getString("name"))){
+				  outObj.put("status", false);
+				  outObj.put("error", "Item Exists");
+			  }else{
+			  outObj.put("status",dao.addDiscount(inObj.getString("hotelId"),inObj.getString("name"), inObj.getString("description"), inObj.getInt("type"), 
+					  inObj.getInt("value"), inObj.getString("startDate"), inObj.getString("expiryDate"), inObj.getString("usageLimit")));
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/editDiscount")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  public String editDiscount(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.editDiscount(inObj.getString("hotelId"),inObj.getString("name"), inObj.getString("description"), inObj.getInt("type"), 
+					  inObj.getInt("value"), inObj.getString("startDate"), inObj.getString("expiryDate"), inObj.getString("usageLimit")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getAllDiscounts")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllDiscounts(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray discountArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject discountDetails = null;
+		  ArrayList<Discount> discountItems = dao.getAllDiscounts(hotelId);
+		  try {
+			  for (int i=0;i<discountItems.size(); i++) {
+			  	  discountDetails = new JSONObject();
+			   	  discountDetails.put("name", discountItems.get(i).getName());
+			   	  discountDetails.put("description", discountItems.get(i).getDescription());
+			   	  discountDetails.put("type", discountItems.get(i).getType());
+			   	  discountDetails.put("value", discountItems.get(i).getValue());
+			   	  discountDetails.put("startDate", discountItems.get(i).getStartDate());
+			   	  discountDetails.put("expiryDate", discountItems.get(i).getExpiryDate());
+			   	  discountDetails.put("usageLimit", discountItems.get(i).getUsageLimit());
+			   	  discountArr.put(discountDetails);
+			  }
+			  outObj.put("discounts", discountArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getDiscount")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getDiscount(@QueryParam("hotelId") String hotelId, @QueryParam("name") String name) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject discountDetails = new JSONObject();
+		  try {
+			  	  Discount discount = dao.getDiscountByName(hotelId, name);
+			  	  discountDetails = new JSONObject();
+			   	  discountDetails.put("name", discount.getName());
+			   	  discountDetails.put("description", discount.getDescription());
+			   	  discountDetails.put("type", discount.getType());
+			   	  discountDetails.put("value", discount.getValue());
+			   	  discountDetails.put("startDate", discount.getStartDate());
+			   	  discountDetails.put("expiryDate", discount.getExpiryDate());
+			   	  discountDetails.put("usageLimit", discount.getUsageLimit());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return discountDetails.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/deleteDiscount")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deleteDiscount(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteDiscount(inObj.getString("hotelId"), inObj.getString("name")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+		private String getPreviousDateString(int day) {
+		    DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
+		    Calendar cal = Calendar.getInstance();
+		    cal.add(Calendar.DATE, day*(-1));    
+		    return dateFormat.format(cal.getTime());
+		}
+	  
+	  @GET
+	  @Path("/v1/getStatistics")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getStatistics(@QueryParam("hotelId") String hotelId, @QueryParam("duration") String duration
+			  , @QueryParam("serviceDate") String serviceDate) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  MonthReport report = dao.getTotalOrdersForCurMonth(hotelId, duration);
+			  outObj.put("totalOrders", report.getTotalOrders());
+			  report = dao.getBestWaiter(hotelId, duration);
+			  if(report == null){
+				  outObj.put("waiterName", "None Yet");
+				  outObj.put("waitersOrders", "0");
+			  }else{
+				  outObj.put("waiterName", dao.getEmployeeById(hotelId, report.getBestWaiter()).getFullName());
+				  outObj.put("waitersOrders", report.getTotalOrderByWaiter());
+				  outObj.put("waitersImage", "/hotels/"+hotelId+"/Employees/"+report.getBestWaiter() + ".jpg");
+				  outObj.put("waiterHireDate", dao.getEmployeeById(hotelId, report.getBestWaiter()).getHiringDate());
+			  }
+					  
+			  report = dao.getMaxOrderedItem(hotelId, duration);
+			  if(report == null){
+				  outObj.put("title", "None Yet");
+				  outObj.put("orderCount", "0");
+			  }else{
+				  outObj.put("title", report.getBestItem());
+				  outObj.put("menuId", report.getItemId());
+				  outObj.put("orderCount", report.getItemOrderCount());
+			  }
+			  
+			  outObj.put("cashBalance", dao.getCashBalance(hotelId));
+			  //String imageLocation = Configurator.getImagesLocation()+"/hotels/"+hotelId+"/MenuItems/"+report.getItemId();
+			  //if(report.getItemImage() == "1")
+			  //{
+				  
+			  //}
+			  
+			  //outObj.put("itemImage", report.getItemImage());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getSales")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getSales(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject tempObj = null;
+		  JSONArray revenueArr = new JSONArray();
+		  ArrayList<MonthReport> weeklyRevenue = dao.getWeeklyRevenue(hotelId);
+		  try {
+			  outObj.put("status", false);
+			  for(int i=0; i<weeklyRevenue.size(); i++){
+				  tempObj = new JSONObject();
+				  tempObj.put("daySale", weeklyRevenue.get(i).getTotalSales());
+				  revenueArr.put(tempObj);
+			  }
+			  outObj.put("revenue", revenueArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getYearlySales")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getYearlySales(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject tempObj = null;
+		  JSONArray revenueArr = new JSONArray();
+		  ArrayList<YearlyReport> yearReport = dao.getYearlyOrders(hotelId);
+		  try {
+			  outObj.put("status", false);
+			  for(int i=0; i<yearReport.size(); i++){
+				  tempObj = new JSONObject();
+				  tempObj.put("orders", yearReport.get(i).getTotalOrders());
+				  tempObj.put("month", yearReport.get(i).getMonth());
+				  tempObj.put("monthName", yearReport.get(i).getMonthName());
+				  revenueArr.put(tempObj);
+			  }
+			  outObj.put("report", revenueArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/getNextNotification")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getNextNotification(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  Notification notif = dao.getNextNotification(inObj.getString("hotelId"), inObj.getString("userId"));
+			  if (notif != null) {
+				  outObj.put("status", true);
+				  JSONArray tableArr = new JSONArray();
+				  ArrayList<Table> tables = dao.getJoinedTables(notif.getHotelId(), notif.getOrderId());
+				  for (int i=0;i<tables.size();i++) {
+					  tableArr.put(tables.get(i).getTableId());
+				  }
+				  outObj.put("tables", tableArr);
+				  outObj.put("msg", notif.getMsg());
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getDesignation")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getDesignation() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(Designation des : Designation.values()) {
+				  JSONObject obj = new JSONObject();
+				  if(des == Designation.UNAUTHORIZED) continue;
+				  obj.put("designation", des);
+				  outArr.put(obj);
+			  }
+			  outObj.put("designations", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getCardType")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getCardType() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(CardType des : CardType.values()) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("cardType", des);
+				  outArr.put(obj);
+			  }
+			  outObj.put("cards", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getDepartment")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getDepartment() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(Department des : Department.values()) {
+				  JSONObject obj = new JSONObject();
+				  if(des == Department.UNKNOWN) continue;
+				  obj.put("department", des);
+				  outArr.put(obj);
+			  }
+			  outObj.put("departments", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getUserType")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getUserType() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(UserType des : UserType.values()) {
+				  JSONObject obj = new JSONObject();
+				  if(des == UserType.UNAUTHORIZED) continue;
+				  obj.put("userType", des);
+				  outArr.put(obj);
+			  }
+			  outObj.put("userTypes", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getAllTaxes")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getAllTaxes(@QueryParam("hotelId") String hotelId) {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  Hotel hotel = dao.getHotelById(hotelId);
+			  String[] taxes = hotel.getFlags().split(";");
+			  for(TaxTypes tax : TaxTypes.values()) {
+				  JSONObject obj = new JSONObject();
+				  if(tax == TaxTypes.INVALID) continue;
+				  obj.put("name", tax.getName());
+				  obj.put("percent", tax.getTaxPercent());
+				  obj.put("abbr", tax.toString());
+				  obj.put("value", tax.getValue());
+				  int checker = 0;
+				  for(String flag : taxes){
+					  if(flag.equals(tax.toString()))
+						  checker = 1;
+				  }
+				  obj.put("exists", checker);
+				  outArr.put(obj);
+			  }
+			  outObj.put("taxes", outArr);
+			  outObj.put("status",true);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/setTaxForHotel")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String setTaxForHotel(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  outObj.put("status",dao.updateHotelFlags(inObj.getString("hotelId"), inObj.getString("flags")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addPayment")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addPayment(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  String hotelId = inObj.getString("hotelId");
+
+			  boolean status = dao.addPayment(hotelId, inObj.getString("orderId"), inObj.getString("orderDate"), 
+					  inObj.getDouble("foodBill"), inObj.getDouble("barBill"), inObj.getDouble("discount"), inObj.getDouble("total"), 
+					  inObj.getDouble("gst"), inObj.getDouble("tip"), inObj.getDouble("cashPayment"), 
+					  inObj.getDouble("cardPayment"), inObj.getString("discountName"), inObj.getString("cardType"));
+
+			  if(status){
+				  dao.markPaymentComplete(inObj.getString("hotelId"), inObj.getString("orderId"));
+				  if(inObj.getInt("cashPayment") > 0){
+					  dao.updateCashBalance(hotelId, dao.getCashBalance(hotelId) + inObj.getInt("cashPayment"));
+				  }
+			  }
+			  
+			  if(!inObj.getString("discountName").equals("")){
+				  Discount discount = dao.getDiscountByName(inObj.getString("hotelId"), inObj.getString("discountName"));			  
+				  if(!discount.getUsageLimit().equals("Unlimited")){
+					  final int usageLimit = Integer.parseInt(discount.getUsageLimit())-1;
+					  dao.updateUsageLimit(inObj.getString("hotelId"), discount.getName(), usageLimit);
+				  }
+			  }
+			  
+			  outObj.put("status", status);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  
+	  @POST
+	  @Path("/v1/updatePaymentForReturn")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updatePaymentForReturn(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  String hotelId = inObj.getString("hotelId");
+
+			  boolean status = dao.updatePaymentForReturn(hotelId, inObj.getString("orderId"), 
+					  inObj.getDouble("foodBill"), inObj.getDouble("barBill"), inObj.getDouble("discount"), inObj.getDouble("total"), 
+					  inObj.getDouble("serviceCharge"), inObj.getDouble("serviceTax"), inObj.getDouble("gst"), inObj.getDouble("VATFOOD"), 
+					  inObj.getDouble("VATBAR"), inObj.getDouble("sbCess"), inObj.getDouble("kkCess"),
+					  inObj.getDouble("cashPayment"), inObj.getDouble("cardPayment"));
+
+			  if(status){
+				  if(inObj.getInt("cashPayment") > 0){
+					  dao.updateCashBalance(hotelId, dao.getCashBalance(hotelId) - inObj.getInt("cashPayment"));
+				  }
+			  }
+			  
+			  outObj.put("status", status);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  /**Stock*/
+	  
+	  private double convertUnit(double number, Unit unit, boolean toMultiply){
+		  
+		  for(Unit unitType: Unit.values()){
+			  if (unit != unitType){
+				  continue;
+			  }
+			  if(toMultiply){
+				  if(unitType.getConversion() == 0.001){
+					  number = number/1000;
+				  }else{
+					  number = number*unitType.getConversion();
+				  }
+			  }else{
+				  if (unit == unitType){
+					  number = number/unitType.getConversion();
+				  }
+			  }
+			  break;
+		  }
+		  return number;
+	  }
+	  
+	  private String filterUnitToDisplay(String unit){
+		  
+		if(unit.equals("TABLESPOONGM"))
+			return "TABLESPOON (GM)";
+		else if(unit.equals("TABLESPOONML"))
+			return "TABLESPOON (ML)";
+		else if(unit.equals("TEASPOONGM"))
+			return "TEASPOON (GM)";
+		else if(unit.equals("TEASPOONML"))
+			return "TEASPOON (ML)";
+		else 
+			return unit;
+	  }
+	  
+	  private String filterUnitToStore(String unit){
+			  
+		if(unit.equals("TABLESPOON (GM)"))
+			unit = "TABLESPOONGM";
+		else if(unit.equals("TABLESPOON (ML)"))
+			unit = "TABLESPOONML";
+		else if(unit.equals("TEASPOON (GM)"))
+			unit = "TEASPOONGM";
+		else if(unit.equals("TEASPOON (ML)"))
+			unit = "TEASPOONML";
+  		
+  		return unit;
+	  }
+	  
+	  @GET
+	  @Path("/v1/getStock")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getStock(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getStock(hotelId);
+		  double ratePerUnit = 0.0;
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				ratePerUnit = stockItems.get(i).getRatePerUnit();
+				unit.setValue(ratePerUnit);
+			  
+				itemDetails = new JSONObject();
+				itemDetails.put("name", stockItems.get(i).getName());
+				itemDetails.put("unit", filterUnitToDisplay(unit.toString()));
+				itemDetails.put("ratePerUnit", convertUnit(ratePerUnit, unit, false));
+				itemDetails.put("wastage", stockItems.get(i).getWastage());
+				itemDetails.put("sku", stockItems.get(i).getSku());
+				itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+			  
+				itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMaterial")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMaterial(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getMaterial(hotelId);
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", unit.toString());
+				  itemDetails.put("doe", stockItems.get(i).getDOE());
+				  itemDetails.put("displayableUnit", filterUnitToDisplay(stockItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("ratePerUnit", convertUnit(stockItems.get(i).getRatePerUnit(), unit, false));
+				  itemDetails.put("minQuantity", convertUnit(stockItems.get(i).getMinQuantity(), unit, true));
+				  itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMaterialByName")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMaterialByName(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getMaterialByName(hotelId);
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", unit.toString());
+				  itemDetails.put("doe", stockItems.get(i).getDOE());
+				  itemDetails.put("displayableUnit", filterUnitToDisplay(stockItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("ratePerUnit", convertUnit(stockItems.get(i).getRatePerUnit(), unit, false));
+				  itemDetails.put("minQuantity", convertUnit(stockItems.get(i).getMinQuantity(), unit, true));
+				  itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getExpiringStock")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getExpiringStock(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getExpiringStock(hotelId);
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  itemDetails = new JSONObject();
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", filterUnitToDisplay(stockItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  itemDetails.put("doc", stockItems.get(i).getDOC());
+				  itemDetails.put("doe", stockItems.get(i).getDOE());
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getStockRunningOut")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getStockRunningOut(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getStockRunningOut(hotelId);
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", filterUnitToDisplay(stockItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  itemDetails.put("minQuantity", convertUnit(stockItems.get(i).getMinQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addMaterial")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addMaterial(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  String doe = "";
+		  Date date;
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  Unit unit = Unit.valueOf(filterUnitToStore(inObj.getString("unit")));
+			  double ratePerUnit = inObj.getDouble("ratePerUnit");
+			  double minQuantity = inObj.getDouble("minQuantity");
+			  double quantity = inObj.getDouble("quantity");
+			  String hotelId = inObj.getString("hotelId");
+			  String name = inObj.getString("name");
+			  unit.setValue(ratePerUnit);
+			  for(Unit unitType: Unit.values()){
+				  if (unit == unitType){
+					  ratePerUnit = ratePerUnit*unitType.getConversion();
+					  minQuantity = minQuantity/unitType.getConversion();
+					  quantity = quantity/unitType.getConversion();
+					  break;
+				  }
+			  }
+			  
+			  doe = inObj.getString("doe");
+			  if(!doe.equals("")){
+				  DateFormat dateFormat = new SimpleDateFormat("dd/mm/yyyy");
+				  date = dateFormat.parse(doe);
+				  dateFormat = new SimpleDateFormat("yyyy/mm/dd");
+				  Calendar cal = Calendar.getInstance();
+				  cal.setTime(date);
+				  doe = dateFormat.format(cal.getTime());
+			  }
+			  if(dao.materialExists(hotelId, name)){
+				  outObj.put("status", false);
+				  outObj.put("error", "Item Exists");
+			  }else{
+				  outObj.put("status", dao.addMaterial(inObj.getString("hotelId"),inObj.getString("name"),
+						  ratePerUnit, minQuantity, quantity, doe, inObj.getInt("wastage"),
+						  Unit.valueOf(unit.getAssociation()).toString(), unit.toString()));
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getStockItemBySearch")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getStockItemBySearch(@QueryParam("hotelId") String hotelId,@QueryParam("query") String query) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getStockItemBySearch(hotelId, query);
+		  double ratePerUnit = 0.0;
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  ratePerUnit = stockItems.get(i).getRatePerUnit();
+				  unit.setValue(ratePerUnit);
+				  
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", filterUnitToStore(unit.toString()));
+				  itemDetails.put("ratePerUnit",  convertUnit(ratePerUnit, unit, false));
+				  itemDetails.put("wastage", stockItems.get(i).getWastage());
+				  itemDetails.put("quantity",  convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getMaterialBySearch")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMaterialBySearch(@QueryParam("hotelId") String hotelId,@QueryParam("query") String query) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> stockItems = dao.getMaterialBySearch(hotelId, query);
+		  Unit unit = Unit.GRAM;
+		  double ratePerUnit = 0.0;
+		  
+		  try {
+			  for (int i=0;i<stockItems.size(); i++) {
+				  unit = Unit.valueOf(stockItems.get(i).getDisplayableUnit());
+				  ratePerUnit = stockItems.get(i).getRatePerUnit();
+				  unit.setValue(ratePerUnit);
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", stockItems.get(i).getSku());
+				  itemDetails.put("name", stockItems.get(i).getName());
+				  itemDetails.put("unit", unit.toString());
+				  itemDetails.put("displayableUnit", filterUnitToDisplay(stockItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("ratePerUnit", convertUnit(ratePerUnit, unit, false));
+				  itemDetails.put("minQuantity", convertUnit(stockItems.get(i).getMinQuantity(), unit, true));
+				  itemDetails.put("quantity", convertUnit(stockItems.get(i).getQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemsArr.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getOneMaterial")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getOneMaterial(@QueryParam("hotelId") String hotelId,@QueryParam("sku") String query) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject itemDetails = null;
+		  Stock stockItems = dao.getOneMaterial(hotelId, query);
+		  Unit unit = Unit.GRAM;
+		  Date date;
+		  String doe = "";
+		  
+		  try {
+			  unit = Unit.valueOf(stockItems.getDisplayableUnit());
+			  
+			  doe = stockItems.getDOE();
+			  if(!doe.equals("")){
+				  DateFormat dateFormat = new SimpleDateFormat("yyyy/mm/dd");
+				  date = dateFormat.parse(doe);
+				  dateFormat = new SimpleDateFormat("dd/mm/yyyy");
+				  Calendar cal = Calendar.getInstance();
+				  cal.setTime(date);
+				  doe = dateFormat.format(cal.getTime());
+			  }
+			  
+			  itemDetails = new JSONObject();
+			  itemDetails.put("sku", stockItems.getSku());
+			  itemDetails.put("name", stockItems.getName());
+			  itemDetails.put("unit", stockItems.getUnit());
+			  itemDetails.put("displayableUnit", filterUnitToDisplay(stockItems.getDisplayableUnit()));
+			  itemDetails.put("ratePerUnit", convertUnit(stockItems.getRatePerUnit(), unit, false));
+			  itemDetails.put("minQuantity", convertUnit(stockItems.getMinQuantity(), unit, true));
+			  itemDetails.put("quantity", convertUnit(stockItems.getQuantity(), unit, true));
+			  itemDetails.put("doe", doe);
+			  itemDetails.put("wastage", stockItems.getWastage());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return itemDetails.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateStock")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateStock(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  double quantity = 0;
+		  double curQuantity = 0;
+		  Unit unit = Unit.PIECE;
+		  String doe = "";
+		  Date date;
+		  
+		  try { 
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  unit = Unit.valueOf(filterUnitToStore(inObj.getString("unit")));
+			  quantity = inObj.getDouble("quantity");
+			  curQuantity = inObj.getDouble("currentQuantity");
+			  
+			  doe = inObj.getString("doe");
+			  if(!doe.equals("")){
+				  DateFormat dateFormat = new SimpleDateFormat("dd/mm/yyyy");
+				  date = dateFormat.parse(doe);
+				  dateFormat = new SimpleDateFormat("yyyy/mm/dd");
+				  Calendar cal = Calendar.getInstance();
+				  cal.setTime(date);
+				  doe = dateFormat.format(cal.getTime());
+			  }
+			  
+			  for(Unit unitType: Unit.values()){
+				  if (unit == unitType){
+					  quantity = quantity/unitType.getConversion();
+					  curQuantity = curQuantity/unitType.getConversion();
+					  break;
+				  }
+			  }
+			  outObj.put("status",dao.updateStock(inObj.getString("hotelId"), inObj.getString("sku"),
+					  quantity+curQuantity, inObj.getDouble("quantity"), inObj.getDouble("ratePerUnit"), doe));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateMaterial")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateMaterial(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  Unit unit = Unit.PIECE;
+		  String doe = "";
+		  Date date;
+		  
+		  try { 
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  unit = Unit.valueOf(filterUnitToStore(inObj.getString("displayableUnit")));
+			  
+			  doe = inObj.getString("doe");
+			  if(!doe.equals("")){
+				  DateFormat dateFormat = new SimpleDateFormat("dd/mm/yyyy");
+				  date = dateFormat.parse(doe);
+				  dateFormat = new SimpleDateFormat("yyyy/mm/dd");
+				  Calendar cal = Calendar.getInstance();
+				  cal.setTime(date);
+				  doe = dateFormat.format(cal.getTime());
+			  }
+			  outObj.put("status",
+					  dao.updateMaterial(inObj.getString("hotelId"), 
+								  inObj.getString("materialName"),
+								  convertUnit(inObj.getDouble("ratePerUnit"), unit, true), 
+								  convertUnit(inObj.getDouble("minQuantity"), unit, false), 
+								  convertUnit(inObj.getDouble("quantity"), unit, false), 
+								  doe, 
+								  inObj.getInt("wastage"), 
+								  unit.toString(), 
+								  inObj.getString("sku")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  
+	  }
+	  
+	  @POST
+	  @Path("/v1/deleteStockItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deleteStockItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteStockItem(inObj.getString("hotelId"), inObj.getString("sku")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getRecipe")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getRecipe(@QueryParam("hotelId") String hotelId, @QueryParam("menuId") String menuId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<Stock> recipeItems = dao.getRecipe(hotelId, menuId);
+		  Stock method = dao.getMethod(hotelId, menuId);
+		  Unit unit = Unit.GRAM;
+		  
+		  try {
+			  for (int i=0;i<recipeItems.size(); i++) {
+				  unit = Unit.valueOf(recipeItems.get(i).getDisplayableUnit());
+				  itemDetails = new JSONObject();
+				  itemDetails.put("sku", recipeItems.get(i).getSku());
+				  itemDetails.put("name", recipeItems.get(i).getName());
+				  itemDetails.put("unit", unit.toString());
+				  itemDetails.put("displayableUnit", filterUnitToDisplay(recipeItems.get(i).getDisplayableUnit()));
+				  itemDetails.put("quantity", convertUnit(recipeItems.get(i).getQuantity(), unit, true));
+				  
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("items", itemsArr);
+			  outObj.put("method", method.getMethod());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addRecipe")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addRecipe(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  Unit unit = Unit.valueOf(filterUnitToStore(inObj.getString("unit")));
+			  String hotelId = inObj.getString("hotelId");
+			  
+			  if(dao.recipeItemExists(hotelId, inObj.getString("sku"), inObj.getString("menuId"))){
+				  outObj.put("status", dao.updateRecipe(inObj.getString("hotelId"), convertUnit(inObj.getDouble("quantity"), unit, false), 
+						  inObj.getString("menuId"), inObj.getString("sku"), inObj.getString("unit")));
+			  }else{
+				  outObj.put("status", dao.addRecipe(inObj.getString("hotelId"), convertUnit(inObj.getDouble("quantity"), unit, false),
+						  inObj.getString("menuId"), inObj.getString("sku"), inObj.getString("unit")));
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/updateMethod")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String updateMethod(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  inObj = new JSONObject(jsonObject);;
+			  
+			  outObj.put("status", dao.updateMethod(inObj.getString("hotelId"), inObj.getString("menuId"), 
+					  inObj.getString("method")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/deleteRecipeItem")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String deleteRecipeItem(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  outObj.put("status",dao.deleteRecipeItem(inObj.getString("hotelId"), inObj.getString("sku"),  inObj.getString("menuId")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/reduceQuantity")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String reduceQuantity(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  
+		  try { 
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  outObj.put("status",dao.reduceQuantity(inObj.getString("hotelId"), inObj.getString("sku"),
+					 inObj.getDouble("curQuantity")-inObj.getDouble("quantity"), inObj.getDouble("quantity")));
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  //Reports
+
+	  
+	  @GET
+	  @Path("/v1/getLunchDinnerSalesReport")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getLunchDinnerSalesReport(@QueryParam("hotelId") String hotelId, @QueryParam("date") String date) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  Report reportItems;
+		  
+		  try {
+			  for (int i=0;i<2; i++) {
+				  reportItems = dao.getLunchDinnerSalesReport(hotelId, date, i);
+				  itemDetails = new JSONObject();
+				  itemDetails.put("foodBill", reportItems.getFoodBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("total", reportItems.getFoodBill()+reportItems.getBarBill());
+				  itemDetails.put("pax", reportItems.getPax());
+				  itemDetails.put("foodPPax", reportItems.getPax()==0 ? 0 : reportItems.getFoodBill()/reportItems.getPax());
+				  itemDetails.put("barPPax", reportItems.getPax()==0 ? 0 : reportItems.getBarBill()/reportItems.getPax());
+				  itemDetails.put("inhouse", reportItems.getInhouse());
+				  itemDetails.put("card", reportItems.getCardPayment());
+				  itemDetails.put("cash", reportItems.getCashPayment());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("report", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  
+	  @GET
+	  @Path("/v1/getTotalSalesForService")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getTotalSalesForService(@QueryParam("hotelId") String hotelId, @QueryParam("serviceDate") String serviceDate,
+			  @QueryParam("serviceType") String serviceType) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  JSONArray arr = new JSONArray();
+		  JSONObject arrObj;
+		  Report reportItems;
+		  ArrayList<Expense> expenses = dao.getCashExpenses(hotelId, serviceDate);
+		  
+		  try {
+			  reportItems = dao.getTotalSalesForService(hotelId, serviceDate, serviceType);
+			  outObj.put("foodBill", reportItems.getFoodBill());
+			  outObj.put("barBill", reportItems.getBarBill());
+			  double temp = Math.round(reportItems.getTotal()*100);
+			  outObj.put("total", temp/100);
+			  temp = Math.round(reportItems.getCashPayment()*100);
+			  outObj.put("cash", temp/100);
+			  temp = Math.round(dao.getTotalCardPayment(hotelId, serviceDate, serviceType)*100);
+			  outObj.put("card", temp/100);
+			  temp = Math.round(dao.getTotalAppPayment(hotelId, serviceDate, serviceType)*100);
+			  outObj.put("app", temp/100);
+			  temp = Math.round(reportItems.getDiscount()*100);
+			  outObj.put("discount", temp/100);
+			  temp = Math.round(reportItems.getTotalTax()*100);
+			  outObj.put("totalTax", temp/100);
+			  outObj.put(CardType.VISA.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.VISA.toString()));
+			  outObj.put(CardType.MASTERCARD.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.MASTERCARD.toString()));
+			  outObj.put(CardType.MAESTRO.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.MAESTRO.toString()));
+			  outObj.put(CardType.AMEX.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.AMEX.toString()));
+			  outObj.put(CardType.RUPAY.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.RUPAY.toString()));
+			  outObj.put(CardType.OTHERS.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.OTHERS.toString()));
+			  outObj.put(CardType.MSWIPE.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.MSWIPE.toString()));
+			  outObj.put(CardType.ZOMATO.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.ZOMATO.toString()));
+			  outObj.put(CardType.SCOOTSY.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.SCOOTSY.toString()));
+			  outObj.put(CardType.SWIGGY.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.SWIGGY.toString()));
+			  outObj.put(CardType.PAYTM.toString(), dao.getCardPaymentByType(hotelId, serviceDate, serviceType, CardType.PAYTM.toString()));
+			  outObj.put("voidTrans", dao.getVoidTransactions(hotelId, serviceDate, serviceType));
+			  outObj.put("cashInHand", dao.getCashInHand(hotelId));
+			  int totalExpense = 0;
+			  int cashLift = 0;
+			  for (Expense expense : expenses) {
+				arrObj = new JSONObject();
+				arrObj.put("amount", expense.getAmount());
+				arrObj.put("payee", expense.getPayee());
+				arrObj.put("type", expense.getType());
+				arrObj.accumulate("memo", expense.getMemo());
+				if(expense.getType().equals(ExpenseType.CASH_LIFT.toString()))
+					cashLift += expense.getAmount();
+				else
+					totalExpense += expense.getAmount();
+				arr.put(arrObj);
+			}
+			  
+			  outObj.put("expenses", arr);
+			  outObj.put("totalExpense", totalExpense);
+			  outObj.put("cashLift", cashLift	);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getSalesReport")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getSaleSummaryReport(@QueryParam("hotelId") String hotelId, @QueryParam("startDate") String startDate,
+			  @QueryParam("endDate") String endDate) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<Report> reportItems = dao.getSaleSummaryReport(startDate, endDate);
+		  String trType;
+		  
+		  try {
+			  for (int i=0;i<reportItems.size(); i++) {
+				  itemDetails = new JSONObject();
+				  
+				  itemDetails.put("foodBill", reportItems.get(i).getFoodBill());
+				  itemDetails.put("billNo", reportItems.get(i).getBillNo());
+				  itemDetails.put("barBill", reportItems.get(i).getBarBill());
+				  itemDetails.put("discount", reportItems.get(i).getDiscount());
+				  itemDetails.put("st", reportItems.get(i).getServiceTax());
+				  itemDetails.put("sc", reportItems.get(i).getServiceCharge());
+				  itemDetails.put("vatFood", reportItems.get(i).getVATFood());
+				  itemDetails.put("vatBar", reportItems.get(i).getVATBar());
+				  itemDetails.put("sb", reportItems.get(i).getSbCess());
+				  itemDetails.put("kk", reportItems.get(i).getKkCess());
+				  itemDetails.put("tip", reportItems.get(i).getTip());
+				  itemDetails.put("pax", reportItems.get(i).getPax());
+				  itemDetails.put("inhouse", reportItems.get(i).getInhouse());
+				  itemDetails.put("card", reportItems.get(i).getCardPayment());
+				  itemDetails.put("cash", reportItems.get(i).getCashPayment());
+				  itemDetails.put("trType", reportItems.get(i).getCardType());
+				  itemDetails.put("total", reportItems.get(i).getTotal());
+				  itemDetails.put("tableId", reportItems.get(i).getTableId());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("report", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getPaymentType")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getPaymentType() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(PaymentType pay : PaymentType.values()) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("payment", pay);
+				  outArr.put(obj);
+			  }
+			  outObj.put("paymentTypes", outArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getExpenseType")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getExpenseType() {
+		  JSONObject outObj = new JSONObject();
+		  JSONArray outArr = new JSONArray();
+		  try {
+			  outObj.put("status", false);
+			  for(ExpenseType exp : ExpenseType.values()) {
+				  JSONObject obj = new JSONObject();
+				  obj.put("expense", exp);
+				  outArr.put(obj);
+			  }
+			  outObj.put("expenseTypes", outArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getBankAccounts")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getBankAccounts(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject orderObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  ArrayList<Bank> bank = dao.getBankAccounts(hotelId);
+		  try {
+			  for (int i=0;i<bank.size(); i++) {
+				  itemDetails = new JSONObject();
+				  itemDetails.put("account", bank.get(i).getAccountName());
+				  itemsArr.put(itemDetails);
+			  }
+			  orderObj.put("accounts", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return orderObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addExpense")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addExpense(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  String hotelId = inObj.getString("hotelId");
+			  String expenseType = inObj.getString("expenseType");
+			  
+			  if(dao.addExpense(hotelId,inObj.getInt("expenseAmount") + inObj.getInt("bonus"), inObj.getString("details")
+				  , inObj.getString("payeeName"), inObj.getInt("cheque"), inObj.getString("paymentType"), expenseType, 
+				  inObj.getString("bankAccount"), inObj.getString("userId"))){
+				  outObj.put("status", true);
+				  
+				  if(expenseType.equals(ExpenseType.LABOUR.toString())){
+						dao.updateLabourLog(inObj.getString("hotelId"), inObj.getDouble("expenseAmount"), 
+								inObj.getString("employeeId"), inObj.getDouble("bonus"));
+				  }
+				  if(inObj.getString("bankAccount").equals("CASH_DRAWER")){
+					  dao.updateCashBalance(hotelId, dao.getCashBalance(hotelId)-inObj.getInt("expenseAmount"));
+				  }
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getDailyAnalysisReport")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getDailyAnalysisReport(@QueryParam("hotelId") String hotelId, @QueryParam("startDate") String startDate
+			  , @QueryParam("endDate") String endDate) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONArray itemsArr = new JSONArray();
+		  JSONObject outObj = new JSONObject();
+		  JSONObject itemDetails = null;
+		  Report reportItems;
+		  
+		  try {
+			  for (int i=0;i<2; i++) {
+				  reportItems = dao.getDailyIncome(startDate, endDate, i);
+				  itemDetails = new JSONObject();
+				  itemDetails.put("totalRevenue", reportItems.getTotal());
+				  itemDetails.put("grossSale", reportItems.getTotal());
+				  itemDetails.put("discounts", reportItems.getDiscount());
+				  itemDetails.put("sc", reportItems.getServiceCharge());
+				  itemDetails.put("taxes", reportItems.getServiceTax()+reportItems.getSbCess()+reportItems.getKkCess());
+				  itemDetails.put("VAT", reportItems.getVATBar()+reportItems.getVATFood());
+				  itemDetails.put("averagePerPax", reportItems.getTotal()/reportItems.getPax());
+				  itemDetails.put("averagePerCheck", reportItems.getTotal()/reportItems.getChecks());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  itemDetails.put("barBill", reportItems.getBarBill());
+				  
+				  itemsArr.put(itemDetails);
+			  }
+			  outObj.put("income", itemsArr);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addService")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addService(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  String serviceDate = new SimpleDateFormat("yyyy/MM/dd").format(new Date());
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(dao.addService(inObj.getString("hotelId"), inObj.getString("serviceType"), serviceDate, inObj.getInt("cashInHand"))){
+				  outObj.put("status", true);
+				  outObj.put("serviceDate", serviceDate);
+				  dao.updateCashBalance(inObj.getString("hotelId"), inObj.getInt("cashInHand"));
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/endService")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String endService(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  
+			  if(dao.endService(inObj.getString("hotelId"),inObj.getString("serviceDate"))){
+				  outObj.put("status", true);
+				  dao.updateCashBalance(inObj.getString("hotelId"), 0);
+			  }
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getServiceLog")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getServiceLog(@QueryParam("hotelId") String hotelId, @QueryParam("serviceDate") String serviceDate) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  JSONObject serviceDetails = null;
+		  ServiceLog serviceLog = dao.getServiceLog(hotelId, serviceDate);
+		  
+		  try {
+			  serviceDetails = new JSONObject();
+			  serviceDetails.put("startTimeStamp", serviceLog.getStartTimeStamp());
+			  serviceDetails.put("endTimeStamp", serviceLog.getEndTimeStamp());
+			  serviceDetails.put("isCurrent", serviceLog.getIsCurrent());
+			  serviceDetails.put("serviceType", serviceLog.getServiceType());
+			  
+			  outObj.put("serviceLog", serviceLog);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getCurrentService")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getCurrentService(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  JSONObject serviceDetails = null;
+		  ServiceLog serviceLog = dao.getCurrentService(hotelId);
+		  
+		  try {
+			  outObj.put("status", false);
+			  serviceDetails = new JSONObject();
+			  if(serviceLog != null){
+				  serviceDetails.put("startTimeStamp", serviceLog.getStartTimeStamp());
+				  serviceDetails.put("endTimeStamp", serviceLog.getEndTimeStamp());
+				  serviceDetails.put("serviceDate", serviceLog.getServiceDate());
+				  serviceDetails.put("serviceType", serviceLog.getServiceType());
+				  outObj.put("status", true);
+			  }
+			  
+			  outObj.put("serviceLog", serviceDetails);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @GET
+	  @Path("/v1/getPayment")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getPayment(@QueryParam("hotelId") String hotelId, @QueryParam("orderId") String orderId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  JSONObject paymentDetails = null;
+		  Report payment = dao.getPayment(hotelId, orderId);
+		  
+		  try {
+			  outObj.put("status", false);
+			  paymentDetails = new JSONObject();
+			  if(payment != null){
+				  paymentDetails.put("cash", payment.getCashPayment());
+				  paymentDetails.put("card", payment.getCardPayment());
+				  paymentDetails.put("cardType", payment.getCardType());
+				  paymentDetails.put("sc", payment.getServiceCharge());
+				  paymentDetails.put("st", payment.getServiceTax());
+				  paymentDetails.put("sbCess", payment.getSbCess());
+				  paymentDetails.put("kkCess", payment.getKkCess());
+				  paymentDetails.put("vatFood", payment.getVATFood());
+				  paymentDetails.put("vatBar", payment.getVATBar());
+				  paymentDetails.put("total", payment.getTotal());
+				  paymentDetails.put("foodBill", payment.getFoodBill());
+				  paymentDetails.put("barBill", payment.getBarBill());
+				  paymentDetails.put("discount", payment.getDiscount());
+				  paymentDetails.put("discountName", payment.getDiscountName());
+				  outObj.put("status", true);
+			  }
+			  
+			  outObj.put("payment", paymentDetails);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  @POST
+	  @Path("/v1/addRevenue")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String addRevenue(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+
+			  boolean status = dao.addRevenue(inObj.getString("hotelId"), 
+					  inObj.getString("serviceType"), inObj.getString("serviceDate"), inObj.getDouble("cash"), 
+					  inObj.getDouble("card"), inObj.getDouble("total"), inObj.getDouble("visa"), 
+					  inObj.getDouble("mastercard"), inObj.getDouble("maestro"), inObj.getDouble("amex"), 
+					  inObj.getDouble("others"), inObj.getDouble("mswipe"), inObj.getDouble("rupay"), inObj.getDouble("zomato"),
+					  inObj.getDouble("swiggy"), inObj.getDouble("scootsy"),inObj.getDouble("difference"), 
+					  inObj.getString("reason"),  inObj.getString("clearance"));
+
+			  outObj.put("status", status);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  
+	  @GET
+	  @Path("/v1/getMPNotification")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getMPNotification(@QueryParam("hotelId") String hotelId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  MPNotification notification = dao.getMPNotification(hotelId);
+		  
+		  try {
+			  outObj.put("status", false);
+			  outObj.put("checkOutOrders", notification.getCheckoutOrders());
+			  outObj.put("outOfStock", notification.getOutOfStock());
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @GET
+	  @Path("/v1/getOrderIdFromTableId")
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String getOrderIdFromTableId(@QueryParam("hotelId") String hotelId, @QueryParam("tableId") String tableId) {
+		  AccessManager dao = new AccessManager(false);
+		  JSONObject outObj = new JSONObject();
+		  String orderId = dao.getOrderIdFromTables(hotelId, tableId);
+		  try {
+			  outObj.put("orderId", orderId);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+	  
+	  private HashMap<String, Double> sortPaymentForReport(ArrayList<Report> report){
+		  
+		  HashMap<String, Double> payments = new HashMap<>();
+		  Double tempVal = 0.0;
+		  for (Report rep : report) {
+			if(rep.getCardType().equals("CASH")){
+				tempVal= rep.getCashPayment();
+				if(payments.containsKey("CASH"))
+					tempVal += payments.get("CASH");
+				payments.put("CASH", tempVal);
+			}
+			else{
+				for (CardType type : CardType.values()) {
+					if(rep.getCardType().equals(type.toString())){
+						tempVal= rep.getCardPayment();
+						if(payments.containsKey(type.toString()))
+							tempVal += payments.get(type.toString());
+						payments.put(type.toString(), tempVal);
+					}else if(rep.getCardType().equals("CASH/"+type.toString())){
+						tempVal= rep.getCardPayment();
+						if(payments.containsKey(type.toString()))
+							tempVal += payments.get(type.toString());
+						payments.put(type.toString(), tempVal);
+						
+						tempVal= rep.getCashPayment();
+						if(payments.containsKey("CASH"))
+							tempVal += payments.get("CASH");
+						payments.put("CASH", tempVal);
+					}
+				}
+			}
+		  }
+		  
+		  return payments;
+	  }
+
+	  @GET
+	  @Path("/v1/getOrdersOfOneCustomer")
+	  @Produces(MediaType.APPLICATION_JSON) //Jason
+	  public String getOrdersOfOneCustomer(@QueryParam("mobileNo") String mobileNo) { //Jason
+		  AccessManager dao = new AccessManager(false);
+		  
+		  ArrayList<Order> orderList = dao.getOrdersOfOneCustomer(mobileNo);
+		  JSONArray outObj = new JSONArray(orderList);
+		  
+		  try {
+			  //outObj.put(orderList);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  } 
+		  return outObj.toString();
+	  }
+}
+
+ 		

@@ -1,0 +1,13 @@
+{
+        "DBConnectionString": "jdbc:sqlite:G:\\OrderOn-Config\\orderon.sqlite",
+		"minOrdersPerDay": 20,
+		"imagesLocation": "G:\\OrderOn-Config\\Images"
+        "collections": [
+           "alcohol",
+           "beverage",
+           "starters",
+           "soup",
+           "main",
+           "desert"
+        ]
+}concon
