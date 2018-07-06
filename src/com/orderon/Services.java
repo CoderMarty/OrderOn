@@ -107,6 +107,7 @@ public class Services {
 		  JSONObject outObj = new JSONObject();
 		  try {
 			  outObj.put("status", true);
+			  outObj.put("hotelId", Configurator.getHotelId());
 		  }
 		  catch(Exception e) {
 			  e.printStackTrace();
@@ -1350,6 +1351,7 @@ public class Services {
 				  
 				  itemDetails = new JSONObject();
 				  addOnArr = new JSONArray();
+				  specArr = new JSONArray();
 				  rate = orderItems.get(i).getRate();
 				  if(orderItems.get(i).getState()==50){
 					  rate = 0;
@@ -1367,6 +1369,7 @@ public class Services {
 				  itemDetails.put("state", orderItems.get(i).getState());
 				  itemDetails.put("station", orderItems.get(i).getStation());
 				  itemDetails.put("isTaxable", orderItems.get(i).getIsTaxable());
+				  String specs = "";
 				  for(int k=0; k<orderItems.get(i).getQty(); k++) {
 					  for (int j=0;j<addOns.size(); j++) {
 						if(addOns.get(j).getMenuId().equals(orderItems.get(i).getMenuId()) && addOns.get(j).getSubOrderId().equals(orderItems.get(i).getSubOrderId())
@@ -1386,19 +1389,20 @@ public class Services {
 							addOnArr.put(addOnDetails);
 						}
 					  }
+					  specifications = dao.getOrderedSpecification(hotelId, orderId, orderItems.get(i).getMenuId(), orderItems.get(i).getSubOrderId(), itemId);
+					  for (int y=0;y<specifications.size(); y++) {
+						  specDetails = new JSONObject();
+						  specs += specifications.get(y).getSpecification() + ", ";
+						  specDetails.put("spec", specifications.get(y).getSpecification());
+						  specDetails.put("itemId", specifications.get(y).getItemId());
+						  specArr.put(specDetails);
+					  }
 					  if(k<orderItems.get(i).getQty()-1)
 						  itemId++;
 				  }
-				  String specs = "";
-				  specifications = dao.getOrderedSpecification(hotelId, orderId, orderItems.get(i).getMenuId(), orderItems.get(i).getSubOrderId(), itemId);
-				  for (int y=0;y<specifications.size(); y++) {
-					  specDetails = new JSONObject();
-					  specs += specifications.get(y).getSpecification();
-					  specDetails.put("spec", specifications.get(y).getSpecification());
-					  specDetails.put("itemId", specifications.get(y).getItemId());
-					  specArr.put(specDetails);
-				  }
-				  itemDetails.put("specs", specs);
+				  specs = specs.length()==0?orderItems.get(i).getSpecifications():specs+", "+orderItems.get(i).getSpecifications();
+				  itemDetails.put("specs", specs.replace(", , ", ", "));
+				  itemDetails.put("allSpecs", orderItems.get(i).getSpecifications());
 				  itemDetails.put("addOns", addOnArr); 
 				  itemDetails.put("specArr", specArr);
 				  itemsArr.put(itemDetails);
@@ -1415,13 +1419,24 @@ public class Services {
 			  orderObj.put("items", itemsArr);
 			  orderObj.put("tableId", tablesArr);
 			  Customer customer = dao.getCustomerDetails(hotelId, order.getCustomerNumber());
-			  if(customer != null)
+			  if(customer != null){
+				  orderObj.put("hasCustomer", true);
 				  orderObj.put("allergyInfo", customer.getAllergyInfo());
+				  orderObj.put("birthDate", customer.getBirthdate());
+				  orderObj.put("anniversary", customer.getAnniversary());
+			  }else
+				  orderObj.put("hasCustomer", false);
 			  orderObj.put("noOfGuests", order.getNumberOfGuests());
 			  orderObj.put("orderNumber", order.getOrderNumber());
+			  orderObj.put("waiterId", order.getWaiterId());
 			  orderObj.put("customerName", order.getCustomerName());
 			  orderObj.put("customerAddress", order.getCustomerAddress());
 			  orderObj.put("customerNumber", order.getCustomerNumber());
+			  orderObj.put("ambianceRating", order.getAmbianceRating());
+			  orderObj.put("hygieneRating", order.getHygieneRating());
+			  orderObj.put("serviceRating", order.getServiceRating());
+			  orderObj.put("foodRating", order.getQoFRating());
+			  orderObj.put("reviewSuggestions", order.getReviewSuggestions());
 			  orderObj.put("inhouse", order.getInHouse());
 			  orderObj.put("orderId", order.getOrderId());
 			  orderObj.put("billNo", order.getBillNo());
@@ -1433,7 +1448,6 @@ public class Services {
 			  orderObj.put("printCount", order.getPrintCount());
 			  orderObj.put("compTotal", complimentaryTotal);
 			  outObj.put("order",orderObj);
-			  
 		  }
 		  catch(Exception e) {
 			  e.printStackTrace();
@@ -1612,8 +1626,9 @@ public class Services {
 				  
 				  boolean isRemoved = dao.removeSubOrder(hotelId, orderId, 
 						  orderItems.getJSONObject(i).getString("subOrderId"), orderItems.getJSONObject(i).getString("menuId"), quantity);
-				  
+					
 				  if(isRemoved){
+					  dao.removeOrderedAddon(hotelId, orderId, orderItems.getJSONObject(i).getString("subOrderId"), orderItems.getJSONObject(i).getString("menuId"), quantity+1);
 					  dao.updateFoodBill(hotelId, orderId, orderItems.getJSONObject(i).getString("menuId"), quantity, true);
 					  ArrayList<OrderAddOn> addOns = dao.getOrderedAddOns(hotelId, orderId, orderItems.getJSONObject(i).getString("subOrderId"), 
 							  orderItems.getJSONObject(i).getString("menuId"), orderItems.getJSONObject(i).getInt("qty"));
@@ -1834,109 +1849,107 @@ public class Services {
 		  }
 	  }
 	  
-	  @GET
-	  @Path("/v1/getKDSOrdersForState")
-	  @Produces(MediaType.APPLICATION_JSON)
-	  public String getKDSOrdersStateProcessing(@QueryParam("hotelId") String hotelId, @QueryParam("hotelId") int state) {
-		  AccessManager dao = new AccessManager(false);
-		  JSONArray itemsArr = new JSONArray();
-		  JSONObject outObj = new JSONObject();
-		  JSONObject itemDetails = null;
-		  ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersForState(hotelId, state);
-		  
-		  try {
-			  for (int i=0;i<orderItems.size(); i++) {
-				  itemDetails = new JSONObject();
-				  itemDetails.put("orderId", orderItems.get(i).getOrderId());
-				  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderItems.get(i).getOrderId()));
-				  itemDetails.put("subOrderDate", orderItems.get(i).getSubOrderDate());
-				  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
-				  itemDetails.put("station", orderItems.get(i).getStation());
-				  itemDetails.put("title", orderItems.get(i).getTitle());
-				  itemDetails.put("qty", orderItems.get(i).getQty());
-				  itemDetails.put("specs", orderItems.get(i).getSpecs());
-				  itemDetails.put("state", orderItems.get(i).getState());
-				  itemDetails.put("prepTime", orderItems.get(i).getPrepTime());
-				  itemDetails.put("station", orderItems.get(i).getStation());
-				  itemsArr.put(itemDetails);
-			  }
-			  outObj.put("items", itemsArr);
-		  }
-		  catch(Exception e) {
-			  e.printStackTrace();
-		  }
-		  return outObj.toString();
-	  }
-	  
-	  @GET
-	  @Path("/v1/getKDSOrdersListView")
-	  @Produces(MediaType.APPLICATION_JSON)
-	  public String getKDSOrdersListView(@QueryParam("hotelId") String hotelId) {
-		  AccessManager dao = new AccessManager(false);
-		  JSONArray itemsArr = new JSONArray();
-		  JSONObject outObj = new JSONObject();
-		  JSONArray addOnArr = new JSONArray();
-		  JSONArray specArr = new JSONArray();
-		  JSONObject addOnDetails = new JSONObject();
-		  JSONObject specDetails = new JSONObject();
-		  JSONObject itemDetails = null;
-		  ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersListView(hotelId);
-		  ArrayList<OrderAddOn> addOns = null;
-		  ArrayList<OrderSpecification> specifications = null;
-		  String orderId = "";
-		  int quantity = 0;
-		  int currentQuantity = 0;
-		  boolean hasAddedLast = false;
-		  try {
-			  for (int i=0;i<orderItems.size(); i++) {
-				  orderId = orderItems.get(i).getOrderId();
-				  quantity = orderItems.get(i).getQty();
-				  currentQuantity = 0;
-				  for (int x=1;x<=quantity; x++) {
-					  addOns = dao.getOrderedAddOns(hotelId, orderId, orderItems.get(i).getSubOrderId(), orderItems.get(i).getMenuId(), x);
-					  specifications = dao.getOrderedSpecification(hotelId, orderId, orderItems.get(i).getMenuId(), orderItems.get(i).getSubOrderId(), x);
-					  for (int y=0;y<addOns.size(); y++) {
-						  addOnDetails = new JSONObject();
-						  addOnDetails.put("name", addOns.get(y).getName());
-						  addOnDetails.put("itemId", addOns.get(y).getItemId());
-						  addOnDetails.put("quantity", addOns.get(y).getQty());
-						  addOnDetails.put("rate", addOns.get(y).getRate());
-						  addOnArr.put(addOnDetails);
-					  }
-					  for (int y=0;y<specifications.size(); y++) {
-						  specDetails = new JSONObject();
-						  specDetails.put("spec", specifications.get(y).getSpecification());
-						  specDetails.put("itemId", specifications.get(y).getItemId());
-						  specArr.put(specDetails);
-					  }
-					  if(specifications.size()==0 && addOns.size()==0) {
-						  currentQuantity ++;
-						  hasAddedLast = false;
-					  }else {
-						  itemDetails = new JSONObject();
-						  itemDetails.put("menuId", orderItems.get(i).getMenuId());
-						  itemDetails.put("orderId", orderItems.get(i).getOrderId());
-						  itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderId));
-						  itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
-						  itemDetails.put("title", orderItems.get(i).getTitle());
-						  itemDetails.put("qty", 1);
-						  itemDetails.put("specs", orderItems.get(i).getSpecs());
-						  itemDetails.put("state", orderItems.get(i).getOrderState());
-						  itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
-						  itemDetails.put("customerName", orderItems.get(i).getCustomerName());
-						  itemDetails.put("inhouse", orderItems.get(i).getInhouse());
-						  itemDetails.put("billNo", orderItems.get(i).getBillNo());
-						  itemDetails.put("vegType", orderItems.get(i).getVegType());
-						  
-						  itemDetails.put("addOns", addOnArr);
-						  itemDetails.put("specifications", specArr);
-						  itemsArr.put(itemDetails);
-						  hasAddedLast = true;
-					  }
-					  addOnArr = new JSONArray();
-					  specArr = new JSONArray();
+	@GET
+	@Path("/v1/getKDSOrdersListView")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getKDSOrdersListView(@QueryParam("hotelId") String hotelId) {
+		AccessManager dao = new AccessManager(false);
+		JSONArray itemsArr = new JSONArray();
+		JSONObject outObj = new JSONObject();
+		JSONArray addOnArr = new JSONArray();
+		JSONArray specArr = new JSONArray();
+		JSONArray allSpecArr = new JSONArray();
+		JSONObject addOnDetails = new JSONObject();
+		JSONObject specDetails = new JSONObject();
+		JSONObject itemDetails = null;
+		ArrayList<KitchenDisplayOrders> orderItems = dao.getKDSOrdersListView(hotelId);
+		ArrayList<OrderAddOn> addOns = null;
+		ArrayList<OrderSpecification> specifications = null;
+		String orderId = "";
+		int quantity = 0;
+		int currentQuantity = 0;
+		boolean hasAddedLast = false;
+		try {
+			for (int i=0;i<orderItems.size(); i++) {
+				orderId = orderItems.get(i).getOrderId();
+				quantity = orderItems.get(i).getQty();
+				currentQuantity = 0;
+				hasAddedLast = false;
+				for (int x=1;x<=quantity; x++) {
+					addOns = dao.getOrderedAddOns(hotelId, orderId, orderItems.get(i).getSubOrderId(), orderItems.get(i).getMenuId(), x);
+					for (int y=0;y<addOns.size(); y++) {
+						addOnDetails = new JSONObject();
+						addOnDetails.put("name", addOns.get(y).getName());
+						addOnDetails.put("itemId", addOns.get(y).getItemId());
+						addOnDetails.put("quantity", addOns.get(y).getQty());
+						addOnDetails.put("rate", addOns.get(y).getRate());
+						addOnArr.put(addOnDetails);
+					}
+					specifications = dao.getOrderedSpecification(hotelId, orderId, orderItems.get(i).getMenuId(), orderItems.get(i).getSubOrderId(), x);
+					for (int y=0;y<specifications.size(); y++) {
+						specDetails = new JSONObject();
+						specDetails.put("spec", specifications.get(y).getSpecification());
+						specDetails.put("itemId", specifications.get(y).getItemId());
+						specArr.put(specDetails);
+					}
+					
+					if(specifications.size()==0 && addOns.size()==0) {
+						currentQuantity ++;
+						hasAddedLast = false;
+					}else {
+						specDetails = new JSONObject();
+						specDetails.put("spec", orderItems.get(i).getSpecs());
+						specDetails.put("itemId", 101);
+						allSpecArr.put(specDetails);
+						if(!hasAddedLast && currentQuantity>0){
+							itemDetails = new JSONObject();
+							itemDetails.put("menuId", orderItems.get(i).getMenuId());
+							itemDetails.put("orderId", orderItems.get(i).getOrderId());
+							itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderId));
+							itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+							itemDetails.put("title", orderItems.get(i).getTitle());
+							itemDetails.put("qty", currentQuantity);
+							itemDetails.put("specs", orderItems.get(i).getSpecs());
+							itemDetails.put("state", orderItems.get(i).getOrderState());
+							itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
+							itemDetails.put("customerName", orderItems.get(i).getCustomerName());
+							itemDetails.put("inhouse", orderItems.get(i).getInhouse());
+							itemDetails.put("billNo", orderItems.get(i).getBillNo());
+							itemDetails.put("vegType", orderItems.get(i).getVegType());
+							itemDetails.put("addOns", addOnArr);
+							itemDetails.put("specifications", allSpecArr);
+							itemsArr.put(itemDetails);
+							hasAddedLast = true;
+						}
+						specArr.put(specDetails);
+						itemDetails = new JSONObject();
+						itemDetails.put("menuId", orderItems.get(i).getMenuId());
+						itemDetails.put("orderId", orderItems.get(i).getOrderId());
+						itemDetails.put("tableId", getTablesForOrder(dao, hotelId, orderId));
+						itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+						itemDetails.put("title", orderItems.get(i).getTitle());
+						itemDetails.put("qty", 1);
+						itemDetails.put("specs", orderItems.get(i).getSpecs());
+						itemDetails.put("state", orderItems.get(i).getOrderState());
+						itemDetails.put("customerAddress", orderItems.get(i).getCustomerAddress());
+						itemDetails.put("customerName", orderItems.get(i).getCustomerName());
+						itemDetails.put("inhouse", orderItems.get(i).getInhouse());
+						itemDetails.put("billNo", orderItems.get(i).getBillNo());
+						itemDetails.put("vegType", orderItems.get(i).getVegType());
+						itemDetails.put("addOns", addOnArr);
+						itemDetails.put("specifications", specArr);
+						itemsArr.put(itemDetails);
+						hasAddedLast = true;
+					}
+					addOnArr = new JSONArray();
+					specArr = new JSONArray();
+					allSpecArr = new JSONArray();
 				  }
-				  if(!hasAddedLast) {
+				  if(!hasAddedLast){
+					  specDetails = new JSONObject();
+					  specDetails.put("spec", orderItems.get(i).getSpecs());
+					  specDetails.put("itemId", 101);
+					  specArr.put(specDetails);
 					  itemDetails = new JSONObject();
 					  itemDetails.put("menuId", orderItems.get(i).getMenuId());
 					  itemDetails.put("orderId", orderItems.get(i).getOrderId());
@@ -1954,7 +1967,10 @@ public class Services {
 					  itemDetails.put("addOns", addOnArr);
 					  itemDetails.put("specifications", specArr);
 					  itemsArr.put(itemDetails);
+					  hasAddedLast = true;
 				  }
+					addOnArr = new JSONArray();
+					specArr = new JSONArray();
 			  }
 				  
 			  outObj.put("items", itemsArr);
@@ -2202,7 +2218,7 @@ public class Services {
 	  @Path("/v2/newOrder")
 	  @Produces(MediaType.APPLICATION_JSON)
 	  @Consumes(MediaType.APPLICATION_JSON)
-	  public String newOrder2(String jsonObject) {
+	  public String newOrder(String jsonObject) {
 		  JSONObject inObj = null;
 		  JSONObject outObj = new JSONObject();
 		  AccessManager dao = new AccessManager(false);
@@ -2215,7 +2231,7 @@ public class Services {
 			  for (int i=0;i<tableIds.length;i++) {
 				  tableIds[i] = tablesArr.getString(i);
 			  }
-			  outObj = dao.newOrder2(inObj.getString("hotelId"), inObj.getString("userId"), tableIds, inObj.getInt("peopleCount"), inObj.getString("customer"), inObj.getString("contactNumber"), inObj.getString("allergyInfo"));
+			  outObj = dao.newOrder(inObj.getString("hotelId"), inObj.getString("userId"), tableIds, inObj.getInt("peopleCount"), inObj.getString("customer"), inObj.getString("contactNumber"), inObj.getString("allergyInfo"));
 		  }
 		  catch(Exception e) {
 			  e.printStackTrace();
@@ -2269,7 +2285,7 @@ public class Services {
 				  JSONObject subOrder = null;
 				  menuId = newItems.getJSONObject(i).getString("menuId");
 				  subOrder = dao.newSubOrder(hotelId, orderId, menuId, 
-						  newItems.getJSONObject(i).getInt("qty"), newItems.getJSONObject(i).getString("spec"),
+						  newItems.getJSONObject(i).getInt("qty"), "",
 						  subOrderId, inObj.has("userId")?inObj.getString("userId"):"",
 						  newItems.getJSONObject(i).has("rate")?newItems.getJSONObject(i).getInt("rate"):0);
 				  if (subOrder==null || subOrder.getInt("status")==-1) {
@@ -3603,8 +3619,9 @@ public class Services {
 					  inObj.getDouble("cardPayment"), inObj.getString("discountName"), inObj.getString("cardType"), inObj.getDouble("complimentary"));
 
 			  if(status){
-				  if(dao.getHotelById(hotelId).getHasLoyalty() == 1)
-					  dao.addLoyaltyPoints(hotelId, orderId, inObj.getDouble("total"), dao.getMobileNoFromOrderId(hotelId, orderId).getMobileNo());
+				  String mobileNo =  dao.getMobileNoFromOrderId(hotelId, orderId).getEntity();
+				  if(dao.getHotelById(hotelId).getHasLoyalty() == 1 && !mobileNo.equals(""))
+					  dao.addLoyaltyPoints(hotelId, orderId, inObj.getDouble("total"), mobileNo);
 				  
 				  if(hotel.getHotelType().equals("PREPAID") && hotel.getKDSType().equals("KDS"))
 					  dao.changeOrderStatusToService(hotelId, orderId);
@@ -3616,7 +3633,6 @@ public class Services {
 				  cashdrawerOpen(hotelId, dao);
 				  
 				  dao.updateOrderSMSStatus(hotelId, orderId);
-				  
 			  }
 			  
 			  if(!inObj.getString("discountName").equals("")){
@@ -3655,6 +3671,38 @@ public class Services {
 
 			  if(status){
 				  if(inObj.getInt("cashPayment") > 0){
+					  dao.updateCashBalance(hotelId, dao.getCashBalance(hotelId) - inObj.getInt("cashPayment"));
+				  }
+			  }
+			  
+			  outObj.put("status", status);
+		  }
+		  catch(Exception e) {
+			  e.printStackTrace();
+		  }
+		  return outObj.toString();
+	  }
+
+	  @POST
+	  @Path("/v1/editPayment")
+	  @Consumes(MediaType.APPLICATION_JSON)
+	  @Produces(MediaType.APPLICATION_JSON)
+	  public String editPayment(String jsonObject) {
+		  JSONObject inObj = null;
+		  JSONObject outObj = new JSONObject();
+		  AccessManager dao = new AccessManager(false);
+		  try {
+			  outObj.put("status", false);
+			  inObj = new JSONObject(jsonObject);
+			  String hotelId = inObj.getString("hotelId");
+
+			  boolean status = dao.editPayment(hotelId, inObj.getString("orderId"), 
+					  inObj.getDouble("cashPayment"), inObj.getDouble("cardPayment"), inObj.getString("cardType"));
+
+			  Report payment = dao.getPayment(hotelId, inObj.getString("orderId"));
+			  double cash = payment.getCashPayment() - inObj.getInt("cashPayment");
+			  if(status){
+				  if(cash > 0){
 					  dao.updateCashBalance(hotelId, dao.getCashBalance(hotelId) - inObj.getInt("cashPayment"));
 				  }
 			  }
@@ -4734,7 +4782,6 @@ public class Services {
 			  sTime = stf.parse(startTime);
 			  eTime = etf.parse(endTime);
 		  } catch (ParseException e) {
-				// TODO Auto-generated catch block
 			  e.printStackTrace();
 		  }
 		  long difference = eTime.getTime() - sTime.getTime();
@@ -4919,8 +4966,6 @@ public class Services {
 	 * @throws ParseException
 	 */
 	public static void main(String args[]) throws ParseException {
-		 // TODO Auto-generated method stub
-
 	}
 	
 	private void generateShortForm() {
@@ -5591,7 +5636,7 @@ public class Services {
 				 outObj.put("count", logArray.length-1);
 			  }
 		  } catch (JSONException e){
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		  }
 		  

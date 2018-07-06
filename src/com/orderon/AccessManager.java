@@ -591,7 +591,6 @@ public class AccessManager {
 		}
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
 			this.sku = Database.readRsString(rs, "sku");
 			this.menuId = Database.readRsString(rs, "menuId");
 			this.quantity = Database.readRsInt(rs, "quantity");
@@ -654,7 +653,6 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
 			this.name = Database.readRsString(rs, "name");
 			this.sku = Database.readRsString(rs, "sku");
 			this.unit = Database.readRsString(rs, "unit");
@@ -1215,6 +1213,9 @@ public class AccessManager {
 		public Integer getLoyaltyPaid() {
 			return loyaltyPaid;
 		}
+		public String getReviewSuggestions() {
+			return reviewSuggestions;
+		}
 
 		private String orderId;
 		private int orderNumber;
@@ -1241,6 +1242,7 @@ public class AccessManager {
 		private String discountCode;
 		private Integer loyaltyId;
 		private Integer loyaltyPaid;
+		private String reviewSuggestions;
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.orderId = Database.readRsString(rs,"orderId");
@@ -1250,9 +1252,9 @@ public class AccessManager {
 			this.customerAddress = Database.readRsString(rs,"customerAddress");
 			this.customerNumber = Database.readRsString(rs,"customerNumber");
 			this.rating_ambiance = Database.readRsInt(rs,"rating_ambiance");
-			this.rating_ambiance = Database.readRsInt(rs,"rating_qof");
-			this.rating_ambiance = Database.readRsInt(rs,"rating_service");
-			this.rating_ambiance = Database.readRsInt(rs,"rating_hygiene");
+			this.rating_qof = Database.readRsInt(rs,"rating_qof");
+			this.rating_service = Database.readRsInt(rs,"rating_service");
+			this.rating_hygiene = Database.readRsInt(rs,"rating_hygiene");
 			this.waiterId = Database.readRsString(rs,"waiterId");
 			this.numberOfGuests = Database.readRsInt(rs,"numberOfGuests");
 			this.state = Database.readRsInt(rs,"state");
@@ -1268,6 +1270,7 @@ public class AccessManager {
 			this.discountCode = Database.readRsString(rs, "discountCode");
 			this.loyaltyId = Database.readRsInt(rs, "loyaltyId");
 			this.loyaltyPaid = Database.readRsInt(rs, "loyaltyPaid");
+			this.reviewSuggestions = Database.readRsString(rs, "reviewSuggestions");
 		}
 	}
 	
@@ -2428,7 +2431,7 @@ public class AccessManager {
 		public int month;
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.totalOrders = Database.readRsInt(rs, "totalOrders");
 		}
 	}
@@ -2563,8 +2566,6 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
-
 			this.employeeId = Database.readRsString(rs, "employeeId");
 			this.firstName = Database.readRsString(rs, "firstName");
 			this.surName = Database.readRsString(rs, "surName");
@@ -2674,7 +2675,7 @@ public class AccessManager {
 		}
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.employeeId = Database.readRsString(rs, "employeeId");
 			this.id = Database.readRsInt(rs, "Id");
 			this.firstName = Database.readRsString(rs, "firstName");
@@ -2733,7 +2734,6 @@ public class AccessManager {
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.orderId = Database.readRsString(rs, "orderId");
@@ -2882,7 +2882,7 @@ public class AccessManager {
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.accountNumber = Database.readRsString(rs, "accountNumber");
 			this.bankName = Database.readRsString(rs, "bankName");
@@ -2936,7 +2936,7 @@ public class AccessManager {
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.accountName = Database.readRsString(rs, "accountName");
 			this.amount = Database.readRsInt(rs, "amount");
 			this.chequeNumber = Database.readRsInt(rs, "chequeNo");
@@ -3024,7 +3024,7 @@ public class AccessManager {
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.serviceDate = Database.readRsString(rs, "serviceDate");
 			this.serviceType = Database.readRsString(rs, "serviceType");
@@ -3078,7 +3078,7 @@ public class AccessManager {
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.serviceDate = Database.readRsString(rs, "serviceDate");
 			this.serviceType = Database.readRsString(rs, "serviceType");
@@ -3155,7 +3155,7 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.checkoutOrders = Database.readRsInt(rs, "checkoutOrders");
 			this.outOfStock = Database.readRsInt(rs, "outOfStock");
@@ -3189,7 +3189,7 @@ public class AccessManager {
 		}
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			hotelId = Database.readRsString(rs, "hotelId");
 			updateTime = Database.readRsString(rs, "lastUpdateTime");
 			this.status = Database.readRsInt(rs, "status");
@@ -3206,7 +3206,7 @@ public class AccessManager {
 		}
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			specification = Database.readRsString(rs, "specification");
 		}
 	}
@@ -3237,7 +3237,7 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.id  = Database.readRsInt(rs, "Id");
 			this.name = Database.readRsString(rs, "name");
 			this.menuId = Database.readRsString(rs, "menuId");
@@ -3284,7 +3284,7 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
+			
 			this.id  = Database.readRsInt(rs, "Id");
 			this.points  = Database.readRsInt(rs, "points");
 			this.count  = Database.readRsInt(rs, "count");
@@ -4161,6 +4161,7 @@ public class AccessManager {
 					+ "MenuItems.category AS category, "
 					+ "MenuItems.station AS station, "
 					+ "OrderItems.rate AS rate, "
+					+ "OrderItems.specs AS specs, "
 					+ "MenuItems.isTaxable AS isTaxable, "
 					+ "OrderItems.state AS state FROM OrderItems, MenuItems "
 					+ "WHERE OrderItems.orderId='" + orderId 
@@ -4185,6 +4186,7 @@ public class AccessManager {
 				+ "MenuItems.station AS station, "
 				+ "OrderItems.specs AS specs, "
 				+ "OrderItems.rate AS rate, "
+				+ "OrderItems.specs AS specs, "
 				+ "MenuItems.isTaxable AS isTaxable, "
 				+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE orderId='" + orderId 
 				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.hotelId='"+hotelId+"' "
@@ -4220,68 +4222,8 @@ public class AccessManager {
 		}
 		return orderItems;
 	}
-
-	public JSONObject newOrder(String hotelId, String userId, String[] tableIds, int peopleCount, String customer) {
-		JSONObject outObj = new JSONObject();
-		String orderId = "";
-		String sql = "";
-		String hotelType = this.getHotelById(hotelId).getHotelType();
-		
-		try {
-			String serviceDate = this.getServiceDate(hotelId);
-			if (serviceDate==null) {
-				outObj.put("status", -1);
-				outObj.put("message", "Service has not started for the day");
-				return outObj;
-			}
-			for (int i=0;i<tableIds.length;i++) {
-				sql = "SELECT * FROM OrderTables WHERE tableId='" + tableIds[i]+ "' AND "
-						+ "hotelId='"+escapeString(hotelId)+"';";
-				TableUsage table = db.getOneRecord(sql, TableUsage.class, hotelId);
-				if (table != null) {
-					outObj.put("status", -1);
-					outObj.put("message", "Table " + tableIds[i] + " not free");
-					return outObj;
-				}
-			}
-			StringBuilder tableId = new StringBuilder();
-			for(int i=0; i< tableIds.length; i++) {
-				tableId.append(tableIds[i]);
-			    if(i!=tableIds.length)
-			    	tableId.append(",");
-			}
-			orderId = getNextOrderId(hotelId,userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, rating_ambiance, rating_qof,"
-					+ "rating_service, rating_hygiene, waiterId, numberOfGuests, state, inhouse, tableId, serviceType, foodBill, barBill) values ('" + 
-					hotelId + "', '" + 
-				orderId + "', '" + 
-				serviceDate + "','" +
-				customer + "', '', '', 5, 5, 5, 5, '" +
-				userId + "', " +
-				Integer.toString(peopleCount) + ", ";
-			
-			if(hotelType.equals("PREPAID")){
-				sql += Integer.toString(ORDER_STATE_BILLING) + ",1,'"+tableId.toString()+"','"+getCurrentService(hotelId).getServiceType()+"',0,0);";
-			}else{
-				sql += Integer.toString(ORDER_STATE_SERVICE) + ",1,'"+tableId.toString()+"','"+getCurrentService(hotelId).getServiceType()+"',0,0);";
-			}
-			
-			for (int i=0;i<tableIds.length;i++) {
-				sql = sql+"INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId+ "','" + tableIds[i]+ "','" + orderId + "');";
-			}
-			db.executeUpdate(sql, true);
-			outObj.put("status", 0);
-			outObj.put("orderId", orderId);
-			return outObj;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
  	
- 	public JSONObject newOrder2(String hotelId, String userId, String[] tableIds, int peopleCount, String customer, String mobileNumber, String allergyInfo) {
+ 	public JSONObject newOrder(String hotelId, String userId, String[] tableIds, int peopleCount, String customer, String mobileNumber, String allergyInfo) {
 		JSONObject outObj = new JSONObject();
 		String orderId = "";
 		String sql = "";
@@ -4311,12 +4253,12 @@ public class AccessManager {
 			}
 			orderId = getNextOrderId(hotelId,userId);
 			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, rating_ambiance, rating_qof,"
-					+ "rating_service, rating_hygiene, waiterId, numberOfGuests, state, inhouse, tableId, serviceType, foodBill, barBill) values ('" + 
+					+ "customerNumber, customerAddress, waiterId, numberOfGuests, "
+					+ "state, inhouse, tableId, serviceType, foodBill, barBill) values ('" + 
 					hotelId + "', '" + 
 				orderId + "', '" + 
 				serviceDate + "','" +
-				customer + "', '"+mobileNumber+"', '', 5, 5, 5, 5, '" +
+				customer + "', '"+mobileNumber+"', '', '" +
 				userId + "', " +
 				Integer.toString(peopleCount) + ", ";
 			
@@ -4328,11 +4270,13 @@ public class AccessManager {
 			for (int i=0;i<tableIds.length;i++) {
 				sql = sql+"INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId+ "','" + tableIds[i]+ "','" + orderId + "');";
 			}
-			if (!hasCustomer(hotelId, mobileNumber)) {
-				addCustomer(hotelId, customer, mobileNumber,  "", "", "", allergyInfo, Boolean.FALSE);
-			}
-			else {
-				modifyCustomer(hotelId, customer, mobileNumber,"","",allergyInfo, "", Boolean.FALSE);
+			if(!mobileNumber.equals("")){
+				if(!hasCustomer(hotelId, mobileNumber)) {
+					addCustomer(hotelId, customer, mobileNumber,  "", "", "", allergyInfo, Boolean.FALSE);
+				}
+				else {
+					modifyCustomer(hotelId, customer, mobileNumber,"","",allergyInfo, "", Boolean.FALSE);
+				}
 			}
 			db.executeUpdate(sql, true);
 			outObj.put("status", 0);
@@ -4358,12 +4302,11 @@ public class AccessManager {
 			}
 			orderId = getNextOrderId(hotelId,userId);
 			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, rating_ambiance, rating_qof,"
-					+ "rating_service, rating_hygiene, waiterId, numberOfGuests, state, inhouse, serviceType, foodBill, barBill) values ('" + 
+					+ "customerNumber, customerAddress, waiterId, numberOfGuests, state, inhouse, serviceType, foodBill, barBill) values ('" + 
 					hotelId + "', '" + 
 					orderId + "', '" + 
 					serviceDate + "','" +
-					customer + "', '"+mobileNumber+"', '', 5, 5, 5, 5, '" +
+					customer + "', '"+mobileNumber+"', '', '" +
 					userId + "', " +
 					1 + ", " +
 					Integer.toString(ORDER_STATE_COMPLETE) + "," +
@@ -4394,18 +4337,20 @@ public class AccessManager {
 		String sql = "";
 		try {
 			String serviceDate = this.getServiceDate(hotelId);
-			Boolean status;
+			Boolean status= false;
 			if (serviceDate==null) {
 				outObj.put("status", -1);
 				outObj.put("message", "Service has not started for the day");
 				return outObj;
 			}
-			if (!hasCustomer(hotelId, phone)) {
-				status = addCustomer(hotelId, customer, phone, address, "", "", allergyInfo, Boolean.FALSE);
+			if(!phone.equals("")){
+				if (!hasCustomer(hotelId, phone)) {
+					status = addCustomer(hotelId, customer, phone, address, "", "", allergyInfo, Boolean.FALSE);
+				}else {
+					status = modifyCustomer(hotelId, customer, phone,"","",allergyInfo,address, Boolean.FALSE);
+				}
 			}
-			else {
-				status = modifyCustomer(hotelId, customer, phone,"","",allergyInfo,address, Boolean.FALSE);
-			}
+
 			if (!status) {
 				outObj.put("status", -1);
 				outObj.put("message", "Failed to update customer information");
@@ -4514,7 +4459,7 @@ public class AccessManager {
 		return db.executeUpdate(sql, true);
 	}
 	
-	public Boolean editSubOrder(String hotelId, String orderId, String subOrderId, String menuId, Integer qty) {
+	public Boolean editSubOrder(String hotelId, String orderId, String subOrderId, String menuId, int qty) {
 		String sql = null;
 		if (qty==0) {
 			sql = "DELETE FROM OrderItems WHERE orderId='"+orderId+"' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='"+hotelId+"' AND state=" + Integer.toString(SUBORDER_STATE_PENDING) + ";";
@@ -4522,6 +4467,21 @@ public class AccessManager {
 		else {
 			sql = "UPDATE OrderItems SET qty=" + Integer.toString(qty) + " WHERE orderId='"+orderId+"' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='"+hotelId+"' AND state=" + Integer.toString(SUBORDER_STATE_PENDING) + ";";
 		}
+		int itemId = qty+1;
+		this.removeOrderedAddon(hotelId, orderId, subOrderId, menuId, itemId);
+		this.removeOrderedSpecification(hotelId, orderId, subOrderId, menuId, itemId);
+		return db.executeUpdate(sql, true);
+	}
+
+	public Boolean removeOrderedSpecification(String hotelId, String orderId, String subOrderId, String menuId, int itemId){
+		String sql = "DELETE FROM OrderSpecifications WHERE orderId='"+orderId+"' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='"+hotelId+"' AND itemId=" + itemId + ";";
+
+		return db.executeUpdate(sql, true);
+	}
+
+	public Boolean removeOrderedAddon(String hotelId, String orderId, String subOrderId, String menuId, int itemId){
+		String sql = "DELETE FROM OrderAddons WHERE orderId='"+orderId+"' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='"+hotelId+"' AND itemId=" + itemId + ";";
+
 		return db.executeUpdate(sql, true);
 	}
 
@@ -4604,6 +4564,7 @@ public class AccessManager {
 		else {
 			sql = "UPDATE OrderItems SET qty=" + Integer.toString(qty) + " WHERE orderId='"+orderId+"' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='"+hotelId+ "';";
 		}
+		this.removeOrderedSpecification(hotelId, orderId, subOrderId, menuId, qty+1);
 		return db.executeUpdate(sql, true);
 	}
 	
@@ -5094,7 +5055,9 @@ public class AccessManager {
 		}
 		sql = "DELETE FROM OrderItems WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; "
 				+ "DELETE FROM Orders WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; "
-				+ "DELETE FROM OrderTables WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; ";
+				+ "DELETE FROM OrderTables WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; "
+				+ "DELETE FROM OrderSpecifications WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; "
+				+ "DELETE FROM OrderAddons WHERE orderId=='" + orderId + "' AND hotelId='"+hotelId+"'; ";
 		return db.executeUpdate(sql, true);
 	}
 	public MonthReport getMaxOrderedItem(String hotelId, String duration) {
@@ -5271,7 +5234,6 @@ public class AccessManager {
 				this.updateFoodBill(hotelId, newTable.getOrderId(), item.getMenuId(), item.getQty(), false);
 				this.updateFoodBill(hotelId, oldTable.getOrderId(), item.getMenuId(), item.getQty(), true);
 			} catch (JSONException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -5294,7 +5256,6 @@ public class AccessManager {
 			try {
 				currentTableId = newTableNumbers.getJSONObject(i).getInt("tableId");
 			} catch (JSONException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			if(!tables.contains(currentTableId))
@@ -5324,7 +5285,6 @@ public class AccessManager {
 			try {
 				currentTableId = newTableNumbers.getJSONObject(i).getInt("tableId");
 			} catch (JSONException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			if(!tables.contains(currentTableId))
@@ -5473,9 +5433,9 @@ public class AccessManager {
 		return db.getOneRecord(sql, Customer.class, hotelId);
 	}
 
-	public Customer getMobileNoFromOrderId(String hotelId, String orderId) {
-		String sql = "SELECT customerNumber FROM Orders WHERE orderId='"+orderId+"' AND hotelId='"+hotelId+"'";
-		return db.getOneRecord(sql, Customer.class, hotelId);
+	public EntityString getMobileNoFromOrderId(String hotelId, String orderId) {
+		String sql = "SELECT customerNumber AS entityId FROM Orders WHERE orderId='"+orderId+"' AND hotelId='"+hotelId+"'";
+		return db.getOneRecord(sql, EntityString.class, hotelId);
 	}
 
 	public ArrayList<Customer> getAllCustomerDetails(String hotelId) {
@@ -5554,6 +5514,17 @@ public class AccessManager {
 				"', '" + escapeString(cardType) +
 				"', " + Double.toString(complimentary) + 
 				");";
+
+		return db.executeUpdate(sql, true);
+	}
+	
+	public boolean editPayment(String hotelId, String orderId, double cashPayment, double cardPayment, String cardType) {
+		
+		String sql = "UPDATE Payment SET " +
+				"cashPayment = " + Double.toString(cashPayment) + ", " +
+				"cardPayment = " + Double.toString(cardPayment) + ", " +
+				"cardType = '" + escapeString(cardType) + "' " +
+				"WHERE orderId = '"+orderId+"' AND hotelID = '"+hotelId+"';";
 
 		return db.executeUpdate(sql, true);
 	}
@@ -6301,35 +6272,19 @@ public class AccessManager {
 		
 		return db.getRecords(sql, KitchenDisplayOrders.class, hotelId);
 	}
-	
-	public ArrayList<KitchenDisplayOrders> getKDSOrdersForState(String hotelId, int state){
-		String sql =  "SELECT OrderItems.orderId as orderId,"
-				+ " OrderItems.subOrderDate as subOrderDate,"
-				+ " OrderItems.subOrder	Id as subOrderId,"
-				+ " MenuItems.title as title,"
-				+ " OrderItems.qty as qty,"
-				+ " OrderItems.state as state,"
-				+ " MenuItems.preparationTime as prepTime,"
-				+ " MenuItems.station as station"
-				+ " FROM OrderItems, MenuItems"
-				+ " WHERE OrderItems.menuId == MenuItems.menuID"
-				+ " AND OrderItems.state == "+state+" AND OrderItems.hotelId == '"+hotelId+"'"
-				+ " AND Orders.orderDate LIKE '%"+ this.getServiceDate(hotelId) +"%'"
-				+ " ORDER BY OrderItems.subOrderDate ASC;";
-		return db.getRecords(sql, KitchenDisplayOrders.class, hotelId);
-	}
-	
 	//----------------------------------------------Ratings
 
 	public boolean submitRatings(String hotelId, String orderId, String customerName, String customerNumber, 
 			String customerBirthdate, String customerAnniversary, String reviewSuggestions, JSONObject ratings, Boolean wantsPromotion) {
 		try {
 			String sql="";
-			if (!hasCustomer(hotelId, customerNumber)) {
-				addCustomer(hotelId, customerName, customerNumber, "", customerBirthdate, customerAnniversary, "", wantsPromotion);
-			}
-			else {
-				modifyCustomer(hotelId, customerName, customerNumber, customerBirthdate, customerAnniversary, "", "", wantsPromotion);
+			if(!customerNumber.equals("")){
+				if (!hasCustomer(hotelId, customerNumber)) {
+					addCustomer(hotelId, customerName, customerNumber, "", customerBirthdate, customerAnniversary, "", wantsPromotion);
+				}
+				else {
+					modifyCustomer(hotelId, customerName, customerNumber, customerBirthdate, customerAnniversary, "", "", wantsPromotion);
+				}
 			}
 
 			sql = "UPDATE Orders SET customerName='" + 
