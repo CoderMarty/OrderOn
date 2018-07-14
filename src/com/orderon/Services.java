@@ -2040,6 +2040,26 @@ public class Services {
 	}
 
 	@GET
+	@Path("/v1/getMenuItems")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getMenuItems(@QueryParam("hotelId") String hotelId) {
+		AccessManager dao = new AccessManager(false);
+		JSONArray itemsArr = new JSONArray();
+		JSONObject itemDetails = null;
+		ArrayList<EntityString> menuItems = dao.getMenuItems(hotelId);
+		try {
+			for (int i = 0; i < menuItems.size(); i++) {
+				itemDetails = new JSONObject();
+				itemDetails.put("title", menuItems.get(i).getEntity());
+				itemsArr.put(itemDetails);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return itemsArr.toString();
+	}
+
+	@GET
 	@Path("/v1/getMenuMP")
 	@Produces(MediaType.APPLICATION_JSON)
 	public String getMenuMP(@QueryParam("hotelId") String hotelId) {
@@ -3261,8 +3281,8 @@ public class Services {
 					collectionArr.put(collObj);
 
 				}
-				discountDetails.put("validCollections", collectionArr);
-				discountDetails.put("collectionsArr", collections);
+				discountDetails.put("collectionsArr", collectionArr);
+				discountDetails.put("hasCollections", discount.getHasCollections());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -5860,10 +5880,10 @@ public class Services {
 		try {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
-			outObj = dao.addLoyaltyOffer(inObj.getString("name"), inObj.getInt("offerType"), inObj.getInt("points"), inObj.getInt("offerValue"),
-					inObj.getBoolean("hasUsageLimit"), inObj.getInt("usageLimit"), inObj.getInt("minBill"), inObj.getString("userType"), 
-					inObj.getString("validCollections"), inObj.getBoolean("status"), inObj.getString("startDate"), inObj.getString("expiryDate"), 
-					inObj.getString("hotelId"), inObj.getString("chainId"));
+			outObj = dao.addLoyaltyOffer(inObj.getString("name"), inObj.getInt("offerType"), inObj.getInt("points"), inObj.getString("offerValue"),
+					inObj.getString("hasUsageLimit"), inObj.getInt("usageLimit"), inObj.getInt("minBill"), inObj.getString("userType"), 
+					inObj.getString("validCollections"), inObj.getString("status"), inObj.getString("startDate"), inObj.getString("expiryDate"), 
+					inObj.getString("hotelId"), inObj.getString("chainId"), inObj.getInt("offerQuantity"));
 		
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -5872,7 +5892,7 @@ public class Services {
 	}
 
 	@POST
-	@Path("/v1/editLoyaltyOfferStatus")
+	@Path("/v1/editLoyaltyOffer")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public String editLoyaltyOfferStatus(String jsonObject) {
@@ -5881,7 +5901,10 @@ public class Services {
 		AccessManager dao = new AccessManager(false);
 		try {
 			inObj = new JSONObject(jsonObject);
-			outObj.put("status", dao.editLoyaltyOfferStatus(inObj.getString("hotelId"), inObj.getInt("id"), inObj.getInt("status")));
+			outObj = dao.editLoyaltyOffer(inObj.getInt("id"), inObj.getInt("offerType"), inObj.getInt("points"), inObj.getString("offerValue"),
+					inObj.getString("hasUsageLimit"), inObj.getInt("usageLimit"), inObj.getInt("minBill"), inObj.getString("userType"), 
+					inObj.getString("validCollections"), inObj.getString("status"), inObj.getString("startDate"), inObj.getString("expiryDate"), 
+					inObj.getString("hotelId"), inObj.getString("chainId"), inObj.getInt("offerQuantity"));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -5918,6 +5941,7 @@ public class Services {
 				loyaltyDetails.put("id", loyaltyOffers.get(i).getId());
 				loyaltyDetails.put("name", loyaltyOffers.get(i).getName());
 				loyaltyDetails.put("offerType", loyaltyOffers.get(i).getOfferType());
+				loyaltyDetails.put("offerTypeView", loyaltyOffers.get(i).getOfferTypeView());
 				loyaltyDetails.put("offerValue", loyaltyOffers.get(i).getOfferValue());
 				loyaltyDetails.put("offerQuantity", loyaltyOffers.get(i).getOfferQuantity());
 				loyaltyDetails.put("points", loyaltyOffers.get(i).getPoints());
@@ -5925,6 +5949,7 @@ public class Services {
 				loyaltyDetails.put("expiryDate", loyaltyOffers.get(i).getExpiryDate());
 				loyaltyDetails.put("userType", loyaltyOffers.get(i).getUserType());
 				loyaltyDetails.put("usageLimit", loyaltyOffers.get(i).getUsageLimit());
+				loyaltyDetails.put("minBill", loyaltyOffers.get(i).getMinBill());
 				loyaltyDetails.put("status", loyaltyOffers.get(i).getStatus());
 				loyaltyDetails.put("chainId", loyaltyOffers.get(i).getChainId());
 				loyaltyDetails.put("validCollections", loyaltyOffers.get(i).getValidCollections());
@@ -5944,6 +5969,9 @@ public class Services {
 	public String getLoyaltyOffer(@QueryParam("hotelId") String hotelId, @QueryParam("id") int id) {
 		AccessManager dao = new AccessManager(false);
 		JSONObject outObj = new JSONObject();
+		JSONObject collObj = new JSONObject();
+		JSONArray collArr = new JSONArray();
+		String[] collections = {};
 		try {
 			LoyaltyOffer loyalty = dao.getLoyaltyOfferById(hotelId, id);
 			outObj = new JSONObject();
@@ -5953,13 +5981,28 @@ public class Services {
 				outObj.put("id", loyalty.getId());
 				outObj.put("name", loyalty.getName());
 				outObj.put("offerType", loyalty.getOfferType());
+				outObj.put("offerTypeView", loyalty.getOfferTypeView());
 				outObj.put("offerValue", loyalty.getOfferValue());
 				outObj.put("offerQuantity", loyalty.getOfferQuantity());
 				outObj.put("points", loyalty.getPoints());
+				outObj.put("usageLimit", loyalty.getUsageLimit());
+				outObj.put("hasUsageLimit", loyalty.gethasUsageLimit());
+				outObj.put("minBill", loyalty.getMinBill());
+				outObj.put("startDate", loyalty.getStartDate());
+				outObj.put("expiryDate", loyalty.getExpiryDate());
 				outObj.put("userType", loyalty.getUserType());
 				outObj.put("status", loyalty.getStatus());
 				outObj.put("chainId", loyalty.getChainId());
-				outObj.put("validCollections", loyalty.getValidCollections());
+				collections = loyalty.getValidCollections();
+				for (int j = 0; j < collections.length; j++) {
+					if (collections[j].equals(""))
+						continue;
+					collObj = new JSONObject();
+					collObj.put("collection", collections[j]);
+					collArr.put(collObj);
+				}
+				outObj.put("collectionsArr", collArr);
+				outObj.put("hasCollections", loyalty.getHasCollections());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

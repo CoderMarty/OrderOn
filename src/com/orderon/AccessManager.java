@@ -1741,6 +1741,10 @@ public class AccessManager {
 		public String[] getValidCollections() {
 			return validCollections.split(",");
 		}
+		
+		public Boolean getHasCollections() {
+			return validCollections.length()>0;
+		}
 
 		private String name;
 		private String description;
@@ -3425,11 +3429,11 @@ public class AccessManager {
 		private String offerValue;
 		private int offerQuantity;
 		private int usageLimit;
-		private boolean hasUsageLimit;
+		private String hasUsageLimit;
 		private int minBill;
 		private String userType;
 		private String validCollections;
-		private boolean status;
+		private String status;
 		private String startDate;
 		private String expiryDate;
 		private String hotelId;
@@ -3445,6 +3449,15 @@ public class AccessManager {
 
 		public int getOfferType() {
 			return offerType;
+		}
+		
+		public String getOfferTypeView() {
+			if(offerType == CASH_LOYALTY_OFFER)
+				return "CASH";
+			else if(offerType == PERCENTAGE_LOYALTY_OFFER)
+				return "PERCENTAGE";
+			else
+				return "PRODUCT";
 		}
 
 		public int getPoints() {
@@ -3464,10 +3477,10 @@ public class AccessManager {
 		}
 
 		public Boolean gethasUsageLimit() {
-			return hasUsageLimit;
+			return Boolean.valueOf(hasUsageLimit);
 		}
 
-		public int getMinBall() {
+		public int getMinBill() {
 			return minBill;
 		}
 
@@ -3478,9 +3491,11 @@ public class AccessManager {
 		public String[] getValidCollections() {
 			return validCollections.split(",");
 		}
-
+		public Boolean getHasCollections() {
+			return validCollections.length()>0;
+		}
 		public Boolean getStatus() {
-			return status;
+			return Boolean.valueOf(status);
 		}
 
 		public String getStartDate() {
@@ -3509,11 +3524,11 @@ public class AccessManager {
 			this.offerValue = Database.readRsString(rs, "offerValue");
 			this.offerQuantity = Database.readRsInt(rs, "offerQuantity");
 			this.usageLimit = Database.readRsInt(rs, "usageLimit");
-			this.hasUsageLimit = Database.readRsBoolean(rs, "hasUsageLimit");
+			this.hasUsageLimit = Database.readRsString(rs, "hasUsageLimit");
 			this.minBill = Database.readRsInt(rs, "minBill");
 			this.userType = Database.readRsString(rs, "userType");
 			this.validCollections = Database.readRsString(rs, "validCollections");
-			this.status = Database.readRsBoolean(rs, "status");
+			this.status = Database.readRsString(rs, "status");
 			this.startDate = Database.readRsString(rs, "startDate");
 			this.expiryDate = Database.readRsString(rs, "expiryDate");
 			this.hotelId = Database.readRsString(rs, "hotelId");
@@ -3546,7 +3561,6 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			// TODO Auto-generated method stub
 			this.id = Database.readRsInt(rs, "id");
 			this.userType = Database.readRsString(rs, "userType");
 			this.requiredPoints = Database.readRsInt(rs, "requiredPoints");
@@ -3848,6 +3862,11 @@ public class AccessManager {
 		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "' AND state = " + MENUITEM_STATE_AVAILABLE
 				+ ";";
 		return db.getRecords(sql, MenuItem.class, hotelId);
+	}
+
+	public ArrayList<EntityString> getMenuItems(String hotelId) {
+		String sql = "SELECT title AS entityId FROM MenuItems  WHERE hotelId='" + hotelId + "';";
+		return db.getRecords(sql, EntityString.class, hotelId);
 	}
 
 	public ArrayList<MenuItem> getMenuMP(String hotelId) {
@@ -7403,9 +7422,9 @@ public class AccessManager {
 
 	// -------------------------------------------Loyalty
 
-	public JSONObject addLoyaltyOffer(String name, int offerType, int points, int offerValue, boolean hasUsageLimit,
-			int usageLimit, int minBill, String userType, String validCollections, boolean status, String startDate,
-			String expiryDate, String hotelId, String chainId) {
+	public JSONObject addLoyaltyOffer(String name, int offerType, int points, String offerValue, String hasUsageLimit,
+			int usageLimit, int minBill, String userType, String validCollections, String status, String startDate,
+			String expiryDate, String hotelId, String chainId, int offerQuantity) {
 
 		JSONObject outObj = new JSONObject();
 		try {
@@ -7414,10 +7433,15 @@ public class AccessManager {
 				outObj.put("message", "This offer already exists. Please enter a new name.");
 				return outObj;
 			}
-
-			sql = "INSERT INTO LoyaltyOffers ('name', 'offerType', 'points', 'offerValue', 'hasUsageLimit', 'usageLimit', 'minBill', 'userType', "
-					+ "'validCollections' , 'status', 'startDate', 'expiryDate', 'hotelId', 'chainId') VALUES ('"
-					+ escapeString(name) + "'," + offerType + "," + points + "," + offerValue + ",'" + hasUsageLimit
+			if(offerType==PRODUCT_LOYALTY_OFFER) {
+				if(!this.itemExists(hotelId, offerValue)) {
+					outObj.put("message", "This item does not exists in the database. Please enter a valid Menu Item.");
+					return outObj;
+				}
+			}
+			sql = "INSERT INTO LoyaltyOffers ('name', 'offerType', 'points', 'offerValue', 'offerQuantity', 'hasUsageLimit', 'usageLimit', 'minBill', "
+					+ "'userType', 'validCollections' , 'status', 'startDate', 'expiryDate', 'hotelId', 'chainId') VALUES ('"
+					+ escapeString(name) + "'," + offerType + "," + points + ",'" + offerValue + "'," + offerQuantity + ",'" + hasUsageLimit
 					+ "'," + usageLimit + "," + minBill + ",'" + escapeString(userType) + "','"
 					+ escapeString(validCollections) + "','" + status + "','" + escapeString(startDate) + "','"
 					+ escapeString(expiryDate) + "','" + escapeString(hotelId) + "','" + escapeString(chainId) + "');";
@@ -7440,30 +7464,64 @@ public class AccessManager {
 	}
 
 	public ArrayList<LoyaltyOffer> getAllLoyaltyOffers(String hotelId) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "' AND status = 1;";
+		String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "';";
 
 		return db.getRecords(sql, LoyaltyOffer.class, hotelId);
 	}
 
 	public ArrayList<LoyaltyOffer> getAllLoyaltyOffersByChain(String chainId) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE chainId = '" + chainId + "' AND status = 1;";
+		String sql = "SELECT * FROM LoyaltyOffers WHERE chainId = '" + chainId + "';";
 
 		return db.getRecords(sql, LoyaltyOffer.class, chainId);
 	}
 
 	public ArrayList<LoyaltyOffer> getAllLoyaltyOffersForCustomer(String hotelId, int custPoints) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE chainId = '" + hotelId + "' AND status = 1 AND points < "
+		String sql = "SELECT * FROM LoyaltyOffers WHERE chainId = '" + hotelId + "' AND status = 'true' AND points < "
 				+ custPoints + ";";
 
 		return db.getRecords(sql, LoyaltyOffer.class, hotelId);
 	}
 
-	public Boolean editLoyaltyOfferStatus(String hotelId, int id, int status) {
+	public JSONObject editLoyaltyOffer(int id, int offerType, int points, String offerValue, String hasUsageLimit,
+			int usageLimit, int minBill, String userType, String validCollections, String status, String startDate,
+			String expiryDate, String hotelId, String chainId, int offerQuantity) {
 
-		String sql = "UPDATE LoyaltyOffers SET status " + status + "WHERE hotelId = '" + hotelId + "' AND Id = " + id
-				+ ");";
-
-		return db.executeUpdate(sql, true);
+		JSONObject outObj = new JSONObject();
+		
+		try {
+			outObj.put("status", false);
+		
+			if(offerType==PRODUCT_LOYALTY_OFFER) {
+				if(!this.itemExists(hotelId, offerValue)) {
+					outObj.put("message", "This item does not exists in the database. Please enter a valid Menu Item.");
+					return outObj;
+				}
+			}
+			String sql = "UPDATE LoyaltyOffers SET points = " + points
+					+ ", offerValue = '" + offerValue
+					+ "', offerQuantity = " + offerQuantity
+					+ ", hasUsageLimit = '" + hasUsageLimit
+					+ "', usageLimit = " + usageLimit
+					+ ", minBill = " + minBill
+					+ ", userType = '" + userType
+					+ "', validCollections = '" + validCollections
+					+ "', status = '" + status
+					+ "', startDate = '" + startDate
+					+ "', expiryDate = '" + expiryDate
+					+ "' WHERE hotelId = '" + hotelId + "' AND Id = " + id
+					+ ";";
+	
+			if(!db.executeUpdate(sql, true)) {
+				outObj.put("message", "Failed to edit this offer. Please try again or contact OrderOn support.");
+				return outObj;
+			}
+	
+			outObj.put("status", true);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return outObj;
 	}
 
 	private Boolean updateOfferUsageLimit(String hotelId, int updatedCount, int loyaltyId) {
@@ -7489,8 +7547,8 @@ public class AccessManager {
 		try {
 			outObj.put("status", false);
 
-			if (loyalty.getMinBall() < billAmount) {
-				outObj.put("message", "This offer requires minimum billing of " + loyalty.getMinBall() + ".");
+			if (loyalty.getMinBill() < billAmount) {
+				outObj.put("message", "This offer requires minimum billing of " + loyalty.getMinBill() + ".");
 				return outObj;
 			}
 
