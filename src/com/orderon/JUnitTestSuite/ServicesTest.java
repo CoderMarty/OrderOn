@@ -2,7 +2,6 @@ package com.orderon.JUnitTestSuite;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 
 import org.json.JSONException;
@@ -12,21 +11,21 @@ import org.junit.Test;
 import com.orderon.AccessManager;
 import com.orderon.AccessManager.Employee;
 import com.orderon.AccessManager.MenuCollection;
-import com.orderon.AccessManager.User;
-import com.orderon.UserType;
 import com.orderon.AccessManager.MenuItem;
 import com.orderon.AccessManager.Order;
 import com.orderon.AccessManager.OrderItem;
 import com.orderon.AccessManager.ServiceLog;
 import com.orderon.AccessManager.TableUsage;
+import com.orderon.AccessManager.User;
+import com.orderon.UserType;
 
-import junit.framework.*;
+import junit.framework.TestCase;
 
 public class ServicesTest extends TestCase{
 	
 	public AccessManager dao = new AccessManager(false);
-	public String hotelId = "h0001";
-	public String userId = "test";
+	public String hotelId = "h0002";
+	public String userId = "Admin";
 	public String password = "1234";
 	public String user2 = "tempUser";
 
@@ -37,20 +36,20 @@ public class ServicesTest extends TestCase{
 	public void testValidateUser(){
 		
 		//Valid User
-		boolean output = dao.validUser(hotelId, "Admin", password);
-		assertTrue(output);
+		User user = dao.validUser(hotelId, "Admin", password);
+		assertNotNull(user);
 
 		//Invalid Password
-		output = dao.validUser(hotelId, "Admin", "2234");
-		assertFalse(output);
+		user = dao.validUser(hotelId, "Admin", "2234");
+		assertNull(user);
 
 		//Invalid hotelId
-		output = dao.validUser("bc01", "Admin", password);
-		assertFalse(output);
+		user = dao.validUser("bc01", "Admin", password);
+		assertNull(user);
 
 		//Invalid userName
-		output = dao.validUser(hotelId, "Admin1", password);
-		assertFalse(output);
+		user = dao.validUser(hotelId, "Admin1", password);
+		assertNull(user);
 	}
 	
 	/**
@@ -67,37 +66,9 @@ public class ServicesTest extends TestCase{
 		output = dao.validMPUser(hotelId, "Admin", "2234");
 		assertNull(output);
 
-		//Invalid hotelId
-		output = dao.validMPUser("bc01", "Admin", password);
-		assertNull(output);
-
 		//Invalid userName
 		output = dao.validMPUser(hotelId, "Admin1", password);
 		assertNull(output);
-	}
-	
-	/**
-	 * Tests if high level access users are allowed access
-	 * i.e. Administrator, Manager or Owner.
-	 */
-	@Test
-	public void testValidateManager(){
-
-		//Administrator
-		boolean output = dao.validateManager(hotelId, "Admin", password);
-		assertTrue(output);
-
-		//Manager
-		output = dao.validateManager(hotelId, "Orne", "9876");
-		assertTrue(output);
-
-		//Chef
-		output = dao.validateManager(hotelId, "Sonu", password);
-		assertFalse(output);
-
-		//Waiter
-		output = dao.validateManager(hotelId, "S.singh", password);
-		assertFalse(output);
 	}
 	
 	/**
@@ -137,7 +108,7 @@ public class ServicesTest extends TestCase{
 		//Check if auth token is valid
 		UserType userType = dao.validateToken(hotelId, userId, output);
 		//Check the type of user.
-		assertEquals(UserType.WAITER, userType);
+		assertEquals(UserType.ADMINISTRATOR, userType);
 		
 		//log out user
 		boolean output2 = dao.removeToken(hotelId, userId);
@@ -157,29 +128,30 @@ public class ServicesTest extends TestCase{
 	public void testNewUserOperations(){
 
 		//Add new user
-		boolean output = dao.addUser(hotelId, user2, "HC010", 0, password);
+		boolean output = dao.addUser(hotelId, user2, "HW017", 0, password);
 		assertTrue(output);
 
 		//Check if user exists
 		output = dao.userExists(hotelId, user2);
 		assertTrue(output);
 		
-		output = dao.checkPassword(user2, password, hotelId);
+		User user = dao.validUser(hotelId, user2, password);
 		assertTrue(output);
 		
-		output = dao.modifyUserPasswd(hotelId, user2, "4321");
-		assertTrue(output);
-		
-		output = dao.updateUser(hotelId, user2, "4321", 3);
-		assertTrue(output);
+		JSONObject obj = dao.updateUser(hotelId, user2, password, "4321", 3);
 		
 		//Check if user exists
-		output = dao.userExists(hotelId, user2);
+		try {
+			output = obj.getBoolean("status");
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		assertTrue(output);
 		
-		User user = dao.getUserById(hotelId, user2);
-		assertEquals("HC010", user.getEmployeeId());
-		assertEquals("4321", user.getPasswd());
+		user = dao.validUser(hotelId, user2, "4321");
+		assertEquals("HW017", user.getEmployeeId());
+		assertEquals("Swiggy Delivery", user.getName());
 		assertEquals(user2, user.getUserId());
 		
 		//Delete user
@@ -192,7 +164,7 @@ public class ServicesTest extends TestCase{
 	}
 	
 	/**
-	 * Test CRUD Operations for New User
+	 * Test CRUD Operations for New Item
 	 */
 	@Test
 	public void testMenuItemOperations(){
@@ -209,13 +181,13 @@ public class ServicesTest extends TestCase{
 		MenuCollection menuCollection = dao.getCollectionByName(hotelId, category);
 		assertEquals(category, menuCollection.getCollection());
 		
-		String menuId = dao.addMenuItem(hotelId, item, "test Description", category, "testStation", "", 10, 100, 100, 100, 0, "No image", 0);
+		String menuId = dao.addMenuItem(hotelId, item, "test Description", category, "testStation", "", 10, 100.0, 100.0, 100.0, 0, "No image", 0
+				, 0 , 0, "TD");
 		assertNotNull(menuId);
 		
-		output = dao.itemExists(hotelId, item);
-		assertTrue(output);
+		MenuItem menuItem = dao.itemExists(hotelId, item);
+		assertNotNull(menuItem);
 		
-		MenuItem menuItem = dao.getMenuItemByTitle(hotelId, item);
 		assertEquals(menuId, menuItem.getMenuId());
 		assertEquals(item, menuItem.getTitle());
 		assertEquals("test Description", menuItem.getDescription());
@@ -227,8 +199,12 @@ public class ServicesTest extends TestCase{
 		assertEquals(100.0, menuItem.getInhouseRate());
 		assertEquals(100.0, menuItem.getCostPrice());
 		assertEquals(0, menuItem.getVegType());
+		assertEquals(0, menuItem.getHasIncentive());
+		assertEquals(0, menuItem.getIncentive());
+		assertEquals("TD", menuItem.getShortForm());
 		
-		output = dao.updateMenuItem(hotelId, menuId, item, "des 2", category, "testStation", "cs;", 12, 100, 100, 50, 1, "No image", 0);
+		output = dao.updateMenuItem(hotelId, menuId, item, "des 2", category, "testStation", "cs;", 12, 100.0, 100.0, 50.0, 1, "No image", 0,
+				1, 50, "DD");
 		assertTrue(output);
 		
 		output = dao.updateMenuItemState(hotelId, menuId, 1);
@@ -240,6 +216,10 @@ public class ServicesTest extends TestCase{
 		assertEquals(12, menuItem.getPreparationTime());
 		assertEquals(50.0, menuItem.getCostPrice());
 		assertEquals(1, menuItem.getState());
+		assertEquals(1, menuItem.getVegType());
+		assertEquals(1, menuItem.getHasIncentive());
+		assertEquals(50, menuItem.getIncentive());
+		assertEquals("DD", menuItem.getShortForm());
 		
 		output = dao.deleteItem(hotelId, menuId);
 		assertTrue(output);
@@ -310,25 +290,25 @@ public class ServicesTest extends TestCase{
 		
 		ArrayList<TableUsage> tables = dao.getTableUsage(hotelId, userId);
 		assertNotNull(tables);
-		assertEquals(13, tables.size());
+		assertEquals(19, tables.size());
 		
-		LocalDateTime now = LocalDateTime.now();
+		/*LocalDateTime now = LocalDateTime.now();
 		String date = now.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
 		
-		boolean output = dao.addService(hotelId, "Lunch", date, 100);
+		boolean output = dao.addService("h0001", "Lunch", date, 100);
 		assertNotNull(output);
 		
-		ServiceLog service = dao.getCurrentService(hotelId);
+		ServiceLog service = dao.getCurrentService("h0001");
 		assertEquals("Lunch", service.getServiceType());
 		assertEquals(date, service.getServiceDate());
 		assertEquals(100, service.getCashInHand());
 		assertEquals(0, service.getIsCurrent());
-		
-		JSONObject orderObj = dao.newOrder(hotelId, user2, orderTables, 2, "Angelina");
+		*/
+		JSONObject orderObj = dao.newOrder(hotelId, user2, orderTables, 2, "Angelina", "9123456789", "C/103", "No Nuts", "");
 		assertNotNull(orderObj);
 		try {
-			assertEquals(0, orderObj.get("status"));
-			orderId = (String) orderObj.get("orderId");
+			assertEquals(0, orderObj.getInt("status"));
+			orderId = orderObj.getString("orderId");
 			assertNotNull(orderId);
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
@@ -338,7 +318,7 @@ public class ServicesTest extends TestCase{
 		subOrderId = dao.getNextSubOrderId(hotelId, orderId);
 		assertNotNull(subOrderId);
 		
-		JSONObject subOrderObj = dao.newSubOrder(hotelId, orderId, "1", 2, "No Onion", subOrderId);
+		JSONObject subOrderObj = dao.newSubOrder(hotelId, orderId, "1", 2, "No Onion", subOrderId, "waiter", 0);
 		assertNotNull(subOrderObj);
 		try {
 			assertEquals(0, subOrderObj.get("status"));
@@ -349,15 +329,14 @@ public class ServicesTest extends TestCase{
 		}
 		Order order = dao.getOrderById(hotelId, orderId);	
 		assertEquals("Angelina", order.getCustomerName());
-		assertEquals(2, order.getCustomerNumber());
-		assertEquals(user2, order.getWaiterId());
+		assertEquals("9123456789", order.getCustomerNumber());
+		assertEquals("waiter", order.getWaiterId());
 		
 		ArrayList<OrderItem> orderItems = dao.getOrderedItems(hotelId, orderId);
 		
+		boolean output = dao.cancelOrder(hotelId, orderId);
 		
-		output = dao.cancelOrder(hotelId, orderId);
-		
-		output = dao.endService(hotelId, date);
+		//output = dao.endService("h0001", date, "Lunch");
 		assertTrue(output);
 	}
 }

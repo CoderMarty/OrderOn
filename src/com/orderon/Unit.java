@@ -1,13 +1,15 @@
 package com.orderon;
 
+import java.math.BigDecimal;
+
 public enum Unit {
 	
-	GRAM(1.0, "GRAM"), KG(0.001, "GRAM"), MG(100.0, "GRAM"), LITRE(0.001, "ML"), ML(1.0, "ML"), 
-	PIECE(1.0, "PIECE"), CUP(250.0, "ML"), TEASPOONGM(5.0, "GRAM"), TABLESPOONGM(15.0, "GRAM")
-	, TEASPOONML(5.0, "ML"), TABLESPOONML(15.0, "ML"), PINCH(1.0, "GRAM");
+	GRAM(new BigDecimal("1"), "GRAM"), KG(new BigDecimal("0.001"), "GRAM"), MG(new BigDecimal("100"), "GRAM"), LITRE(new BigDecimal("0.001"), "ML"), 
+	ML(new BigDecimal("1"), "ML"), PIECE(new BigDecimal("1"), "PIECE"), CUP(new BigDecimal("250"), "ML"), TEASPOONGM(new BigDecimal("5"), "GRAM"), 
+	TABLESPOONGM(new BigDecimal("15"), "GRAM"), TEASPOONML(new BigDecimal("5"), "ML"), TABLESPOONML(new BigDecimal("15"), "ML"), PINCH(new BigDecimal("1"), "GRAM");
 	
-	private double conversion;
-	private double value;
+	private BigDecimal conversion;
+	private BigDecimal value;
 	private String association;
 
 	public String getAssociation() {
@@ -18,27 +20,26 @@ public enum Unit {
 		this.association = association;
 	}
 
-	public double getValue() {
+	public BigDecimal getValue() {
 		return this.value;
 	}
 
-	public void setValue(double value) {
+	public void setValue(BigDecimal value) {
 		this.value = value;
 	}
 
-	public double getConversion(){
+	public BigDecimal getConversion(){
 		return this.conversion;
 	}
 	
-	public double convertToStore(){
-		return this.value*this.conversion;
+	public BigDecimal convertToStore(){
+		return this.value.multiply(this.conversion);
 	}
-	public double convertToDisplay(){
-		double x = this.value/this.conversion;
-		return x;
+	public BigDecimal convertToDisplay(){
+		return this.value.divide(this.conversion);
 	}
 	
-	private Unit(double conversion, String association){
+	private Unit(BigDecimal conversion, String association){
 		this.conversion = conversion;
 		this.association = association;
 	}

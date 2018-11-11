@@ -2,7 +2,7 @@ package com.orderon;
 
 public enum UserType {
 
-	WAITER(0), MANAGER(1), ADMINISTRATOR(2), CHEF(3), RECEPTIONIST(4), CASHIER(5), STEWARD(6), CAPTAIN(7), DELIVARY(8), OWNER(9), DATAMANAGER(10), UNAUTHORIZED(100);
+	WAITER(0), MANAGER(1), ADMINISTRATOR(2), CHEF(3), RECEPTIONIST(4), CASHIER(5), STEWARD(6), CAPTAIN(7), DELIVARY(8), OWNER(9), DATAMANAGER(10), SECRET(99), UNAUTHORIZED(100);
 	
 	private int value;
 	
@@ -38,6 +38,8 @@ public enum UserType {
 			return UserType.OWNER;
 		else if(value == 10)
 			return UserType.DATAMANAGER;
+		else if(value == 99)
+			return UserType.SECRET;
 		else
 			return UserType.UNAUTHORIZED;
 	}

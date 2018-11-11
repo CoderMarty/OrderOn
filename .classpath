@@ -9,11 +9,11 @@
 			<attribute name="owner.project.facets" value="jst.web"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry exported="true" kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.launching.macosx.MacOSXType/Java SE 8 [1.8.0_73]">
+	<classpathentry kind="lib" path="/Users/Marty/workspace/OrderOn/WebContent/WEB-INF/lib/xmlworker-5.5.6.jar" sourcepath="WebContent/WEB-INF/lib/xmlworker-5.5.6-sources.jar">
 		<attributes>
-			<attribute name="owner.project.facets" value="java"/>
+			<attribute name="javadoc_location" value="jar:file:/Users/Marty/workspace/OrderOn/WebContent/WEB-INF/lib/xmlworker-5.5.6-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/Users/Marty/Documents/workspace/OrderOn/WebContent/WEB-INF/lib/xmlworker-5.5.6.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="build/classes"/>
 </classpath>

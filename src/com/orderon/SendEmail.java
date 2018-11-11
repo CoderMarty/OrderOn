@@ -35,12 +35,27 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
 
-import javax.mail.*;  
-import javax.mail.internet.*;
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
+import javax.mail.BodyPart;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Multipart;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 public class SendEmail {
 
-    public void sendEmail(ArrayList<String> recipents, String subject, String text, String[] filePaths) {
+    public void sendEmail(ArrayList<String> recipents, String subject, String text) {
+    	if(Configurator.getIsServer())
+    		return;
+    	
     	final String username = "support@orderon.co.in";
 		final String password = "TOMTech$1234";
 
@@ -52,12 +67,11 @@ public class SendEmail {
 		props.put("mail.smtp.auth", "true"); //Enabling SMTP Authentication
 		props.put("mail.smtp.port", "25"); //SMTP Port
 
-		Session session = Session.getInstance(props,
-		  new javax.mail.Authenticator() {
+		Session session = Session.getInstance(props, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
 				return new PasswordAuthentication(username, password);
 			}
-		  });
+		});
 
 		try {
 
@@ -91,5 +105,78 @@ public class SendEmail {
 			throw new RuntimeException(e);
 		}
 		
+    }
+    public void sendEmailWithAttachment(ArrayList<String> recipents, String subject, String text, String[] filePaths) {
+    	if(Configurator.getIsServer())
+    		return;
+    	
+    	final String username = "support@orderon.co.in";
+		final String password = "TOMTech$1234";
+
+		Properties props = new Properties();
+		
+		props.put("mail.smtp.host", "smtpout.asia.secureserver.net"); //SMTP Host
+		props.put("mail.smtp.socketFactory.port", "465"); //SSL Port
+		props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); //SSL Factory Class
+		props.put("mail.smtp.auth", "true"); //Enabling SMTP Authentication
+		props.put("mail.smtp.port", "25"); //SMTP Port
+
+		Session session = Session.getInstance(props, new javax.mail.Authenticator() {
+			protected PasswordAuthentication getPasswordAuthentication() {
+				return new PasswordAuthentication(username, password);
+			}
+		});
+
+		try {
+
+			MimeMessage msg = new MimeMessage(session);
+			
+			msg.addHeader("Content-type", "text/HTML; charset=UTF-8");
+		    msg.addHeader("format", "flowed");
+		    msg.addHeader("Content-Transfer-Encoding", "8bit");
+			
+		    msg.setFrom(new InternetAddress(username, "NoReply-OrderOn"));
+
+		    msg.setReplyTo(InternetAddress.parse("m@orderon.co.in", false));
+
+		    msg.setSubject(subject, "UTF-8");
+		
+		    //3) create MimeBodyPart object and set your message text     
+		    BodyPart messageBodyPart1 = new MimeBodyPart();  
+		    messageBodyPart1.setContent(text, "text/html; charset=utf-8");  
+
+		    //5) create Multipart object and add MimeBodyPart objects to this object
+		    Multipart multipart = new MimeMultipart();  
+		    multipart.addBodyPart(messageBodyPart1);  
+
+		    //4) create new MimeBodyPart object and set DataHandler object to this object      
+		    MimeBodyPart messageBodyPart2 = new MimeBodyPart();  
+		    int locationLen = Configurator.getDownloadLocation().length()-1;
+		    for (String filename : filePaths) {
+		    	messageBodyPart2 = new MimeBodyPart(); 
+		    	System.out.println(filename);
+			    DataSource source = new FileDataSource(filename);  
+			    messageBodyPart2.setDataHandler(new DataHandler(source));  
+			    messageBodyPart2.setFileName(filename.substring(locationLen));  
+			    //6) set the multipart object to the message object 
+			    multipart.addBodyPart(messageBodyPart2); 
+			}   
+		      
+		    msg.setContent(multipart);  
+
+		    for (String recipent : recipents) {
+				msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipent, false));
+				
+		    
+			    System.out.println("Message is ready");
+			    if(!recipent.equals("")) {
+		    	  		Transport.send(msg);  
+			    		System.out.println("EMail Sent Successfully to "+ recipent+"!!");
+			    }
+			}
+
+		} catch (MessagingException | UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
     }
 }

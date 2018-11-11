@@ -3,7 +3,7 @@ package com.orderon;
 public enum Designation {
 
 	WAITER(0), MANAGER(1), ADMINISTRATOR(2), CHEF(3), RECEPTIONIST(4), RETAILASSCOCIATE(5), 
-	BACKOFFICE(6), DELIVERYBOY(7), OWNER(8), CAPTAIN(9), UNAUTHORIZED(100);
+	BACKOFFICE(6), DELIVERYBOY(7), OWNER(8), CAPTAIN(9), UNAUTHORIZED(100), CASHIER(10);
 	
 	private int value;
 	
@@ -33,6 +33,8 @@ public enum Designation {
 			return Designation.OWNER;
 		else if(value == 9)
 			return Designation.CAPTAIN;
+		else if(value == 10)
+			return Designation.CASHIER;
 		else 
 			return Designation.UNAUTHORIZED;
 	}		

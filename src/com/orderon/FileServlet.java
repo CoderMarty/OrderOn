@@ -117,6 +117,7 @@ public class FileServlet extends HttpServlet {
                 resource.close();
             } catch (IOException e) {
                 // Do your thing with the exception. Print it, log it or mail it.
+    			System.out.println("FileServlet Caused IOException.");
                 e.printStackTrace();
             }
         }

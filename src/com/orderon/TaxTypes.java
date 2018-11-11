@@ -3,8 +3,8 @@ package com.orderon;
 public enum TaxTypes {
 	
 	//Never change the values.
-	GST(0, 5.0, "GST"), GST2(1, 12.0, "GST"), GST3(2, 18.0, "GST"), GST4(3, 28.0, "GST"),  SC(4, 2.0, "SC"),  SC5(6, 5.0, "SC"),
-	VATBAR(5, 12.0, "VATBAR"), INVALID(100, 0, "Invalid");
+	GST(0, 5.0, "GST"), GST2(1, 12.0, "GST"), GST3(2, 18.0, "GST"), GST4(3, 28.0, "GST"),  SC(4, 2.0, "SC"),  SC5(6, 5.0, "SC"), SC10(7, 10.0, "SC"),
+	VATBAR(5, 5.0, "VATBAR"), PC(8, 10.0, "PARKING CHARGE"), DC(9, 10.0, "DELIVERY CHARGE"), INVALID(100, 0, "Invalid");
 	
 	private int value;
 	private double taxPercent;
@@ -44,6 +44,8 @@ public enum TaxTypes {
 			return TaxTypes.VATBAR;
 		else if(value == 6)
 			return TaxTypes.SC5;
+		else if(value == 7)
+			return TaxTypes.SC10;
 		else
 			return TaxTypes.INVALID;
 	}

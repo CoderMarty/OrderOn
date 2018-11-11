@@ -1,11 +1,9 @@
 package com.orderon;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,19 +34,16 @@ public class Configurator {
 	}
 	
 	public static void writeToServerFile(String content) {
-		BufferedWriter bw = null;
 		FileWriter fw = null;
 		try{
 			fw = new FileWriter(getServerFile());
-			bw = new BufferedWriter(fw);
-			bw.write(content);
+			fw.write(content);
 
 		}catch(IOException e) {
+			System.out.println("Server File Writer Caused IOException.");
 			e.printStackTrace();
 		}finally {
 			try{
-				if(bw != null)
-					bw.close();
 				if(fw != null)
 					fw.close();
 			} catch (IOException ex) {
@@ -71,6 +66,42 @@ public class Configurator {
 		try {
 			configObj = new JSONObject(config);
 			return configObj.getString("DBConnectionString");
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return "";
+	}
+	
+	public static boolean getIsExtenstion() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return Boolean.valueOf(configObj.getString("isExtension"));
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
+	public static String getExtensionUser() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return configObj.getString("extensionUser");
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return "";
+	}
+	
+	public static String getExtensionPassword() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return configObj.getString("extensionPassword");
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -125,96 +156,128 @@ public class Configurator {
 		return "/";
 	}
 	
-	public static int getKOTWidth() {
+	public static OrderPrinter getPrinters() {
 		String config = readConfigFile(getConfigFile());
 		JSONObject configObj;
+		OrderPrinter printer = new OrderPrinter();
 		try {
 			configObj = new JSONObject(config);
-			return configObj.getInt("KOTWidth");
+			printer.setBar(configObj.getString("bar"));
+			printer.setBeverage(configObj.getString("beverage"));
+			printer.setCashier(configObj.getString("cashier"));
+			printer.setKitchen(configObj.getString("kitchen"));
+			printer.setOutDoor(configObj.getString("outdoor"));
+			printer.setSummary(configObj.getString("summary"));
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		return 700;
+		return printer;
 	}
 	
-	public static int getKOTHeight() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getInt("KOTHeight");
-		} catch (JSONException e) {
-			e.printStackTrace();
+	public static class OrderPrinter{
+		private String bar;
+		private String beverage;
+		private String cashier;
+		private String kitchen;
+		private String outDoor;
+		private String summary;
+		
+		public String getBar() {
+			return bar;
 		}
-		return 800;
+		public String getBeverage() {
+			return beverage;
+		}
+		public String getCashier() {
+			return cashier;
+		}
+		public String getKitchen() {
+			return kitchen;
+		}
+		public String getOutDoor() {
+			return outDoor;
+		}
+		public String getSummary() {
+			return summary;
+		}
+		public void setBar(String bar) {
+			this.bar = bar;
+		}
+		public void setBeverage(String beverage) {
+			this.beverage = beverage;
+		}
+		public void setCashier(String cashier) {
+			this.cashier = cashier;
+		}
+		public void setKitchen(String kitchen) {
+			this.kitchen = kitchen;
+		}
+		public void setOutDoor(String outDoor) {
+			this.outDoor = outDoor;
+		}
+		public void setSummary(String summary) {
+			this.summary = summary;
+		}
 	}
 	
-	public static Double getDivisor() {
+	public static String getBillSize() {
 		String config = readConfigFile(getConfigFile());
 		JSONObject configObj;
 		try {
 			configObj = new JSONObject(config);
-			return configObj.getDouble("divisor");
+			return configObj.getString("billSize");
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		return 0.142;
-	}
-	public static String getBeveragePrinter() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("Beverage");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "Cashier";
-	}
-	public static String getKitchenPrinter() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("Kitchen");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "Cashier";
-	}
-	public static String getBarPrinter() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("Bar");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "Cashier";
-	}
-	public static String getOutdoorPrinter() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("Outdoor");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "Cashier";
+		return "100";
 	}
 	
-	public static String getKOTFont() {
+	public static String getBillFont() {
 		String config = readConfigFile(getConfigFile());
 		JSONObject configObj;
 		try {
 			configObj = new JSONObject(config);
-			return configObj.getString("font");
+			return configObj.getString("billFont");
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		return "Arial";
+		return "Default";
+	}
+	
+	public static String getIp() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return configObj.getString("ip");
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return "localhost";
+	}
+	
+	public static String getDownloadLocation() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return configObj.getString("downloadLocation");
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return "";
+	}
+	
+	public static Boolean getIsServer() {
+		String config = readConfigFile(getConfigFile());
+		JSONObject configObj;
+		try {
+			configObj = new JSONObject(config);
+			return Boolean.valueOf(configObj.getString("isServer"));
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 	
 	public static String getTransactionLog() {

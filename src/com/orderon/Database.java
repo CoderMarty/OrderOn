@@ -1,4 +1,5 @@
 package com.orderon;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -7,10 +8,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import jcifs.smb.NtlmPasswordAuthentication;
+import jcifs.smb.SmbFile;
+
 public class Database {
 	private Boolean mAutoCommit;
 	private Connection mConn;
-	
+	private String transactionLog = "";
+
 	public interface OrderOnEntity {
 		public void readFromDB(ResultSet rs);
 	}
@@ -46,9 +51,17 @@ public class Database {
 		try {
 			if (mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
+				
 				String connectionString = Configurator.getDBConnectionString() + hotelId + ".sqlite";
+				if(Configurator.getIsExtenstion()) {
+					NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(null, Configurator.getExtensionUser(), Configurator.getExtensionPassword());
+					SmbFile file = new SmbFile(connectionString, auth);
+					connectionString = file.getPath();
+				}
+				
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
+				
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -88,10 +101,14 @@ public class Database {
 
 	public void commitTransaction() {
 		try {
-			if (mAutoCommit == false) {
+			if (!mAutoCommit) {
 				mConn.commit();
 				mConn.close();
 				mConn = null;
+				if(!Configurator.getIsServer()) {
+					String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
+					Configurator.writeToServerFile(previousContents + transactionLog);
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -104,6 +121,7 @@ public class Database {
 				mConn.rollback();
 				mConn.close();
 				mConn = null;
+				transactionLog = "";
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -125,6 +143,7 @@ public class Database {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
 		closeDB();
 		return null;
 	}
@@ -199,12 +218,17 @@ public class Database {
 			e.printStackTrace();
 		}
 		closeDB();
-		if(ret && writeToFile){
-			System.out.println("Writing to the transaction Log");
-			String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
-			Configurator.writeToServerFile(previousContents + sql + "$\n");
-			System.out.println(sql);
-			System.out.println("Transaction Successful");
+		if(ret && writeToFile && !Configurator.getIsServer()){
+			sql = sql.trim();
+			if(!sql.endsWith(";"))
+				transactionLog += sql + ';';
+			else
+				transactionLog += sql;
+			if(mAutoCommit) {
+				String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
+				Configurator.writeToServerFile(previousContents + transactionLog);
+				transactionLog = "";
+			}
 		}
 		return ret;
 	}
@@ -232,6 +256,14 @@ public class Database {
 		} catch (Exception e) {
 			return "";
 		}
+	}
+	
+	public static byte[] readRsBytes(ResultSet rs, String fieldName) {
+		try {
+			return rs.getBytes(fieldName);
+		} catch (Exception e) {
+			return null;
+		}
 		
 	}
 
@@ -249,6 +281,26 @@ public class Database {
 			return rs.getInt(fieldName) == 1;
 		} catch (Exception e) {
 			return false;
+		}
+	}
+	
+	public static float readRsFloat(ResultSet rs, String fieldName) {
+		try {
+			return rs.getFloat(fieldName);
+		} catch (Exception e) {
+			return 0;
+		}
+	}
+	
+	public static BigDecimal readRsBigDecimal(ResultSet rs, String fieldName) {
+		try {
+			Double d = rs.getDouble(fieldName);
+			String s = Double.toString(d);
+			BigDecimal b = new BigDecimal(s);
+			
+			return b;
+		} catch (Exception e) {
+			return new BigDecimal("0.0");
 		}
 	}
 	
