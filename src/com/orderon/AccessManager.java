@@ -147,10 +147,15 @@ public class AccessManager {
 	public void updateDatabase(String hotelId, String oldVersion, String version) {
 		String sql = "";
 		
-		if(oldVersion.equals("3")) {
+		if(oldVersion.equals("3.1")) {
 			
 			this.initDatabase(hotelId);
 			sql = "UPDATE MenuItems SET state = 1; Update Hotel SET version = '"+version+"';";
+		}
+		if(oldVersion.equals("3")) {
+			
+			this.initDatabase(hotelId);
+			sql = "UPDATE MenuItems SET state = 1; Update Hotel SET version = '3.1';";
 		}
 		if(oldVersion.equals("2.12")) {
 			sql = "ALTER TABLE Collections ADD COLUMN collectionOrder INTEGER; update Collections set collectionOrder = id;" + 
@@ -4875,6 +4880,33 @@ public class AccessManager {
 			this.isChargeAlwaysApplicable = Database.readRsString(rs, "chargeAlwaysApplicable");
 		}	
 	}
+	
+	public static class Flag implements OrderOnEntity {
+		
+		private int id;
+		private String name;
+		private String groupId;
+		
+		public int getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getGroupId() {
+			return groupId;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.name = Database.readRsString(rs, "name");
+			this.groupId = Database.readRsString(rs, "groupId");
+		}	
+	}
 
 	public static class Collection implements Database.OrderOnEntity {
 		
@@ -5397,7 +5429,7 @@ public class AccessManager {
 	// -------------------------------Tiers
 	
 	public ArrayList<Tier> getTiers(String hotelId) {
-		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "'";
+		String sql = "SELECT * FROM Tiers  WHERE hotelId='" + hotelId + "'";
 		return db.getRecords(sql, Tier.class, hotelId);
 	}
 
@@ -5416,6 +5448,31 @@ public class AccessManager {
 
 	public boolean deleteTier(String hotelId, int id) {
 		String sql = "DELETE FROM Tiers WHERE id = " + id + " AND hotelId='" + hotelId + "';";
+		return db.executeUpdate(sql, true);
+	}
+
+	// -------------------------------Flags
+	
+	public ArrayList<Flag> getFlags(String hotelId) {
+		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "'";
+		return db.getRecords(sql, Flag.class, hotelId);
+	}
+
+	public boolean addFlag(String hotelId, BigDecimal value, boolean chargeAlwaysApplicable, BigDecimal minBillAMount) {
+
+		String sql = "INSERT INTO Flags (hotelId, value, chargeAlwaysApplicable, minBillAmount) VALUES('" + escapeString(hotelId) 
+				+ "', " + value + ", '" + chargeAlwaysApplicable + "', " + minBillAMount + ");";
+		return db.executeUpdate(sql, true);
+	}
+
+	public Flag getFlagById(String hotelId, int id) {
+		String sql = "SELECT * FROM Flags WHERE id='" + id + "' AND hotelId='"
+				+ escapeString(hotelId) + "';";
+		return db.getOneRecord(sql, Flag.class, hotelId);
+	}
+
+	public boolean deleteFlag(String hotelId, int id) {
+		String sql = "DELETE FROM Flags WHERE id = " + id + " AND hotelId='" + hotelId + "';";
 		return db.executeUpdate(sql, true);
 	}
 
