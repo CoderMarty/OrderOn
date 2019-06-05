@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -8,13 +8,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbFile;
-
 public class Database {
 	private Boolean mAutoCommit;
 	private Connection mConn;
-	private String transactionLog = "";
+	private StringBuilder transactionLog = new StringBuilder();
 
 	public interface OrderOnEntity {
 		public void readFromDB(ResultSet rs);
@@ -24,9 +21,9 @@ public class Database {
 		mAutoCommit = !transactionBased;
 	}
 	
-	public Connection getConnection(String hotelId) throws Exception {
+	public Connection getConnection(String outletId) throws Exception {
 		try {
-			String connectionURL = Configurator.getDBConnectionString() + hotelId + ".sqlite";
+			String connectionURL = Configurator.getDBConnectionString() + outletId + ".sqlite";
 			Connection connection = null;
 			Class.forName("org.sqlite.JDBC");
 			connection = DriverManager.getConnection(connectionURL);
@@ -37,13 +34,13 @@ public class Database {
 	}
 	
 	public Connection getConnection() throws Exception{
-		return getConnection(Configurator.getHotelId());
+		return getConnection(Configurator.getOutletId());
 	}
 	
-	private void openDB(String hotelId) {
-		if(hotelId.equals("")) {
-			hotelId = Configurator.getHotelId();
-			if(hotelId.equals("")) {
+	private void openDB(String outletId) {
+		if(outletId.equals("")) {
+			outletId = Configurator.getOutletId();
+			if(outletId.equals("")) {
 				mConn = null;
 				return;
 			}
@@ -52,12 +49,7 @@ public class Database {
 			if (mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
 				
-				String connectionString = Configurator.getDBConnectionString() + hotelId + ".sqlite";
-				if(Configurator.getIsExtenstion()) {
-					NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(null, Configurator.getExtensionUser(), Configurator.getExtensionPassword());
-					SmbFile file = new SmbFile(connectionString, auth);
-					connectionString = file.getPath();
-				}
+				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
 				
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
@@ -80,13 +72,13 @@ public class Database {
 		}
 	}
 	
-	public void beginTransaction(String hotelId) {
-		if(hotelId.equals(""))
-			hotelId = Configurator.getHotelId();
+	public void beginTransaction(String outletId) {
+		if(outletId.equals(""))
+			outletId = Configurator.getOutletId();
 		try {
-			if (mAutoCommit == false) {
+			if (!mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
-				String connectionString = Configurator.getDBConnectionString() + hotelId + ".sqlite";
+				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
 			}
@@ -96,18 +88,24 @@ public class Database {
 	}
 	
 	public void beginTransaction(){
-		beginTransaction(Configurator.getHotelId());
+		beginTransaction(Configurator.getOutletId());
 	}
 
 	public void commitTransaction() {
 		try {
+			if(mConn == null) {
+				return;
+			}
 			if (!mAutoCommit) {
 				mConn.commit();
 				mConn.close();
 				mConn = null;
-				if(!Configurator.getIsServer()) {
-					String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
-					Configurator.writeToServerFile(previousContents + transactionLog);
+				if(!Configurator.getIsServer() && !Configurator.getIsDebug()) {
+					StringBuilder previousContents = new StringBuilder();
+					previousContents.append(Configurator.readConfigFile(Configurator.getServerFile()));
+					previousContents.append(transactionLog);
+					Configurator.writeToServerFile(previousContents.toString());
+					transactionLog = new StringBuilder();
 				}
 			}
 		} catch (Exception e) {
@@ -117,21 +115,24 @@ public class Database {
 
 	public void rollbackTransaction() {
 		try {
-			if (mAutoCommit == false) {
+			if(mConn == null) {
+				return;
+			}
+			if (!mAutoCommit) {
 				mConn.rollback();
 				mConn.close();
 				mConn = null;
-				transactionLog = "";
+				transactionLog = new StringBuilder();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public <T extends OrderOnEntity> T getOneRecord(String sql, Class<T> ref, String hotelId) {
+	public <T extends OrderOnEntity> T getOneRecord(String sql, Class<T> ref, String outletId) {
 		Statement stmt = null;
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
 			if (rs.next()) {
@@ -141,6 +142,7 @@ public class Database {
 				return entity;
 			}
 		} catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
 		}
 		
@@ -148,10 +150,10 @@ public class Database {
 		return null;
 	}
 
-	public Boolean hasRecords(String sql, String hotelId) {
+	public Boolean hasRecords(String sql, String outletId) {
 		Statement stmt = null;
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 
 			ResultSet rs = stmt.executeQuery(sql);
@@ -167,11 +169,11 @@ public class Database {
 	}
 
 	public <T extends OrderOnEntity> ArrayList<T> getRecords(String sql,
-			Class<T> ref, String hotelId) {
+			Class<T> ref, String outletId) {
 		Statement stmt = null;
 		ArrayList<T> items = new ArrayList<T>();
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 
 			ResultSet rs = stmt.executeQuery(sql);
@@ -182,7 +184,10 @@ public class Database {
 			}
 			closeDB();
 			return items;
-		} catch (Exception e) {
+		} catch (NullPointerException e) {
+			System.out.println("No Record Found");
+		}catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
 		}
 		items.clear();
@@ -198,15 +203,15 @@ public class Database {
 	 * Once the database on cloud is updated, this contents of this file are deleted.
 	 * 
 	 * @param sql 			Stores the sql queries.
-	 * @param hotelId 		Stores the hotel Id of the current hotel.
+	 * @param outletId 		Stores the hotel Id of the current hotel.
 	 * @param writeToFile	True if needs this transaction be shown on cloud.
 	 * 
 	 * @return				True if Database is updated.
 	 */
-	public Boolean executeUpdate(String sql, String hotelId, boolean writeToFile) {
+	public Boolean executeUpdate(String sql, String outletId, boolean writeToFile) {
 		Boolean ret = false;
 		Statement stmt = null;
-		openDB(hotelId);
+		openDB(outletId);
 		if(mConn == null)
 			return false;
 		try {
@@ -215,19 +220,21 @@ public class Database {
 			stmt.close();
 			ret = true;
 		} catch (Exception e) {
+			System.out.println(sql);
 			e.printStackTrace();
 		}
 		closeDB();
-		if(ret && writeToFile && !Configurator.getIsServer()){
+		if(ret && writeToFile && !Configurator.getIsServer() && !Configurator.getIsDebug()){
 			sql = sql.trim();
+			transactionLog.append(sql);
 			if(!sql.endsWith(";"))
-				transactionLog += sql + ';';
-			else
-				transactionLog += sql;
+				transactionLog.append(";");
 			if(mAutoCommit) {
-				String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
-				Configurator.writeToServerFile(previousContents + transactionLog);
-				transactionLog = "";
+				StringBuilder previousContents = new StringBuilder();
+				previousContents.append(Configurator.readConfigFile(Configurator.getServerFile()));
+				previousContents.append(transactionLog);
+				Configurator.writeToServerFile(previousContents.toString());
+				transactionLog = new StringBuilder();
 			}
 		}
 		return ret;
@@ -241,7 +248,7 @@ public class Database {
 	 * Once the database on cloud is updated, this contents of this file are deleted.
 	 * 
 	 * @param sql 			Stores the sql queries.
-	 * @param hotelId 		Stores the hotel Id of the current hotel.
+	 * @param outletId 		Stores the hotel Id of the current hotel.
 	 * @param writeToFile	True if needs this transaction be shown on cloud.
 	 * 
 	 * @return				True if Database is updated.

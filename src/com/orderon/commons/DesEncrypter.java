@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -41,7 +41,7 @@ class DesEncrypter {
   public static void main(String[] argv) throws Exception {
     SecretKey key = KeyGenerator.getInstance("DES").generateKey();
     DesEncrypter encrypter = new DesEncrypter(key);
-    String encrypted = encrypter.encrypt("Don't tell anybody!");
+    String encrypted = encrypter.encrypt("adsrxOrderOn");
     String decrypted = encrypter.decrypt(encrypted);
     System.out.println(encrypted);
     System.out.println(decrypted);

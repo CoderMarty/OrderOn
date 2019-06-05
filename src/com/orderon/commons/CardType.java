@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 public enum CardType {
 

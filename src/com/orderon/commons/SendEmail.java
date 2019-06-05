@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 /*
  * Copyright (c) 1997-2010 Oracle and/or its affiliates. All rights reserved.
  *
@@ -83,7 +83,7 @@ public class SendEmail {
 			
 		    msg.setFrom(new InternetAddress(username, "NoReply-OrderOn"));
 
-		    msg.setReplyTo(InternetAddress.parse("m@orderon.co.in", false));
+		    msg.setReplyTo(InternetAddress.parse("support@orderon.co.in", false));
 
 		    msg.setSubject(subject, "UTF-8");
 		
@@ -106,9 +106,9 @@ public class SendEmail {
 		}
 		
     }
-    public void sendEmailWithAttachment(ArrayList<String> recipents, String subject, String text, String[] filePaths) {
+    public boolean sendEmailWithAttachment(ArrayList<String> recipents, String subject, String text, String[] filePaths) {
     	if(Configurator.getIsServer())
-    		return;
+    		return true;
     	
     	final String username = "support@orderon.co.in";
 		final String password = "TOMTech$1234";
@@ -119,7 +119,7 @@ public class SendEmail {
 		props.put("mail.smtp.socketFactory.port", "465"); //SSL Port
 		props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); //SSL Factory Class
 		props.put("mail.smtp.auth", "true"); //Enabling SMTP Authentication
-		props.put("mail.smtp.port", "25"); //SMTP Port
+		props.put("mail.smtp.port", "3535"); //SMTP Port
 
 		Session session = Session.getInstance(props, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
@@ -178,5 +178,6 @@ public class SendEmail {
 		} catch (MessagingException | UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
 		}
+		return true;
     }
 }

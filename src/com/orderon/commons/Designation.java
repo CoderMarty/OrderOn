@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 public enum Designation {
 
@@ -9,6 +9,10 @@ public enum Designation {
 	
 	private Designation(int value){
 		this.value = value;
+	}
+	
+	public int getValue() {
+		return value;
 	}
 	
 	public static Designation getType(int value){
