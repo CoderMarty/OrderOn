@@ -61,7 +61,7 @@ public interface IOrderItem extends IAccess, IOrderAddOn, ISpecification{
 
 	public Boolean removeSubOrder(String outletId, String orderId, String subOrderId, String menuId, int qty);
 
-	public ArrayList<OrderItem> getOrderedItemForBill(String outletId, String orderId);
+	public ArrayList<OrderItem> getOrderedItemForBill(String outletId, String orderId, boolean showReturned);
 
 	public ArrayList<OrderItem> getOrderedItemForBillCI(String outletId, String orderId);
 

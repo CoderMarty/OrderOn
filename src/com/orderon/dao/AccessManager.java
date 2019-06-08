@@ -323,6 +323,58 @@ public class AccessManager implements IAccess{
 		String sql = "";
 
 		//Init Updated
+		if(oldVersion.equals("3.3.3.3")) {
+			
+			sql += "UPDATE MenuItems SET onlineRate1 = onlineRate, onlineRate2 = onlineRate, onlineRate3 = onlineRate, "
+					+ "onlineRate4 = onlineRate, onlineRate5 = onlineRate;";
+			
+			sql += "UPDATE OnlineOrderingPortals SET menuAssociation = 0;"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 1 WHERE portal = 'ZOMATO';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 2 WHERE portal = 'SWIGGY';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 3 WHERE portal = 'FOODPANDA';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 4 WHERE portal = 'UBEREATS';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 5 WHERE portal = 'FOODILOO';";
+			
+			sql += "Update Hotel SET version = '3.3.3.4';";
+		}
+		if(oldVersion.equals("3.3.3.2")) {
+			sql += "CREATE TABLE IF NOT EXISTS Payment2 ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, billNo TEXT NOT NULL DEFAULT (null), "
+					+ "orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL DEFAULT (null), foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, foodDiscount DOUBLE DEFAULT (0), "
+					+ "barDiscount DOUBLE, total DOUBLE NOT NULL, serviceCharge DOUBLE DEFAULT (0), serviceTax DOUBLE DEFAULT (0), VATFOOD DOUBLE DEFAULT (0), VATBAR DOUBLE DEFAULT (0), "
+					+ "sbCess DOUBLE DEFAULT (0), kkCess DOUBLE DEFAULT (0), tip DOUBLE DEFAULT (0), cashPayment DOUBLE DEFAULT (0), cardPayment DOUBLE DEFAULT (0), "
+					+ "appPayment DOUBLE DEFAULT (0), discountName text, cardType TEXT, gst DOUBLE, loyaltyAmount DOUBLE, complimentary DOUBLE, section TEXT, billNo2 TEXT , "
+					+ "packagingCharge DOUBLE DEFAULT 0.0, deliveryCharge DOUBLE DEFAULT 0.0, walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, "
+					+ "roundOff DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0); ";
+			
+			sql += "INSERT INTO Payment2 (hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, foodDiscount, barDiscount, loyaltyAmount, total, " + 
+					"serviceCharge, packagingCharge, deliveryCharge, gst, VATBAR, tip, cashPayment, cardPayment, appPayment, walletPayment, " + 
+					"creditAmount, promotionalCash, discountName, cardType, complimentary, section, roundOff) " + 
+					"SELECT hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, foodDiscount, barDiscount, loyaltyAmount, total, " + 
+					"serviceCharge, packagingCharge, deliveryCharge, gst, VATBAR, tip, cashPayment, cardPayment, appPayment, walletPayment, " + 
+					"creditAmount, promotionalCash, discountName, cardType, complimentary, section, roundOff FROM Payment; ";
+			
+			sql += "DROP TABLE Payment;" +
+				"ALTER TABLE Payment2 RENAME TO Payment;";
+			
+			sql += "Update Hotel SET version = '3.3.3.3';";
+		}
+		if(oldVersion.equals("3.3.3.1")) {
+			//Delete duplicate entries in Payment table
+			sql = "DELETE FROM Payment WHERE id NOT IN  (SELECT id FROM Payment GROUP BY orderId); ";
+
+			sql += "Update Hotel SET version = '3.3.3.2';";
+		}
+		if(oldVersion.equals("3.3.3")) {
+			
+			sql += "ALTER TABLE MenuItems ADD COLUMN onlineRate1 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate2 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate3 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate4 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate5 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE OnlineOrderingPortals ADD COLUMN menuAssociation INTEGER;";
+			
+			sql += "Update Hotel SET version = '3.3.3.1';";
+		}
 		if(oldVersion.equals("3.3.2.23")) {
 			
 			sql += "ALTER TABLE MenuItems ADD COLUMN discountType TEXT;"
@@ -918,15 +970,15 @@ public class AccessManager implements IAccess{
 					+ "commisionValue DOUBLE, commisionType TEXT, hasIntegration TEXT, hotelId TEXT, paymentCycleDay TEXT, discountsApplied TEXT, PRIMARY KEY(id) );";
 
 			sql += "INSERT INTO OnlineOrderingPortals (id, portal, name, requiresLogistics, commisionValue, commisionType, hasIntegration,"
-					+ " hotelId, paymentCycleDay, discountsApplied) VALUES "
-					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]');";
+					+ " hotelId, paymentCycleDay, discountsApplied, menuAssociation) VALUES "
+					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 0), "
+					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 1), "
+					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 2), "
+					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 3), "
+					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 4), "
+					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 5), "
+					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 1), "
+					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]', 0);";
 			
 			sql += "Update Hotel SET version = '3.2.7.8';";
 		}
@@ -1268,7 +1320,7 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Payment ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, billNo TEXT NOT NULL DEFAULT (null), "
-		+ "orderId text NOT NULL, orderDate DATETIME NOT NULL DEFAULT (null), foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, foodDiscount DOUBLE DEFAULT (0), "
+		+ "orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL DEFAULT (null), foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, foodDiscount DOUBLE DEFAULT (0), "
 		+ "barDiscount DOUBLE, total DOUBLE NOT NULL, serviceCharge DOUBLE DEFAULT (0), serviceTax DOUBLE DEFAULT (0), VATFOOD DOUBLE DEFAULT (0), VATBAR DOUBLE DEFAULT (0), "
 		+ "sbCess DOUBLE DEFAULT (0), kkCess DOUBLE DEFAULT (0), tip DOUBLE DEFAULT (0), cashPayment DOUBLE DEFAULT (0), cardPayment DOUBLE DEFAULT (0), "
 		+ "appPayment DOUBLE DEFAULT (0), discountName text, cardType TEXT, gst DOUBLE, loyaltyAmount DOUBLE, complimentary DOUBLE, section TEXT, billNo2 TEXT , "
@@ -1330,7 +1382,9 @@ public class AccessManager implements IAccess{
 		+ "costPrice DOUBLE DEFAULT Null, vegType int NOT NULL, method TEXT, state INTEGER NOT NULL, code TEXT, addOns TEXT, "
 		+ "img text, hasIncentive INTEGER, incentive INTEGER, isTaxable INTEGER NOT NULL, groups TEXT, taxes TEXT, charges TEXT, "
 		+ "isRecomended INTEGER, isTreats INTEGER, isDefault INTEGER, isBogo INTEGER, comboReducedPrice DOUBLE, isAddOn TEXT NOT NULL, "
-		+ "syncOnZomato TEXT DEFAULT 'true', corporateId TEXT NOT NULL, gstInclusive TEXT DEFAULT 'false', discountType TEXT, discountValue DOUBLE);";
+		+ "syncOnZomato TEXT DEFAULT 'true', corporateId TEXT NOT NULL, gstInclusive TEXT DEFAULT 'false', discountType TEXT, discountValue DOUBLE,"
+		+ "onlineRate1 DOUBLE DEFAULT 0.0, onlineRate2 DOUBLE DEFAULT 0.0, onlineRate3 DOUBLE DEFAULT 0.0, onlineRate4 DOUBLE DEFAULT 0.0,"
+		+ "onlineRate5 DOUBLE DEFAULT 0.0);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Materials ( sku INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, displayableUnit TEXT NOT NULL DEFAULT 'GRAM'," + 
@@ -1423,7 +1477,8 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS OnlineOrderingPortals ( id INTEGER NOT NULL UNIQUE, portal TEXT NOT NULL, name TEXT NOT NULL, requiresLogistics TEXT NOT NULL, "
-		+ "commisionValue DOUBLE, commisionType TEXT, hasIntegration TEXT, hotelId TEXT, paymentCycleDay TEXT, discountsApplied TEXT, PRIMARY KEY(id) );";
+		+ "commisionValue DOUBLE, commisionType TEXT, hasIntegration TEXT, hotelId TEXT, paymentCycleDay TEXT, discountsApplied TEXT, "
+		+ "menuAssociation INTEGER, PRIMARY KEY(id));";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Sections (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, kitchenPrinter TEXT, barPrinter TEXT, summaryPrinter TEXT, beveragePrinter TEXT, outdoorPrinter TEXT, cashierPrinter INTEGER, hotelId TEXT );";
@@ -3446,6 +3501,7 @@ public class AccessManager implements IAccess{
 		private String commisionType;
 		private String hasIntegration;
 		private String paymentCycleDay;
+		private int menuAssociation;
 		
 		public int getId() {
 			return id;
@@ -3474,6 +3530,9 @@ public class AccessManager implements IAccess{
 		public String getPaymentCycleDay() {
 			return paymentCycleDay;
 		}
+		public int getMenuAssociation() {
+			return menuAssociation;
+		}
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -3485,6 +3544,7 @@ public class AccessManager implements IAccess{
 			this.commisionValue = Database.readRsInt(rs, "commisionValue");
 			this.commisionType = Database.readRsString(rs, "commisionType");
 			this.paymentCycleDay = Database.readRsString(rs, "paymentCycleDay");
+			this.menuAssociation = Database.readRsInt(rs, "menuAssociation");
 		}
 	}
 
@@ -3988,6 +4048,11 @@ public class AccessManager implements IAccess{
 		private BigDecimal dineInRate;
 		private BigDecimal dineInNonAcRate;
 		private BigDecimal onlineRate;
+		private BigDecimal onlineRate1;
+		private BigDecimal onlineRate2;
+		private BigDecimal onlineRate3;
+		private BigDecimal onlineRate4;
+		private BigDecimal onlineRate5;
 		private BigDecimal costPrice;
 		private String method;
 		private int state;
@@ -4069,6 +4134,26 @@ public class AccessManager implements IAccess{
 
 		public BigDecimal getOnlineRate() {
 			return onlineRate;
+		}
+
+		public BigDecimal getOnlineRate1() {
+			return onlineRate1;
+		}
+
+		public BigDecimal getOnlineRate2() {
+			return onlineRate2;
+		}
+
+		public BigDecimal getOnlineRate3() {
+			return onlineRate3;
+		}
+
+		public BigDecimal getOnlineRate4() {
+			return onlineRate4;
+		}
+
+		public BigDecimal getOnlineRate5() {
+			return onlineRate5;
 		}
 
 		public BigDecimal getCostPrice() {
@@ -4211,6 +4296,11 @@ public class AccessManager implements IAccess{
 			this.dineInRate = Database.readRsBigDecimal(rs, "dineInRate");
 			this.dineInNonAcRate = Database.readRsBigDecimal(rs, "dineInNonAcRate");
 			this.onlineRate = Database.readRsBigDecimal(rs, "onlineRate");
+			this.onlineRate1 = Database.readRsBigDecimal(rs, "onlineRate1");
+			this.onlineRate2 = Database.readRsBigDecimal(rs, "onlineRate2");
+			this.onlineRate3 = Database.readRsBigDecimal(rs, "onlineRate3");
+			this.onlineRate4 = Database.readRsBigDecimal(rs, "onlineRate4");
+			this.onlineRate5 = Database.readRsBigDecimal(rs, "onlineRate5");
 			this.costPrice = Database.readRsBigDecimal(rs, "costPrice");
 			this.vegType = Database.readRsInt(rs, "vegType");
 			this.method = Database.readRsString(rs, "method");

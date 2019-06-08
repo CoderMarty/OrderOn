@@ -204,8 +204,8 @@ import com.orderon.interfaces.IUserAuthentication;
 public class Services {
 
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.3.3";
-	private static final String stable_api_version = "3.3.3";
+	private static final String api_version = "3.3.3.4";
+	private static final String stable_api_version = "3.3.3.4";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -2689,7 +2689,7 @@ JSONObject outObj = new JSONObject();
 		showReturned = showReturned==null?false:showReturned;
 		
 		if (showConsolidated) {
-			orderItems = itemDao.getOrderedItemForBill(hotelId, orderId);
+			orderItems = itemDao.getOrderedItemForBill(hotelId, orderId, showReturned);
 			orderItems.addAll(itemDao.getOrderedItemForBillCI(hotelId, orderId));
 			if (showComplimentary)
 				orderItems.addAll(itemDao.getComplimentaryOrderedItemForBill(hotelId, orderId));
@@ -3685,11 +3685,14 @@ JSONObject outObj = new JSONObject();
 		
 		IMenuItem dao = new MenuItemManager(false);
 		IGroup groupDao = new GroupManager(false);
+		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
+		
+		ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortals(hotelId);
 		ArrayList<MenuItem> items = dao.getMenuForIntegration(hotelId);
 		ArrayList<Group> groups = groupDao.getGroups(hotelId);
 		try {
 			for (int i = 0; i < items.size(); i++) {
-				itemDetails = addItemsToObject(items.get(i));
+				itemDetails = addItemsToObject(items.get(i), portals);
 				itemsArr.put(itemDetails);
 			}
 			outObj.put("menuItems", itemsArr);
@@ -3709,10 +3712,13 @@ JSONObject outObj = new JSONObject();
 		JSONObject outObj = new JSONObject();
 		
 		IMenuItem dao = new MenuItemManager(false);
+		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
+		
 		ArrayList<MenuItem> items = dao.getMenu(hotelId);
+		ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortals(hotelId);
 		try {
 			for (int i = 0; i < items.size(); i++) {
-				itemDetails = addItemsToObject(items.get(i));
+				itemDetails = addItemsToObject(items.get(i), portals);
 				itemsArr.put(itemDetails);
 			}
 			outObj.put("menuItems", itemsArr);
@@ -3736,15 +3742,17 @@ JSONObject outObj = new JSONObject();
 		ISpecification specsDao = new SpecificationManager(false);
 		ICharge chargeDao = new ChargeManager(false);
 		ITax taxDao = new TaxManager(false);
+		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
 
 		ArrayList<MenuItem> items = dao.getMenu(hotelId);
 		ArrayList<Specifications> specs = specsDao.getSpecifications(hotelId);
 		ArrayList<Group> groups = groupDao.getGroups(hotelId);
 		ArrayList<Tax> taxes = taxDao.getTaxes(hotelId);
 		ArrayList<Charge> charges = chargeDao.getCharges(hotelId);
+		ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortals(hotelId);
 		try {
 			for (int i = 0; i < items.size(); i++) {
-				itemDetails = addItemsToObject(items.get(i));
+				itemDetails = addItemsToObject(items.get(i), portals);
 				itemsArr.put(itemDetails);
 			}
 			outObj.put("menuItems", itemsArr);
@@ -3760,7 +3768,7 @@ JSONObject outObj = new JSONObject();
 		return outObj.toString();
 	}
 	
-	private JSONObject addItemsToObject(MenuItem item) {
+	private JSONObject addItemsToObject(MenuItem item, ArrayList<OnlineOrderingPortal> portals) {
 		JSONObject itemDetails = new JSONObject();
 		itemDetails = new JSONObject();
 		try {
@@ -3790,6 +3798,25 @@ JSONObject outObj = new JSONObject();
 			itemDetails.put("comboReducedPrice", item.getComboReducedPrice());
 			itemDetails.put("discountType", item.getDiscountType());
 			itemDetails.put("discountValue", item.getDiscountValue());
+
+			for (OnlineOrderingPortal onlineOrderingPortal : portals) {
+
+				if(onlineOrderingPortal.getMenuAssociation() == 0) {
+					continue;
+				}
+				
+				if(onlineOrderingPortal.getMenuAssociation() == 1) {
+					itemDetails.put(onlineOrderingPortal.getPortal().toLowerCase() + "Rate", item.getOnlineRate1());
+				}else if(onlineOrderingPortal.getMenuAssociation() == 2) {
+					itemDetails.put(onlineOrderingPortal.getPortal().toLowerCase() + "Rate", item.getOnlineRate2());
+				}else if(onlineOrderingPortal.getMenuAssociation() == 3) {
+					itemDetails.put(onlineOrderingPortal.getPortal().toLowerCase() + "Rate", item.getOnlineRate3());
+				}else if(onlineOrderingPortal.getMenuAssociation() == 4) {
+					itemDetails.put(onlineOrderingPortal.getPortal().toLowerCase() + "Rate", item.getOnlineRate4());
+				}else if(onlineOrderingPortal.getMenuAssociation() == 5) {
+					itemDetails.put(onlineOrderingPortal.getPortal().toLowerCase() + "Rate", item.getOnlineRate5());
+				}
+			}
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -5701,9 +5728,7 @@ JSONObject outObj = new JSONObject();
 			orderedItems = dao.getReturnedItems(hotelId, orderId);
 			dao.commitTransaction();
 
-			orderDao = new OrderManager(true);
-			orderDao.beginTransaction();
-			
+			orderDao = new OrderManager(false);
 			if(orderedItems.size()>0) {
 				orderDao.changeOrderStateToCancelled(hotelId, orderId);
 				if(netIsAvailable()) {
@@ -5723,17 +5748,14 @@ JSONObject outObj = new JSONObject();
 					SendEmail(hotelId, subject, text, "", true, false);
 				}
 			}else if(!orderDao.deleteOrder(hotelId, orderId)) {
-				orderDao.rollbackTransaction();
 				outObj.put("message", "Failed to cancel the order");
 				return outObj.toString();
 			}
 			
-			orderDao.commitTransaction();
 			outObj.put("status", true);
 			outObj.put("message", "Success");
 		} catch (Exception e) {
 			dao.rollbackTransaction();
-			orderDao.rollbackTransaction();
 			e.printStackTrace();
 		}
 		return outObj.toString();

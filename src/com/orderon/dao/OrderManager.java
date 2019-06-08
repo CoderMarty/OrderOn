@@ -14,6 +14,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.orderon.dao.AccessManager.OnlineOrderingPortal;
 import com.orderon.interfaces.ICustomer;
 import com.orderon.interfaces.IEmployee;
 import com.orderon.interfaces.IInventory;
@@ -51,6 +52,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		}
 		if(query.isEmpty()) {
 			sql += " AND Orders.orderDate='" + serviceDate + "' ORDER BY Orders.id DESC;";
+			System.out.println(sql);
 			return db.getRecords(sql, Order.class, hotelId);
 		}
 		String sql2;
@@ -311,7 +313,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	}
 
 	@Override
-	public ArrayList<OrderItem> getOrderedItemForBill(String hotelId, String orderId) {
+	public ArrayList<OrderItem> getOrderedItemForBill(String hotelId, String orderId, boolean showReturned) {
 
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
 				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.waiterId AS waiterId, SUM(OrderItems.qty) AS qty, "
@@ -321,8 +323,22 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "OrderItems.rate AS rate, OrderItems.specs AS specs, MenuItems.isTaxable AS isTaxable, "
 				+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE OrderItems.orderId='" + orderId
 				+ "' AND OrderItems.hotelId='" + hotelId + "' AND OrderItems.menuId == MenuItems.menuId AND MenuItems.flags NOT LIKE '%19%' "
-				+ "GROUP BY OrderItems.menuId;";
+				+ "GROUP BY OrderItems.menuId ";
 		
+		if(showReturned) {
+			sql += "UNION ALL "
+				+ "SELECT OrderItemLog.subOrderId AS subOrderId, OrderItemLog.subOrderDate AS subOrderDate, "
+				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.subOrderId AS waiterId, SUM(OrderItemLog.quantity) AS qty, "
+				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.taxes AS taxes, MenuItems.charges AS charges, "
+				+ "MenuItems.collection AS collection, MenuItems.station AS station, SUM(OrderItemLog.quantity*OrderItemLog.rate) AS finalAmount, "
+				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, "
+				+ "OrderItemLog.rate AS rate, OrderItemLog.subOrderId AS specs, MenuItems.isTaxable AS isTaxable, "
+				+ "OrderItemLog.state AS state FROM OrderItemLog, MenuItems WHERE OrderItemLog.orderId='" + orderId
+				+ "' AND OrderItemLog.hotelId='" + hotelId + "' AND OrderItemLog.menuId == MenuItems.menuId AND MenuItems.flags NOT LIKE '%19%' "
+				+ "GROUP BY OrderItemLog.menuId";
+		}
+		
+		sql += ";";
 		return db.getRecords(sql, OrderItem.class, hotelId);
 	}
 
@@ -1428,6 +1444,8 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		JSONObject outObj = new JSONObject();
 		String sql = null;
 		ITable tableDao = new TableManager(false);
+		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
+		ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortals(outletId);
 		try {
 			outObj.put("status", -1);
 			outObj.put("message", "Unknown error!");
@@ -1449,8 +1467,26 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				else if(order.getInHouse() == HOME_DELIVERY || (order.getInHouse() == TAKE_AWAY && order.getTakeAwayType() == COUNTER_PARCEL_ORDER))
 					rate = menu.getDeliveryRate();
 				else {
-					if(order.getExternalOrderId().equals("")) {
+					int menuAssociation = 0;
+					for (OnlineOrderingPortal onlineOrderingPortal : portals) {
+						if(order.getTakeAwayType() == onlineOrderingPortal.getId()){
+							menuAssociation = onlineOrderingPortal.getMenuAssociation();
+							break;
+						}
+					}
+
+					if(menuAssociation == 0) {
 						rate = menu.getOnlineRate();
+					}else if(menuAssociation == 1) {
+						rate = menu.getOnlineRate1();
+					}else if(menuAssociation == 2) {
+						rate = menu.getOnlineRate2();
+					}else if(menuAssociation == 3) {
+						rate = menu.getOnlineRate3();
+					}else if(menuAssociation == 4) {
+						rate = menu.getOnlineRate4();
+					}else if(menuAssociation == 5) {
+						rate = menu.getOnlineRate5();
 					}
 				}
 			}
@@ -1947,7 +1983,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	@Override
 	public Boolean updateItemRatesInOrder(String hotelId, String orderId, String newTableType) {
 		
-		ArrayList<OrderItem> orderItems = this.getOrderedItemForBill(hotelId, orderId);
+		ArrayList<OrderItem> orderItems = this.getOrderedItemForBill(hotelId, orderId, false);
 		BigDecimal rate = new BigDecimal("0.0");
 		String sql = "";
 		MenuItem item = null;
