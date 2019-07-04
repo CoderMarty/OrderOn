@@ -2,6 +2,7 @@ package com.orderon.dao;
 
 import java.util.ArrayList;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -25,6 +26,17 @@ public class GroupManager extends AccessManager implements IGroup {
 		String sql = "SELECT * FROM Groups  WHERE hotelId='" + hotelId + "'";
 		return db.getRecords(sql, Group.class, hotelId);
 	}
+	
+	@Override
+	public JSONArray getLast2GroupIds(String hotelId) {
+		String sql = "SELECT id FROM Groups WHERE hotelId='" + hotelId + "' ORDER BY id DESC LIMIT 2";
+		ArrayList<Group> groups = db.getRecords(sql, Group.class, hotelId);
+		JSONArray groupArr = new JSONArray();
+		for (Group group : groups) {
+			groupArr.put(group.getId());
+		}
+		return groupArr;
+	}
 
 	@Override
 	public ArrayList<Group> getActiveGroups(String hotelId) {
@@ -33,19 +45,16 @@ public class GroupManager extends AccessManager implements IGroup {
 	}
 
 	@Override
-	public JSONObject addGroup(String hotelId, String itemIds, String name, String description, int max, int min, Boolean isActive) {
+	public JSONObject addGroup(String hotelId, String itemIds, String name, String description, int max, int min, 
+			Boolean isActive, String title, String subTitle) {
 
 		JSONObject outObj = new JSONObject();
 		try {
 			outObj.put("status", false);
 		
-			if(groupExists(hotelId, name)) {
-				outObj.put("message", "A group with the same name already exists. Please use another name.");
-				return outObj;
-			}
-			
-			String sql = "INSERT INTO Groups (hotelId, itemIds, name, description, max, min, isActive) VALUES('" + escapeString(hotelId) + "', '"
-					+ itemIds + "', '" + escapeString(name) + "', '" + escapeString(description) + "', " + max + ", " + min + ", '" + isActive + "');";
+			String sql = "INSERT INTO Groups (hotelId, itemIds, name, description, max, min, isActive, title, subTitle) VALUES('" 
+					+ escapeString(hotelId) + "', '" + itemIds + "', '" + escapeString(name) + "', '" + escapeString(description) 
+					+ "', " + max + ", " + min + ", '" + isActive+ "', '" + title+ "', '" + subTitle + "');";
 			if(db.executeUpdate(sql, true)) {
 				outObj.put("status", true);
 			}
@@ -57,11 +66,13 @@ public class GroupManager extends AccessManager implements IGroup {
 	}
 
 	@Override
-	public boolean updateGroup(String hotelId, int groupId, String itemIds, String name, String description, int max, int min, Boolean isActive) {
+	public boolean updateGroup(String hotelId, int groupId, String itemIds, String name, String description, 
+			int max, int min, Boolean isActive, String title, String subTitle) {
 
 		String sql = "UPDATE Groups SET itemIds = '" + itemIds + "', name = '" + name 
 				+ "', description = '" + description + "', max = " + max + ", min = " + min 
-				+ ", isActive = '" + isActive + "' WHERE hotelId = '" + hotelId + "' AND id = " + groupId + ";";
+				+ ", isActive = '" + isActive + "', title = '" + title + "', subTitle = '" + subTitle 
+				+ "' WHERE hotelId = '" + hotelId + "' AND id = " + groupId + ";";
 		return db.executeUpdate(sql, true);
 	}
 

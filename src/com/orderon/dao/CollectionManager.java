@@ -2,6 +2,7 @@ package com.orderon.dao;
 
 import java.util.ArrayList;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -27,11 +28,18 @@ public class CollectionManager extends AccessManager implements ICollection{
 	}
 
 	@Override
+	public ArrayList<Collection> getComboCollections(String hotelId) {
+		String sql = "SELECT * FROM Collections WHERE hotelId='" + hotelId + "' AND isSpecialCombo = 'true' ORDER BY collectionOrder;";
+		return db.getRecords(sql, Collection.class, hotelId);
+	}
+
+	@Override
 	public JSONObject addCollection(String hotelId, String name, String description, String image,
-			 int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo) {
+			 int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo, JSONArray tags) {
 
 		JSONObject outObj = new JSONObject();
 		try {
+			name = name.toUpperCase();
 			outObj.put("status", false);
 			if(collectionExists(hotelId, name)) {
 				outObj.put("message", "CollectionManager Already exists.");
@@ -39,10 +47,10 @@ public class CollectionManager extends AccessManager implements ICollection{
 			}
 			
 			String sql = "INSERT INTO Collections (hotelId, name, description, image, collectionOrder, hasSubCollection, isActive"
-					+ ", isActiveOnZomato, isSpecialCombo, scheduleIds) "
+					+ ", isActiveOnZomato, isSpecialCombo, scheduleIds, tags) "
 					+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', '" + escapeString(description) + "', '" 
 					+ (image.equals("No image") ? "" : "1") + "', "+collectionOrder+", '"+hasSubCollection
-					+"', 'true', '"+isActiveOnZomato+"', '"+isSpecialCombo+"', '[]');";
+					+"', 'true', '"+isActiveOnZomato+"', '"+isSpecialCombo+"', '[]', '"+tags+"');";
 			
 			if(db.executeUpdate(sql, true)) {
 				outObj.put("status", true);
@@ -57,7 +65,7 @@ public class CollectionManager extends AccessManager implements ICollection{
 
 	@Override
 	public JSONObject editCollection(int collectionId, String hotelId, String name, String description, boolean isActive,
-			int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo) {
+			int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo, JSONArray tags) {
 
 		JSONObject outObj = new JSONObject();
 		try {
@@ -72,7 +80,8 @@ public class CollectionManager extends AccessManager implements ICollection{
 					+ "hasSubCollection = '"+hasSubCollection+"', "
 					+ "isActive = '"+isActive+"',"
 					+ "isActiveOnZomato = '"+isActiveOnZomato+"', "
-					+ "isSpecialCombo = '"+isSpecialCombo+"' "
+					+ "isSpecialCombo = '"+isSpecialCombo+"', "
+					+ "tags = '"+tags+"' "
 					+ "WHERE hotelId = '"+hotelId+"' "
 					+ "AND id = '"+collectionId+"';";
 			
@@ -115,5 +124,12 @@ public class CollectionManager extends AccessManager implements ICollection{
 	public boolean deleteCollection(String hotelId, String collectionName) {
 		String sql = "DELETE FROM Collections WHERE name = '" + collectionName + "' AND hotelId='" + hotelId + "';";
 		return db.executeUpdate(sql, true);
+	}
+
+	@Override
+	public boolean updateCollectionImageUrl(String outletId, int collectionId, String imageUrl) {
+		
+		String sql = "UPDATE Collections SET image = '"+imageUrl+"' WHERE id = "+collectionId+";";
+		return db.executeUpdate(sql, outletId, true);
 	}
 }

@@ -1,8 +1,6 @@
 package com.orderon.dao;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.ArrayList;
 
 import com.orderon.interfaces.IMenuItem;
@@ -34,15 +32,16 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 	@Override
 	public String addMenuItem(String hotelId, String title, String description, String collection, String subCollection, String station,
 			String flags, String groups, int preparationTime, BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, 
-			BigDecimal onlineRate, BigDecimal costPrice, String image, int incentiveType, int incentive, String code, String taxes, String charges,
-			boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, BigDecimal comboReducedPrice, boolean isAddon
+			BigDecimal onlineRate, BigDecimal zomatoRate, BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, 
+			BigDecimal costPrice, String image, String coverImgUrl, int incentiveType, int incentive, String code, String taxes, String charges,
+			boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice, boolean isAddon
 			, boolean syncOnZomato, boolean gstInclusive, String discountType, BigDecimal discountValue) {
 
-		String menuId = getNextMenuId(hotelId, collection);
+		String menuId = getNextMenuId(hotelId);
 		taxes = taxes.replaceAll("\"", "");
 		charges = charges.replaceAll("\"", "");
 		title = AccessManager.toTitleCase(title);
-		int vegType = 1;
+		int vegType = 1;	
 		if(flags.contains("2")) {
 			vegType = 2;
 		}else if(flags.contains("5")) {
@@ -57,33 +56,27 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 			deliveryRate = deliveryRate.multiply(gstCal).setScale(2, BigDecimal.ROUND_HALF_UP);
 			onlineRate = gstCal.multiply(onlineRate).setScale(2, BigDecimal.ROUND_HALF_UP);
 		}
+		
+		flags = flags.replace("\"", "");
 		String sql = "INSERT INTO MenuItems "
-				+ "(corporateId, hotelId, menuId, title, description, collection, subCollection, station, flags, groups, preparationTime, deliveryRate, dineInRate, dineInNonAcRate, onlineRate, costPrice, "
-				+ "img, method, code, state, hasIncentive, incentive, taxes, charges, isRecomended, isTreats, isDefault, isBogo, "
+				+ "(corporateId, hotelId, menuId, title, description, collection, subCollection, station, flags, groups, preparationTime, deliveryRate, "
+				+ "dineInRate, dineInNonAcRate, onlineRate, onlineRate1, onlineRate2, onlineRate3, onlineRate4, onlineRate5, comboPrice, costPrice, "
+				+ "img, coverImgUrl, method, code, state, hasIncentive, incentive, taxes, charges, isRecomended, isTreats, isDefault, isBogo, isCombo, "
 				+ "comboReducedPrice, isAddon, vegType, isTaxable, syncOnZomato, discountType, discountValue) VALUES('', '"
 				+ escapeString(hotelId) + "', '" + escapeString(menuId) + "', '" + escapeString(title) + "', '"
 				+ escapeString(description) + "', '" + escapeString(collection) + "', '" + escapeString(subCollection) + "', '" 
 				+ escapeString(station) + "', '" + escapeString(flags) +"', '" + escapeString(groups) +  "', " + Integer.toString(preparationTime) + ", " + deliveryRate
-				+ ", " + dineInRate + ", " + dineInNonAcRate + ", " + onlineRate + ", " + costPrice + ", '" + (image.equals("No image") ? "" : "1") + "', '', '"
-				+ code + "', " + MENUITEM_STATE_AVAILABLE + ", " + incentiveType + ", " + incentive + ", ?" 
+				+ ", " + dineInRate + ", " + dineInNonAcRate + ", " + onlineRate + ", " + zomatoRate + ", " + swiggyRate + ", " + uberEatsRate + ", " 
+				+ onlineRate + ", " + onlineRate + ", " + comboPrice + ", " + costPrice + ", '" + image + "', '" + coverImgUrl + "', '', '"
+				+ code + "', " + MENUITEM_STATE_AVAILABLE + ", " + incentiveType + ", " + incentive + ", '"+taxes+"'" 
 				+ ", '" + escapeString(charges) + "', '" + Boolean.toString(isRecomended) + "', '" + Boolean.toString(isTreats) 
-				+ "', '" + Boolean.toString(isDefault) + "', '" + Boolean.toString(isBogo) + "', " + comboReducedPrice + ", '" + Boolean.toString(isAddon)
+				+ "', '" + Boolean.toString(isDefault) + "', '" + Boolean.toString(isBogo) + "', '" + Boolean.toString(isCombo) + "', " + comboReducedPrice + ", '" + Boolean.toString(isAddon)
 				+ "', "+vegType+", 0, '"+syncOnZomato+"', '"+discountType+"', "+discountValue+");";
 
 		System.out.println(sql);
-		Connection conn;
-		try {
-			conn = db.getConnection();
-			PreparedStatement pstmt = conn.prepareStatement(sql);
-			pstmt.setString(1, taxes);;
-			if(pstmt.executeUpdate() > 0) {
-				return menuId;
-			}
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if(db.executeUpdate(sql, hotelId, true)) {
+			return menuId;
 		}
-		
 		return "";
 	}
 
@@ -133,13 +126,19 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 	}
 
 	@Override
+	public ArrayList<MenuItem> getMenuItems(String hotelId, String collection, String subCollection) {
+		String sql = "SELECT * FROM MenuItems WHERE hotelId='" + hotelId + "' AND collection = '"+collection+"' AND subCollection = '"+subCollection+"';";
+		return db.getRecords(sql, MenuItem.class, hotelId);
+	}
+
+	@Override
 	public ArrayList<MenuItem> getMenuMP(String hotelId) {
 		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "'";
 		return db.getRecords(sql, MenuItem.class, hotelId);
 	}
 
 	@Override
-	public String getNextMenuId(String hotelId, String collection) {
+	public String getNextMenuId(String hotelId) {
 
 		String sql = "SELECT MAX(CAST(menuId AS integer)) AS entityId FROM MenuItems WHERE hotelId='" + hotelId + "'";
 
@@ -154,8 +153,9 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 	@Override
 	public Boolean updateMenuItem(String hotelId, String menuId, String title, String description, String collection, String subCollection, String station,
 				String flags, String groups, int preparationTime, BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, 
-				BigDecimal onlineRate, BigDecimal costPrice, String image, int incentiveType, int incentive, String code, String taxes, String charges,
-				boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, BigDecimal comboReducedPrice, boolean isAddon,
+				BigDecimal onlineRate, BigDecimal zomatoRate, BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, 
+				BigDecimal costPrice, String image, String coverImgUrl, int incentiveType, int incentive, String code, String taxes, String charges,
+				boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice, boolean isAddon,
 				boolean syncOnZomato, boolean gstInclusive, String discountType, BigDecimal discountValue) {
 		
 		title = AccessManager.toTitleCase(title);
@@ -180,6 +180,11 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 				onlineRate = onlineRate.multiply(gstCal).setScale(2, BigDecimal.ROUND_HALF_UP);
 			}
 		}
+		flags = flags.replace("\"", "");
+		
+		if(menuItem.getImg().length()>10 && image.isEmpty()) {
+			image = menuItem.getImg();
+		}
 		
 		String sql = "UPDATE MenuItems SET title = '" + escapeString(title) 
 				+ "', description = '" + escapeString(description) 
@@ -192,7 +197,13 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 				+ ", deliveryRate = " + deliveryRate 
 				+ ", dineInRate = " + dineInRate  
 				+ ", dineInNonAcRate = " + dineInNonAcRate  
-				+ ", onlineRate = " + onlineRate 
+				+ ", onlineRate = " + onlineRate  
+				+ ", onlineRate1 = " + zomatoRate  
+				+ ", onlineRate2 = " + swiggyRate  
+				+ ", onlineRate3 = " + uberEatsRate  
+				+ ", onlineRate4 = " + onlineRate  
+				+ ", onlineRate5 = " + onlineRate  
+				+ ", comboPrice = " + comboPrice 
 				+ ", costPrice = " + costPrice 
 				+ ", hasIncentive = " + incentiveType
 				+ ", incentive = " + incentive 
@@ -200,11 +211,13 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 				+ ", code = '" + code
 				+ "', taxes = '" + taxes 
 				+ "', charges = '" + charges 
-				+ "', img  ='" + (image.equals("No image") ? "" : "1") 
+				+ "', img  ='" + image
+				+ "', coverImgUrl  ='" + coverImgUrl 
 				+ "', isRecomended = '" + isRecomended
 				+ "', isTreats = '" + isTreats
 				+ "', syncOnZomato = '" + syncOnZomato
 				+ "', isBogo = '" + isBogo
+				+ "', isCombo = '" + isCombo
 				+ "', isDefault = '" + isDefault
 				+ "', isAddon = '" + isAddon
 				+ "', comboReducedPrice = " + comboReducedPrice
@@ -256,5 +269,14 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 					+ "' WHERE menuId = '" + menuItem.getMenuId() + "';";
 			db.executeUpdate(sql, false);
 		}
+	}
+
+	@Override
+	public Boolean updateMenuImageUrl(String hotelId, String menuId, String imageUrl) {
+
+		String sql = "UPDATE MenuItems SET img = '"+ imageUrl +"' WHERE hotelId = '"
+				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
+
+		return db.executeUpdate(sql, true);
 	}
 }

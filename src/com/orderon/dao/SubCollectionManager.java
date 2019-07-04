@@ -32,8 +32,8 @@ public class SubCollectionManager extends AccessManager implements ISubCollectio
 	@Override
 	public boolean addSubCollection(String hotelId, String name, int order, String collection) {
 
-		String sql = "INSERT INTO SubCollections (hotelId, name, subCollectionOrder, collection) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(name) + "', " + order + ", '" + collection + "');";
+		String sql = "INSERT INTO SubCollections (hotelId, name, subCollectionOrder, collection, isActive) VALUES('" + escapeString(hotelId) + "', '"
+				+ escapeString(name) + "', " + order + ", '" + collection + "', 'true');";
 		return db.executeUpdate(sql, true);
 	}
 
