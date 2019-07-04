@@ -2,18 +2,26 @@ package com.orderon.commons;
 
 public enum Designation {
 
-	WAITER(0), MANAGER(1), ADMINISTRATOR(2), CHEF(3), RECEPTIONIST(4), RETAILASSCOCIATE(5), 
-	BACKOFFICE(6), DELIVERYBOY(7), OWNER(8), CAPTAIN(9), UNAUTHORIZED(100), CASHIER(10);
+	WAITER(0, 7), MANAGER(1, 4), ADMINISTRATOR(2, 1), CHEF(3, 6), RECEPTIONIST(4, 5), RETAILASSCOCIATE(5, 5), 
+	BACKOFFICE(6, 5), DELIVERYBOY(7, 7), OWNER(8, 2), CAPTAIN(9, 6), UNAUTHORIZED(100, 8), CASHIER(10, 5),
+	HELPER(11, 8), CLEANER(12, 8), EXEC_CHEF(13, 7), COMMI_1(14, 8), COMMI_2(15, 8), COMMI_3(16, 8);
 	
 	private int value;
+	private int userLevel;
 	
-	private Designation(int value){
+	private Designation(int value, int userLevel){
 		this.value = value;
+		this.userLevel = userLevel;
 	}
 	
 	public int getValue() {
 		return value;
 	}
+
+	public int getUserLevel() {
+		return userLevel;
+	}
+	
 	
 	public static Designation getType(int value){
 		
