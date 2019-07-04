@@ -61,7 +61,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 				"Attendance.authorisation, Attendance.reason, Attendance.checkOutDate, Attendance.isPresent , Attendance.shift " +
 				"FROM Employee " + 
 				"LEFT OUTER JOIN Attendance ON Employee.employeeId == Attendance.employeeId AND Attendance.shift == "+shift+ 
-				" AND Attendance.checkInDate == '"+serviceDate+"' WHERE Employee.hotelId = '" + hotelId + "' AND designation != 'ADMINISTRATOR';";
+				" AND Attendance.checkInDate == '"+serviceDate+"' WHERE Employee.hotelId = '" + hotelId + "' AND (designation != 'ADMINISTRATOR' || designation != 'OWNER');";
 		return db.getRecords(sql, Attendance.class, hotelId);
 	}
 
