@@ -141,9 +141,9 @@ public class EncryptDecryptString {
         System.out.println("Plain   String  : "+plainString);
         String enc = EncryptDecryptString.encrypt(plainString.getBytes());
         System.out.println("Encrypted   String  : "+enc);
-        String dec = EncryptDecryptString.decrypt(enc);
+        String dec = EncryptDecryptString.decrypt(plainString);
         System.out.println("Decrypted   String  : "+dec);
-        System.out.println("password is match  : "+eds.isExpectedPassword(plainString.toCharArray(), 
+        System.out.println("password match  : "+eds.isExpectedPassword(plainString.toCharArray(), 
         		salt, hash));
-    }   
+    }
 }

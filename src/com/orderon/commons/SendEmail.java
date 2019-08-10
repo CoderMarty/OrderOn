@@ -34,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
+import java.util.Random;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -52,11 +53,11 @@ import javax.mail.internet.MimeMultipart;
 
 public class SendEmail {
 
-    public void sendEmail(ArrayList<String> recipents, String subject, String text) {
+    public boolean sendEmail(ArrayList<String> recipents, String subject, String text) {
     	if(Configurator.getIsServer())
-    		return;
+    		return true;
     	
-    	final String username = "support@orderon.co.in";
+    	final String[] username = {"m@orderon.co.in", "o@orderon.co.in", "support@orderon.co.in"};
 		final String password = "TOMTech$1234";
 
 		Properties props = new Properties();
@@ -66,10 +67,11 @@ public class SendEmail {
 		props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); //SSL Factory Class
 		props.put("mail.smtp.auth", "true"); //Enabling SMTP Authentication
 		props.put("mail.smtp.port", "25"); //SMTP Port
+		Random random = new Random();
 
 		Session session = Session.getInstance(props, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
-				return new PasswordAuthentication(username, password);
+				return new PasswordAuthentication(username[random.nextInt(3)], password);
 			}
 		});
 
@@ -81,7 +83,7 @@ public class SendEmail {
 		    msg.addHeader("format", "flowed");
 		    msg.addHeader("Content-Transfer-Encoding", "8bit");
 			
-		    msg.setFrom(new InternetAddress(username, "NoReply-OrderOn"));
+		    msg.setFrom(new InternetAddress(username[2], "NoReply-OrderOn"));
 
 		    msg.setReplyTo(InternetAddress.parse("support@orderon.co.in", false));
 
@@ -93,7 +95,6 @@ public class SendEmail {
 		    for (String recipent : recipents) {
 				msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipent, false));
 				
-		    
 			    System.out.println("Message is ready");
 			    if(!recipent.equals("")) {
 		    	  		Transport.send(msg);  
@@ -102,8 +103,10 @@ public class SendEmail {
 			}
 
 		} catch (MessagingException | UnsupportedEncodingException e) {
-			throw new RuntimeException(e);
+			System.out.print("Run time exception. Email cound not be sent");
+			return false;
 		}
+		return true;
 		
     }
     public boolean sendEmailWithAttachment(ArrayList<String> recipents, String subject, String text, String[] filePaths) {

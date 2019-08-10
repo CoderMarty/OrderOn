@@ -1,257 +1,189 @@
 package com.orderon.commons;
 
 import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;
 
 import com.orderon.dao.AccessManager;
 
 public class ShortForm{
     public static void main(String args[]) throws ParseException {
 
-		String alltitle = "TEA,"
-				+"COFFEE,"
-				+"KESARI UKALA,"
-				+"BATATA  VADA,"
-				+"STEAM IDLI .,"
-				+"IDLI FRY,"
-				+"DAHI IDLI,"
-				+"KANDA POHA,"
-				+"KANDA BAJI,"
-				+"MISAL,"
-				+"MISAL PAV,"
-				+"DAHI MISAL,"
-				+"DAHI VADA,"
-				+"PURI BHAJI,"
-				+"BREAD MASALA,"
-				+"PANEER PAKODA,"
-				+"VADA PAV,"
-				+"IDLI WADA,"
-				+"SHEERA,"
-				+"PINEAPPLE SHIRA,"
-				+"SINGLE WADA USAL,"
-				+"SABUDANA WADA,"
-				+"SABUDANA KHICHIDI,"
-				+"CHEESE SADA DOSA,"
-				+"SADA DOSA,"
-				+"MASALA DOSA,"
-				+"UTTAPAM,"
-				+"MASALA UTTAPAM,"
-				+"ONION UTTAPAM,"
-				+"TOMATO UTTAPAM,"
-				+"SPRING DOSA,"
-				+"SCHEZWAN NOODLES DOSA,"
-				+"SCHEZWAN DOSA,"
-				+"POLA USAL,"
-				+"EXTRA CHEESE /BUTTER,"
-				+"CHEESE RAWA SADA,"
-				+"VEG SANDWICH,"
-				+"VEG TOAST S/W,"
-				+"PLAIN CHEESE S/W,"
-				+"PLAIN CHEESE TOAST S/W,"
-				+"BREAD BTR,"
-				+"VEG CHEESE S/W,"
-				+"VEG CHEESE TOAST S/W.,"
-				+"CLUB S/W,"
-				+"DAL KHICHDI,"
-				+"CURD RICE,"
-				+"TOMATO KHICHDI,"
-				+"MASALAPAPAD,"
-				+"VEG PULAV,"
-				+"SWEET LASSI,"
-				+"BUTTER MILK,"
-				+"FRESH LIME WATER,"
-				+"GINGER LEMON,"
-				+"KOKAM SHARBAT,"
-				+"AWLA SHARBAT,"
-				+"MINERAL WATER,"
-				+"VEG SWEET CORN SOUP,"
-				+"MANCHOW,"
-				+"HOT & SOUR,"
-				+"VEG CLEAR,"
-				+"VEG MANCHURIAN,"
-				+"PANEER SALT  PEPPER,"
-				+"PANEER CRISPY,"
-				+"PANEER MANCHURIAN,"
-				+"CORN SALT PEPPER,"
-				+"CORN CRISPY,"
-				+"PANEER CHILLY,"
-				+"IDLI CHILLY DRY,"
-				+"FRIED RICE,"
-				+"SCHEZWAN F/R,"
-				+"PEKING F/R,"
-				+"HONG F/R,"
-				+"POT RICE,"
-				+"STEW RICE,"
-				+"PAN F/R,"
-				+"AMERICAN CHOPSUEY,"
-				+"TRIPLE SCHE/RICE,"
-				+"SINGAPORE NOODLES,"
-				+"HAKKA NOODLES,"
-				+"CHOWMEIN NOODELS,"
-				+"NEER DOSA,"
-				+"GOLI BHAJI,"
-				+"MOSAMBI JUICE,"
-				+"ORANGE JUICE,"
-				+"GANGA JAMUNA,"
-				+"WATERMELON,"
-				+"PINEAPPLE JUICE,"
-				+"WADA USAL,"
-				+"SINGLE PAV,"
-				+"MEDU WADA,"
-				+"SAMBHAR,"
-				+"SINGLE POTOTO WADA,"
-				+"CUTING TEA,"
-				+"SMALL WATER,"
-				+"SPL BHAJI,"
-				+"CHAPATI,"
-				+"RAWA SADA DOSA,"
-				+"RAWA MASALA DOSA,"
-				+"SPECIAL THALI,"
-				+"PURI LUNCH,"
-				+"DAAL RICE FULL,"
-				+"DAAL RICE HALF,"
-				+"CHANNA MASALA,"
-				+"ALOO MUTTER,"
-				+"VEG BIRYANI,"
-				+"ROASTED PAPAD,"
-				+"EXTRA,"
-				+"PANEER BIRYANI,"
-				+"COLDRINK,"
-				+"SOFT DRINK,"
-				+"DAL TADKA,"
-				+"DAL FRY,"
-				+"VEG CHEESE PIZZA,"
-				+"PANNER TIKKA MASALA,"
-				+"MANCHUAN RICE,"
-				+"PURI PLATE,"
-				+"EXTRA,"
-				+"DAL WADA,"
-				+"MIX VEG,"
-				+"RAWA BUTTER SADA,"
-				+"BUTTER SADA DOSA,"
-				+"USAL PAV,"
-				+"DAHI MISAL PAV,"
-				+"BATATA WADA USAL,"
-				+"PLATE POLA,"
-				+"EXTRA PAV,"
-				+"SWEET KACHORI,"
-				+"FINGER CHIPS,"
-				+"DAHI VADA,"
-				+"KOTHIMBIR VADE,"
-				+"MYSORE SADA DOSA,"
-				+"MYSORE MASALA DOSA,"
-				+"ONION RAVA SADA DOSA,"
-				+"ONION RAVA MASALA DOSA,"
-				+"PALAK SADA DOSA,"
-				+"PALAK MASALA DOSA,"
-				+"PLAIN UTTAPAM,"
-				+"TOMATO ONION UTTAPAM,"
-				+"TOMATO OMELET,"
-				+"SCHEZWAN MASALA DOSA,"
-				+"CHUTNEY S/W,"
-				+"VEG GRILLED S/W,"
-				+"VEG CHEESE GRILLED S/W,"
-				+"CHEESE GRILLED S/W,"
-				+"TOAST BUTTER,"
-				+"BREAD SLIOCE(2),"
-				+"JAIN PIZZA,"
-				+"CHEESE PIZZA,"
-				+"COLD COFFEE,"
-				+"BANANA MILKSHAKE,"
-				+"ROSE MILKSHAKE,"
-				+"TOMATO SOUP,"
-				+"PALAK SOUP,"
-				+"SWEETCORN SOUP(PLAIN),"
-				+"HARA BARA KEBAB,"
-				+"VEG CRISPY,"
-				+"VEG SPRING ROLL,"
-				+"VEG LOLLY POP,"
-				+"GOBI MANCHRIAN,"
-				+"MUSHROOM MUNCHURIAN,"
-				+"MIUSHROOM CHILLY,"
-				+"PANEER SCHEZWAN DRY,"
-				+"PANEER SPRING ROLL,"
-				+"PANEER TIKKA DRY,"
-				+"BHARAT SPECIAL VEGETABLE,"
-				+"ALOO METHI,"
-				+"ALOO JEERA,"
-				+"ALOO PALAK,"
-				+"PLAIN PALAK,"
-				+"LASUNI PALAK,"
-				+"VEG MAKHANWALA,"
-				+"VEG KOLHAPURI,"
-				+"VEG JALFREZI,"
-				+"VEG HYDERABADI,"
-				+"VEG KOFTA,"
-				+"MALAI KOFTA,"
-				+"NAVRATNA KURMA,"
-				+"BHENDI MASALA,"
-				+"BHENDI M/S FRY(DRY),"
-				+"VEG ROYAL MARATHA,"
-				+"VEG MAHARAJ,"
-				+"VEG CHILLY MILLY,"
-				+"GREEN PEAS MASALA,"
-				+"VEG CHINGARI,"
-				+"PANEER PALAK,"
-				+"PANEER BUTTER MASALA,"
-				+"PANEER PASANDA,"
-				+"PANEER MASALA,"
-				+"PANEER MUTTER,"
-				+"PANEER BURJI,"
-				+"PANEER MUSHROOM MASALA,"
-				+"PANEER LAJAWAB,"
-				+"PANEER CHINGARI,"
-				+"DAL KOLHAPURI,"
-				+"BUTTER DAL FRY,"
-				+"TANDOORI ROTI,"
-				+"BUTTER ROTI,"
-				+"NAAN,"
-				+"BUTTER NAAN,"
-				+"PARATHA,"
-				+"BUTTER PARATHA,"
-				+"KULCHA,"
-				+"BUTTER KULCHA,"
-				+"ALOO PARATHA,"
-				+"STUFF PARATHA,"
-				+"STEAM RICE,"
-				+"PLAIN RICE,"
-				+"GREEN PEAS PULAV,"
-				+"KASHMIRI PULAV,"
-				+"PALAK KHICHDI,"
-				+"LEMON RICE,"
-				+"VEG RAITA,"
-				+"BOONDI RAITA,"
-				+"CURD,"
-				+"GREEN SALAD,"
-				+"FRY PAPAD,"
-				+"VEG MUNCHURIAN RICE,"
-				+"VEG COMBINATION RICE,"
-				+"VEG TRIPLE SCHEZWAN FRIED RICE,"
-				+"VEG BURNT CHILLI RICE,"
-				+"VEG SCHEZWAN NOODLES,"
-				+"VEG TRIPLE SCHEZWAN NOODLES,"
-				+"PAV BHAJI,"
-				+"JAIN PAV BHAJI,"
-				+"CHEESE PAV BHAJI,"
-				+"JAIN CHEESE PAV BHAJI,"
-				+"ONLY BHAJI,"
-				+"JAIN ONLY BHAJI,"
-				+"EXTRA BUTTER PAV,"
-				+"ROSE FALOODA,"
-				+"KESAR FALOODA,"
-				+"CHAPATI LUNCH,"
-				+"ROTI LUNCH,"
-				+"FRESH LIME SODA,"
-				+"UPMA,"
-				+"Jeera Rice";
+		String alltitle = "Healthy Broccoli Salad," +
+				"ROASTED TOMATO SOUP WITH FRESH MINT," +
+				"MUSHROOM CAPPUCCINO WITH TRUFFLE OIL," +
+				"VEG MANCHOW SOUP," +
+				"NONVEG MANCHOW SOUP," +
+				"HEALTHY BROCCOLI SOUP," +
+				"EGG KETO SALAD," +
+				"VEG KETO SALAD," +
+				"TRADITIONAL VEG CEASAR SALAD," +
+				"TRADITIONAL CHICKEN CEASAR SALAD," +
+				"TERIYAKI CHICKEN WITH SESAME DRESSING," +
+				"FALAFELS IN BLANKET," +
+				"VEG FAJITA WRAP," +
+				"CHICKEN FAJITA WRAP," +
+				"THAI SATAY WRAP," +
+				"WRAPPED VEG CEASARÊ," +
+				"WRAPPED CHICKENÊ CEASAR," +
+				"HOT N SWEET CHICKEN WRAP," +
+				"BOMBAY," +
+				"COLE SLAW SANDWICH," +
+				"COTTAGE CHEESE PESTO," +
+				"CHICKEN PESTO," +
+				"PHILLY CHICKEN," +
+				"PULLED CHICKEN BBQ," +
+				"THE PROTEINA BURGER," +
+				"SHROOM SALSA BURGER," +
+				"CHEESE MASH UP BURGER," +
+				"REGULAR VEG BURGER," +
+				"REGULAR NON VEG BURGER," +
+				"BBQ CHICKEN BURGER," +
+				"LOUISIANA BURGER," +
+				"AMOR MEXICANO BURGER," +
+				"CHICKEN PARM BURGER," +
+				"JALAPENO POPPERS," +
+				"COTTAGE CHEESE SKEWERS," +
+				"VEG BRUSCHETTAS," +
+				"NONVEG BRUSCHETTAS," +
+				"VEG NACHOS," +
+				"NONVEG NACHOS," +
+				"VEG CAJUN CHILLY," +
+				"NONVEG CAJUN CHIILLY," +
+				"PANEER KUNG PAO," +
+				"CHICKEN KUNGPAO," +
+				"PRIKKAI," +
+				"CHICKEN PERI PERI WINGSÊ," +
+				"CHICKEN SRIRACHA WINGSÊ," +
+				"CHICKEN TERIYAKI WINGSÊ," +
+				"CHICKEN STICKY WINGSÊ," +
+				"CHICKEN BUFFALO WINGSÊ," +
+				"JERK CHICKEN LEG," +
+				"CHICKEN N CHIPS," +
+				"CHICKEN POPPERS," +
+				"FALAFEL HUMMUS CONE," +
+				"VEG KOFTE CURRY CONE," +
+				"NONVEG KOFTE CURRY CONE," +
+				"SCHEZWAN PANEER CONE," +
+				"SCHEZWAN CHICKEN CONE," +
+				"VEG MAGGELICIOUS CONE," +
+				"NONVEG MAGGELICIOUS CONE," +
+				"ÊMAKHANI PANEER CONE," +
+				"ÊMAKHANI CHICKEN CONE," +
+				"MARGHERITA NAPOLETAN PIZZA," +
+				"CAPRISSIOSO ITALIANO PIZZA," +
+				"AL FUNGHI PIZZA," +
+				"ALL VEGGIE PIZZA," +
+				"ÊTANDOORI PANEER PIZZA," +
+				"ÊTANDOORI CHICKEN PIZZA," +
+				"CAJUN CHICKEN PIZZA," +
+				"ÊALFREDO PASTA," +
+				"AGLIO OLIO," +
+				"POMODORO NAPOLITANA PASTA," +
+				"AL FUNGHI PASTA," +
+				"PESTO CREAM PASTA," +
+				"PESTO PASTA," +
+				"PINK SAUCE PASTA," +
+				"HERB RICE WITH CAJUN CHILLI VEG," +
+				"HERB RICE WITH CAJUN CHILLI CHICKEN," +
+				"VEG MAKHANI AND JEERA RICEÊ," +
+				"CHICKEN MAKHANI AND JEERA RICEÊ," +
+				"JAMBALAYA WITH GRILLED CHICKENÊ," +
+				"THAI BASIL RICE WITH ORIENTAL PANEER," +
+				"THAI BASIL RICE WITH ORIENTAL CHICKEN," +
+				"PANEER GARLIC PEPPER FRY," +
+				"CHICKEN GARLIC PEPPER FRY," +
+				"BIRYANI VEG," +
+				"BIRYANI CHICKEN," +
+				"PERI PERI CHICKEN WITH BURNT GARLIC RICEÊ," +
+				"RICE AND BEANS WITH JERK CHICKEN," +
+				"MUSHROOM RISSOTTO," +
+				"VEGGIE RISSOTTO," +
+				"HERB CHICKEN RISSOTTO," +
+				"CHOLE CHAWAL," +
+				"RAJMA CHAWAL," +
+				"VEG ORIENTAL SIZZLER," +
+				"NONVEG ORIENTAL SIZZLER," +
+				"VEG EURO SIZZLER," +
+				"NONVEG EURO SIZZLER," +
+				"VEG INDIE SIZZLER," +
+				"NONVEG INDIE SIZZLER," +
+				"TRUFFLED FRIES," +
+				"FRENCH FRIES," +
+				"PERI PERI FRIES," +
+				"CHEESE FRIES," +
+				"GARLIC BREAD," +
+				"CHEESE GARLIC BREAD," +
+				"COLE SLAW," +
+				"POTATO WEDGESÊ," +
+				"PERI PERI POTATO WEDGES," +
+				"CHEESY POTATO WEDGES," +
+				"POTATO AGLIO E OLIO," +
+				"COLD COFFEE," +
+				"CHOCOLATE SHAKE," +
+				"CHOCO MINT," +
+				"OREO CHOCO," +
+				"FERRERO ROCHER," +
+				"KITKAT," +
+				"KITKAT OREO," +
+				"PEANUT BUTTER BANANA," +
+				"CHOCO BANANA," +
+				"PEPPERY GUAVAÊ," +
+				"MINT CUCUMBER," +
+				"WATERMELON THYME COOLERÊ," +
+				"WATERMELON SANGRIA," +
+				"PEACH AND ORANGE," +
+				"REVIVAL," +
+				"LITCHIANO," +
+				"MOJITO," +
+				"LIT," +
+				"BLUE LEMONÊ," +
+				"BOTTLED WATER," +
+				"SOFT DRINKS (250 ML)," +
+				"CAPPUCCINO," +
+				"ESPRESSO," +
+				"LATTEÊ," +
+				"MASALA TEA," +
+				"BANANA PEANUT BUTTER JELLY WRAP," +
+				"CHOCOLATE CREPESÊ," +
+				"MIXED FRUITS CREPESÊ," +
+				"STRAWBERRY WAFFLES," +
+				"CHOCOLATE WAFFLES," +
+				"CHOCOLATE BANANA WAFFLES," +
+				"GULAB JAMUN," +
+				"CHOCOLATE BROWNIEÊ," +
+				"BROWNIE WITH ICE CREAM," +
+				"ICE ON FIREÊ," +
+				"ICE CREAMS," +
+				"PAN PIZZA (6Ó THIN CRUST)+PEPSI," +
+				"REGULAR BURGER+PEPSI," +
+				"PASTA TOMATO/ALFREDO+PEPSIÊ," +
+				"CHICKEN WINGS+PEPSI," +
+				"WRAPS+PEPSI," +
+				"VEG MEAL 1," +
+				"ÊVEG MEAL 2," +
+				"NONVEG MEAL 1," +
+				"NONVEG MEAL 2," +
+				"VEG MEAL 3," +
+				"VEG MEAL 4," +
+				"NONVEG MEAL 3," +
+				"ADD CHICKEN SAUSAGES," +
+				"ADD GRILLED CHICKENÊ," +
+				"ADD VEGGIES," +
+				"ADD CHEESE";
 		
 		String[] titles = alltitle.split(",");
 		
 		for (String t : titles) {
-			generateShortForm(t);
+			//generateShortForm(t);
 			//System.out.println(AccessManager.toTitleCase(t));
 		}
+		String x = "123456789";
 		
+		System.out.print(x.substring(x.length()-4, x.length()));
 	}
+    
     private static void generateShortForm(String title) {
 
 		String[] sf = title.split(" ");
