@@ -1,7 +1,10 @@
 package com.orderon.dao;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -11,9 +14,10 @@ import com.orderon.interfaces.ICustomer;
 import com.orderon.interfaces.ICustomerCredit;
 import com.orderon.interfaces.ILoyaltySettings;
 import com.orderon.interfaces.IOrder;
+import com.orderon.interfaces.IPromotionalCampaign;
 import com.orderon.interfaces.IService;
 
-public class CustomerManager extends AccessManager implements ICustomer, ICustomerCredit{
+public class CustomerManager extends AccessManager implements ICustomer, ICustomerCredit, IPromotionalCampaign{
 
 	public CustomerManager(Boolean transactionBased) {
 		super(transactionBased);
@@ -34,11 +38,12 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, 
 			String referenceForReview) {
 		ILoyaltySettings loyalty = new LoyaltyManager(false);
-		String sql = "INSERT INTO Customers (hotelId, firstName, surName,address,mobileNumber, birthdate, anniversary, allergyInfo, points, wantsPromotion, isPriority, userType, emailId, reference, communicationMode) VALUES ('"
+		String sql = "INSERT INTO Customers (hotelId, firstName, surName,address,mobileNumber, birthdate, anniversary, allergyInfo, "
+				+ "points, wantsPromotion, isPriority, userType, emailId, reference, communicationMode, sendSMS, joiningDate) VALUES ('"
 				+ escapeString(hotelId) + "', '" + escapeString(firstName) + "', '" + escapeString(surName) + "', '" + escapeString(address) + "', '"
 				+ escapeString(phone) + "', '" + escapeString(birthdate) + "', '" + escapeString(anniversary) + "', '"
 				+ escapeString(allergyInfo) + "', 0, '" + wantsPromotion + "', '"+ isPriorityCust + "', '"+loyalty.getBaseLoyaltySetting(hotelId).getUserType()
-				+ "', '"+escapeString(emailId)+"', '"+escapeString(referenceForReview)+"', '[]');";
+				+ "', '"+escapeString(emailId)+"', '"+escapeString(referenceForReview)+"', '[]', 'true', '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"');";
 		return db.executeUpdate(sql, true);
 	}
 	
@@ -152,8 +157,9 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 	@Override
 	public Boolean incrementVisitCount(String hotelId, Customer customer) {
 
-		String sql = "UPDATE Customers SET visitCount="+ customer.getVisitCount()+" WHERE mobileNumber='"
-				+ customer.getMobileNumber() + "';";
+		int visitCount = customer.getVisitCount()+1;
+		String sql = "UPDATE Customers SET visitCount="+ visitCount +", lastVisitDate = '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"' WHERE mobileNumber='"
+				+ customer.getMobileNumber() +"';";
 		return db.executeUpdate(sql, true);
 	}
 
@@ -265,8 +271,91 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 	}
 
 	@Override
+	public ArrayList<Customer> getAllCustomersByFilters(String hotelId, JSONArray outletIds, JSONArray userTypes, 
+			String sex, JSONArray ageGroups) {
+		String sql = "SELECT * FROM Customers WHERE (";
+		
+		int offset = outletIds.length();
+		for (int i=0; i<outletIds.length(); i++) {
+			try {
+				sql += "hotelId == '" + outletIds.getString(i) + "'";
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			offset--;
+			if(offset == 0){
+				sql += ") ";
+			}else {
+				sql += " OR ";
+			}
+		}
+		boolean checkForUserTypes = true;
+		for (int i=0; i<userTypes.length(); i++) {
+			try {
+				if(userTypes.getString(i).equals("All")) {
+					checkForUserTypes = false;
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		if(checkForUserTypes) {
+			if(userTypes.length()>0) {
+				sql += "AND (";
+			}
+			offset = userTypes.length();
+			for (int i=0; i<userTypes.length(); i++) {
+				try {
+					sql += "userType == '" + userTypes.getString(i) + "'";
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				offset--;
+				if(offset == 0){
+					sql += ") ";
+				}else {
+					sql += " OR ";
+				}
+			}
+		}
+		
+		//Gender/Sex criteria
+		if(!sex.equals("ALL")) {
+			sql += "AND sex = '"+sex+"' ";
+		}
+		/*
+		//Age group criteria
+		try {
+			if(ageGroups.length()>0) {
+				JSONObject ageGroup = ageGroups.getJSONObject(0);
+				int minAge = ageGroup.getInt("minAge");
+				int maxAge = ageGroup.getInt("maxAge");
+				
+				if(minAge !=0 && maxAge !=0) {
+
+					LocalDateTime date = LocalDateTime.now();
+					int year = date.getYear();
+					String minDate = (year-minAge) + "/" + date.getMonth().getValue() + "/" + date.getDayOfMonth();
+					String maxDate = (year-maxAge) + "/" + date.getMonth().getValue() + "/" + date.getDayOfMonth();
+							
+					sql += "AND birthDate BETWEEN '" + maxDate + "' AND '"+minDate+"';";
+				}
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		*/
+		
+		return db.getRecords(sql, Customer.class, hotelId);
+	}
+
+	@Override
 	public ArrayList<Customer> getAllCustomerDetailsForOrdering(String hotelId) {
-		String sql = "SELECT mobileNumber, firstName, surName, address FROM Customers;";
+		String sql = "SELECT id, mobileNumber, firstName, surName, address FROM Customers;";
 		return db.getRecords(sql, Customer.class, hotelId);
 	}
 
@@ -372,5 +461,71 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 		String sql = "SELECT * FROM Customers WHERE id = "+id+";";
 		
 		return db.getOneRecord(sql, Customer.class, hotelId);
+	}
+
+	@Override
+	public boolean addCampaign(String outletId, String name, String messageContent, JSONArray outletIds, JSONArray userTypes,
+			String sex, JSONArray ageGroup) {
+		String sql = "INSERT INTO PromotionalCampaign (outletId, name, messageContent, outletIds, userTypes, sex, ageGroup, status) VALUES ('"
+				+ escapeString(outletId) + "', '" + escapeString(name) + "', '" + escapeString(messageContent) + "', '" + outletIds.toString() + "', '"
+				+ userTypes.toString() + "', '" + sex + "', '"+ageGroup+"', 'DRAFTED');";
+		return db.executeUpdate(sql, true);
+	}
+
+	@Override
+	public ArrayList<PromotionalCampaign> getPromotionalCampaigns(String outletId) {
+		
+		String sql = "SELECT * FROM PromotionalCampaign WHERE outletId = '"+outletId+"';";
+		return db.getRecords(sql, PromotionalCampaign.class, outletId);
+	}
+
+	@Override
+	public PromotionalCampaign getPromotionalCampaignById(String outletId, int id) {
+		
+		String sql = "SELECT * FROM PromotionalCampaign WHERE outletId = '"+outletId+"' AND id = "+id+";";
+		return db.getOneRecord(sql, PromotionalCampaign.class, outletId);
+	}
+
+	@Override
+	public boolean deleteCampaign(String outletId, int id) {
+		
+		String sql = "DELETE FROM PromotionalCampaign WHERE outletId = '"+outletId+"' AND id = "+id+";";
+		return db.executeUpdate(sql, true);
+	}
+
+	@Override
+	public boolean updateCampaign(String outletId, int campaignId, int totalSmsSent, int totalCustomerCount, 
+			int failedSmsCount, int newBalance) {
+
+		JSONObject usageDetail = new JSONObject();
+		try {
+			usageDetail.put("dateTime", LocalDateTime.now());
+			usageDetail.put("totalSmsSent", totalSmsSent);
+			usageDetail.put("totalCustomers", totalCustomerCount);
+			usageDetail.put("failedCount", failedSmsCount);
+			usageDetail.put("newBalance", newBalance);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		String sql = "UPDATE PromotionalCampaign SET usageDetails = '"+usageDetail.toString()+"', status='SENT' WHERE id = "+campaignId+"";
+		
+		return db.executeUpdate(sql, outletId, true);
+	}
+
+	@Override
+	public boolean editCampaign(String outletId, int campaignId, String name, String messageContent,
+			JSONArray outletIds, JSONArray userTypes, String sex, JSONArray ageGroup) {
+		
+		String sql = "UPDATE PromotionalCampaign SET name = '"+name
+				+"', messageContent='"+messageContent
+				+"', outletIds='"+outletIds.toString()
+				+"', userTypes='"+userTypes.toString()
+				+"', sex='"+sex
+				+"', ageGroup='"+ageGroup.toString()
+				+"' WHERE id = "+campaignId+"";
+		
+		return db.executeUpdate(sql, outletId, true);
 	}
 }
