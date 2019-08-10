@@ -8,10 +8,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import com.orderon.dao.ServerManager;
+import com.orderon.interfaces.IServer;
+
 public class Database {
 	private Boolean mAutoCommit;
 	private Connection mConn;
-	private StringBuilder transactionLog = new StringBuilder();
+	private StringBuilder transactionLog;
 
 	public interface OrderOnEntity {
 		public void readFromDB(ResultSet rs);
@@ -19,6 +22,7 @@ public class Database {
 	
 	public Database(Boolean transactionBased) {
 		mAutoCommit = !transactionBased;
+		transactionLog = new StringBuilder();
 	}
 	
 	public Connection getConnection(String outletId) throws Exception {
@@ -48,12 +52,9 @@ public class Database {
 		try {
 			if (mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
-				
 				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
-				
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
-				
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -63,7 +64,7 @@ public class Database {
 	
 	private void closeDB() {
 		try {
-			if (mAutoCommit) {
+			if (mAutoCommit && mConn != null) {
 				mConn.close();
 				mConn = null;
 			}
@@ -91,7 +92,7 @@ public class Database {
 		beginTransaction(Configurator.getOutletId());
 	}
 
-	public void commitTransaction() {
+	public void commitTransaction(String outletId, boolean isAServerUpdate) {
 		try {
 			if(mConn == null) {
 				return;
@@ -100,16 +101,18 @@ public class Database {
 				mConn.commit();
 				mConn.close();
 				mConn = null;
-				if(!Configurator.getIsServer() && !Configurator.getIsDebug()) {
-					StringBuilder previousContents = new StringBuilder();
-					previousContents.append(Configurator.readConfigFile(Configurator.getServerFile()));
-					previousContents.append(transactionLog);
-					Configurator.writeToServerFile(previousContents.toString());
-					transactionLog = new StringBuilder();
-				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			if (mAutoCommit) {
+				return;
+			}
+			//If syncing on server
+			if(isAServerUpdate) {
+				return;
+			}
+			loadTransactionsToDB(outletId);
 		}
 	}
 
@@ -144,9 +147,10 @@ public class Database {
 		} catch (Exception e) {
 			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
 		
-		closeDB();
 		return null;
 	}
 
@@ -163,8 +167,9 @@ public class Database {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
-		closeDB();
 		return false;
 	}
 
@@ -182,16 +187,15 @@ public class Database {
 				entity.readFromDB(rs);
 				items.add(entity);
 			}
-			closeDB();
-			return items;
 		} catch (NullPointerException e) {
+			System.out.println(sql);
 			System.out.println("No Record Found");
 		}catch (Exception e) {
 			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
-		items.clear();
-		closeDB();
 		return items;
 	}
 
@@ -222,22 +226,35 @@ public class Database {
 		} catch (Exception e) {
 			System.out.println(sql);
 			e.printStackTrace();
-		}
-		closeDB();
-		if(ret && writeToFile && !Configurator.getIsServer() && !Configurator.getIsDebug()){
-			sql = sql.trim();
-			transactionLog.append(sql);
-			if(!sql.endsWith(";"))
-				transactionLog.append(";");
-			if(mAutoCommit) {
-				StringBuilder previousContents = new StringBuilder();
-				previousContents.append(Configurator.readConfigFile(Configurator.getServerFile()));
-				previousContents.append(transactionLog);
-				Configurator.writeToServerFile(previousContents.toString());
-				transactionLog = new StringBuilder();
+		} finally {
+			closeDB();
+			if(ret && writeToFile){
+				sql = sql.trim();
+				if(sql.isEmpty()) {
+					return ret;
+				}
+				transactionLog.append(sql);
+				if(!sql.endsWith(";"))
+					transactionLog.append(";");
+				if(mAutoCommit) {
+					loadTransactionsToDB(outletId);
+				}
 			}
 		}
 		return ret;
+	}
+	
+	private void loadTransactionsToDB(String outletId) {
+		
+		if(mConn != null) {
+			return;
+		}
+		if(Configurator.getIsServer() || Configurator.getIsDebug()) {
+			return;
+		}
+		IServer dao = new ServerManager(false);
+		dao.addTransaction(outletId, transactionLog.toString());
+		transactionLog = new StringBuilder();
 	}
 
 	/*
