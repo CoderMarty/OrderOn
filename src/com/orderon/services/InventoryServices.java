@@ -25,6 +25,7 @@ import com.orderon.commons.MeasurableUnit;
 import com.orderon.commons.PaymentType;
 import com.orderon.dao.AccessManager;
 import com.orderon.dao.AccessManager.Material;
+import com.orderon.dao.AccessManager.Outlet;
 import com.orderon.dao.AccessManager.Settings;
 import com.orderon.dao.AccessManager.Tax;
 import com.orderon.dao.AccessManager.Vendor;
@@ -69,7 +70,8 @@ public class InventoryServices {
 	@GET
 	@Path("/v1/getMaterials")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getMaterials(@QueryParam("outletId") String outletId, @QueryParam("categoryWise") boolean categoryWise) {
+	public String getMaterials(@QueryParam("outletId") String outletId, @QueryParam("categoryWise") boolean categoryWise
+			, @QueryParam("isStockCheck") boolean isStockCheck) {
 		JSONObject outObj = new JSONObject();
 		JSONArray categoryArr = new JSONArray();
 		JSONObject categoryObj = null;
@@ -97,6 +99,19 @@ public class InventoryServices {
 				}
 				outObj.put("categories", categoryArr);
 				outObj.put("materials", materialArr);
+			}else if(isStockCheck){
+				materials = dao.getMaterials(outletId, MaterialCategory.RECIPE_MANAGED.getName());
+				if(materials!=null) {
+					for(int i=0; i<materials.size(); i++) {
+						materialObj = new JSONObject();
+						materialObj.put("name", materials.get(i).getName());
+						materialObj.put("subType", materials.get(i).getSubType());
+						materialObj.put("displayableUnit", materials.get(i).getDisplayableUnit());
+						materialObj.put("sku", materials.get(i).getSku());
+						materialArr.put(materialObj);
+					}
+					outObj.put("materials", materialArr);
+				}
 			}else {
 				materials = dao.getMaterials(outletId);
 				outObj.put("materials", materials);
@@ -368,7 +383,8 @@ public class InventoryServices {
 	@Path("/v1/getMaterialsBySearch")
 	@Produces(MediaType.APPLICATION_JSON)
 	public String getMaterialsBySearch(@QueryParam("outletId") String outletId, @QueryParam("query") String query,
-			@QueryParam("filterVariable") String filterVariable, @QueryParam("filter") String filter) {
+			@QueryParam("filterVariable") String filterVariable, @QueryParam("filter") String filter,
+			@QueryParam("isStockCheck") boolean isStockCheck) {
 		JSONObject outObj = new JSONObject();
 		JSONArray categoryArr = new JSONArray();
 		JSONObject categoryObj = null;
@@ -379,21 +395,36 @@ public class InventoryServices {
 		ArrayList<Material> materials = null;
 
 		try {
-			for (MaterialCategory category : MaterialCategory.values()) {
-				categoryObj = new JSONObject();
-				categoryObj.put("category", category.getName());
-				categoryArr.put(categoryObj);
-				
-				materials = dao.getMaterialByFilter(outletId, filterVariable, filter, query, category.getName());
+			if(isStockCheck){
+				materials = dao.getMaterialByFilter(outletId, filterVariable, filterVariable, query, MaterialCategory.RECIPE_MANAGED.getName());
 				if(materials!=null) {
-					materialObj = new JSONObject();
-					materialObj.put("category", category.getName());
-					materialObj.put("materials", new JSONArray(materials));
-					materialArr.put(materialObj);
+					for(int i=0; i<materials.size(); i++) {
+						materialObj = new JSONObject();
+						materialObj.put("name", materials.get(i).getName());
+						materialObj.put("subType", materials.get(i).getSubType());
+						materialObj.put("displayableUnit", materials.get(i).getDisplayableUnit());
+						materialObj.put("sku", materials.get(i).getSku());
+						materialArr.put(materialObj);
+					}
+					outObj.put("materials", materialArr);
 				}
+			}else {
+				for (MaterialCategory category : MaterialCategory.values()) {
+					categoryObj = new JSONObject();
+					categoryObj.put("category", category.getName());
+					categoryArr.put(categoryObj);
+					
+					materials = dao.getMaterialByFilter(outletId, filterVariable, filter, query, category.getName());
+					if(materials!=null) {
+						materialObj = new JSONObject();
+						materialObj.put("category", category.getName());
+						materialObj.put("materials", new JSONArray(materials));
+						materialArr.put(materialObj);
+					}
+				}
+				outObj.put("categories", categoryArr);
+				outObj.put("materials", materialArr);
 			}
-			outObj.put("categories", categoryArr);
-			outObj.put("materials", materialArr);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -750,6 +781,153 @@ public class InventoryServices {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return outObj.toString();
+	}
+
+	@GET
+	@Path("/v3/getInventoryCheckLog")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getInventoryCheckLog(@QueryParam("outletId") String outletId, @QueryParam("startDate") String startDate, 
+			@QueryParam("endDate") String endDate) {
+		
+		JSONObject outObj = new JSONObject();
+		IInventory dao = new InventoryManager(false);
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+		
+		if(startDate.isEmpty() && endDate.isEmpty()) {
+			endDate = now.format(dateFormat);
+			now = LocalDateTime.now().plusDays(-7);
+			startDate = now.format(dateFormat);
+		}
+
+		try {
+			outObj.put("checks", dao.getInventoryCheckLog(outletId, startDate, endDate));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+
+	@POST
+	@Path("/v3/inventoryCheck")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String inventoryCheck(String jsonObject) {
+		JSONObject inObj = null;
+		JSONObject outObj = new JSONObject();
+
+		IInventory dao = new InventoryManager(false);
+		IMaterial materialDao = new MaterialManager(false);
+		try {
+			outObj.put("status", false);
+			inObj = new JSONObject(jsonObject);
+			
+			if(!inObj.has("serviceDate")) {
+				outObj.put("message", "ServiceDate No not found.");
+				return outObj.toString();
+			}else if(!inObj.has("userId")) {
+				outObj.put("message", "UserId not found.");
+				return outObj.toString();
+			}else if(!inObj.has("outletId")) {
+				outObj.put("message", "Outlet Details not found.");
+				return outObj.toString();
+			}else if(!inObj.has("materialData")) {
+				outObj.put("message", "Material Data not found.");
+				return outObj.toString();
+			}
+			
+			String outletId = inObj.getString("outletId");
+			String userId = inObj.getString("userId");
+			JSONArray materials = inObj.getJSONArray("materialData");
+			JSONArray updatedMaterialData = new JSONArray();
+			
+			if(materials.length() == 0) {
+				outObj.put("message", "Please select materials to check. Materials cannot be empty.");
+				return outObj.toString();
+			}
+			
+			JSONObject materialObj = new JSONObject();
+			Material material = null;
+			BigDecimal quantityDifference = new BigDecimal(0.0);
+			BigDecimal currentQuantityInBaseUnit = new BigDecimal(0.0);
+			MeasurableUnit displayableUnit = null;
+			for(int i=0; i<materials.length(); i++) {
+				materialObj = materials.getJSONObject(i);
+				//get current material
+				material = materialDao.getMaterialBySku(outletId, materialObj.getInt("sku"));
+				//convert entered quantity to  base unit
+				displayableUnit = MeasurableUnit.valueOf(material.getDisplayableUnit());
+				currentQuantityInBaseUnit = displayableUnit.convertToBaseUnit(new BigDecimal(materialObj.getDouble("quantity")));
+				//calculate quantity difference
+				quantityDifference = currentQuantityInBaseUnit.subtract(material.getQuantity());
+				
+				//Adding old quantity to the material data obj.
+				materialObj.put("oldQuantity", material.getDisplayableQuantity());
+				materialObj.put("displayableUnit", material.getDisplayableUnit());
+				//Adding the quantity difference to the material data obj.
+				materialObj.put("quantityDiff", displayableUnit.convertToDisplayableUnit(quantityDifference));
+				materialObj.put("subType", material.getSubType());
+				materialObj.put("name", material.getName());
+				
+				materialDao.updateQuantity(outletId, materialObj.getInt("sku"), currentQuantityInBaseUnit);
+				
+				updatedMaterialData.put(materialObj);
+			}
+			
+			outObj.put("status", dao.inventoryCheck(outletId, updatedMaterialData, userId));
+			outObj.put("materials", updatedMaterialData);
+	
+		} catch (DateTimeParseException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} 
+		return outObj.toString();
+	}
+
+	@POST
+	@Path("/v3/sendInventoryCheckEmail")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String sendInventoryCheckEmail(String jsonObject) {
+		JSONObject inObj = null;
+		JSONObject outObj = new JSONObject();
+
+		IOutlet outletDao = new OutletManager(false);
+		try {
+			outObj.put("status", false);
+			inObj = new JSONObject(jsonObject);
+			
+			if(!inObj.has("userId")) {
+				outObj.put("message", "UserId not found.");
+				return outObj.toString();
+			}else if(!inObj.has("outletId")) {
+				outObj.put("message", "Outlet Details not found.");
+				return outObj.toString();
+			}else if(!inObj.has("printableData")) {
+				outObj.put("message", "Email Data not found.");
+				return outObj.toString();
+			}
+			
+			String outletId = inObj.getString("outletId");
+			String userId = inObj.getString("userId");
+			String emailText = inObj.getString("printableData");
+			
+			Outlet outlet = outletDao.getOutlet(outletId);
+			
+			String emailSubject = "Inventory Check performed at Outlet: " + outlet.getName() + ", " 
+					+ outlet.getLocation().getString("place")
+					+ " by " + userId;
+			
+			Services.SendEmailWithAttachment(outletId, emailSubject, emailText, "", null, false, false);
+
+			outObj.put("status", true);
+		} catch (DateTimeParseException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} 
 		return outObj.toString();
 	}
 }

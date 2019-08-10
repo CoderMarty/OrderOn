@@ -15,7 +15,7 @@ public interface ITable extends IAccess{
 	
 	public Table getOrderTableById(String hotelId, String tableId);
 
-	public ArrayList<TableUsage> getTableUsage(Settings settings, String userId);
+	public ArrayList<TableUsage> getTableUsage(Settings settings);
 	
 	public String getTableType(String hotelId, String tableId);
 
@@ -35,7 +35,7 @@ public interface ITable extends IAccess{
 
 	public JSONObject mergeTables(String hotelId, String oldTableNumber, String newTableNumber);
 	
-	public boolean switchTable(String hotelId, String oldTableNumber, JSONArray newTableNumbers);
+	public boolean switchTable(String hotelId, String orderId, String oldTableNumber, JSONArray newTableNumbers);
 
 	public boolean switchFromBarToTable(String hotelId, String orderId, JSONArray newTableNumbers);
 

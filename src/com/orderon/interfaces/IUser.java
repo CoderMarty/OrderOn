@@ -25,4 +25,6 @@ public interface IUser extends IAccess{
 	public ArrayList<User> getAllUsers(String hotelId);
 
 	public JSONObject deleteUser(User systemUser, String hotelId, User selectedUser);
+	
+	public boolean checkUserAccess(User systemUser, int userType);
 }

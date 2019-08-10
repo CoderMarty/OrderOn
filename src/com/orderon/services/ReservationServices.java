@@ -193,7 +193,7 @@ public class ReservationServices {
 					inObj.has("section")?inObj.getString("section"):"", "", service);
 			
 			if(outObj.getBoolean("status")) {
-				dao.commitTransaction();
+				dao.commitTransaction(inObj.getString("hotelId"));
 			}else {
 				dao.rollbackTransaction();
 			}

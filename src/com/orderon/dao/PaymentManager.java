@@ -49,7 +49,7 @@ public class PaymentManager extends AccessManager implements IPayment{
 		BigDecimal roundOff = new BigDecimal("0");
 		
 		if(!(paymentType.equals("VOID") || paymentType.equals("NON_CHARGEABLE"))) {
-			roundOff = cashPayment.add(cardPayment).add(appPayment).add(walletPayment).add(creditAmount).subtract(total);
+			roundOff = cashPayment.add(cardPayment).add(appPayment).add(walletPayment).add(creditAmount).add(promotionalCash).subtract(total);
 		}
 		
 		if(paymentType.equals("NON_CHARGEABLE")) {
@@ -109,7 +109,7 @@ public class PaymentManager extends AccessManager implements IPayment{
 	} 
 
 	@Override
-	public boolean updateGuestReference(String hotelId, String orderId, String guest) {
+	public boolean makeOrderNonChargeable(String hotelId, String orderId, String guest) {
 		String sql = "UPDATE Orders SET reference = '" + guest + "', inhouse = "+NON_CHARGEABLE+" WHERE orderId == '"+orderId+"' AND hotelId == '"+hotelId+"';";
 		return db.executeUpdate(sql, true);
 	}
@@ -128,23 +128,21 @@ public class PaymentManager extends AccessManager implements IPayment{
 
 	@Override
 	public boolean editPayment(String hotelId, String orderId, BigDecimal cashPayment, BigDecimal cardPayment, BigDecimal appPayment,
-			BigDecimal walletPayment, String cardType, BigDecimal grandTotal) {
+			BigDecimal walletPayment, String paymentType, BigDecimal grandTotal) {
 
+		paymentType = paymentType.toUpperCase().replace(' ', '_');
+		String nc = "";
+		if(paymentType.equals("NON_CHARGEABLE")) {
+			nc = ", total = 0.0";
+		}
 		String sql = "UPDATE Payment SET cashPayment = " + cashPayment 
 				+ ", cardPayment = "+ cardPayment 
 				+ ", appPayment = " + appPayment 
 				+ ", walletPayment = " + walletPayment 
 				+ ", creditAmount = 0" 
-				+ ", cardType = '" + escapeString(cardType) + "' " + "WHERE orderId = '"
+				+ nc
+				+ ", cardType = '" + escapeString(paymentType) + "' " + "WHERE orderId = '"
 				+ orderId + "' AND hotelId = '" + hotelId + "';";
-
-		IOrder orderDao = new OrderManager(false);
-		Order order = orderDao.getOrderById(hotelId, orderId);
-		
-		if(order.getInHouse() == AccessManager.NON_CHARGEABLE) {
-			sql += "UPDATE Payment SET total = " + grandTotal + " WHERE orderId = '"
-						+ orderId + "' AND hotelId = '" + hotelId + "';";
-		}
 		
 		return db.executeUpdate(sql, true);
 	}
@@ -181,4 +179,20 @@ public class PaymentManager extends AccessManager implements IPayment{
 
 		return db.getOneRecord(sql, Report.class, hotelId);
 	}
+
+	public boolean rectifyZamatoPayment(String hotelId, String orderId, BigDecimal total, BigDecimal discountAmount, BigDecimal gst,
+			BigDecimal appPayment, String discountName) {
+
+		String sql = "UPDATE Payment SET total = " + total 
+				+ ", discountName = '"+ discountName 
+				+ "', foodDiscount = " + discountAmount 
+				+ ", gst = " + gst 
+				+ ", appPayment = "+ total 
+				+ ", roundOff = 0 "
+				+ ", packagingCharge = 0 WHERE orderId = '"
+				+ orderId + "' AND hotelId = '" + hotelId + "';";
+
+		return db.executeUpdate(sql, true);
+	}
+
 }

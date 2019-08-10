@@ -20,7 +20,7 @@ public interface IPayment extends IAccess{
 	public boolean addPaymentForVoidOrder(String hotelId, String orderId, BigDecimal foodBill, BigDecimal barBill, 
 			String billNo, String section, String orderDate);
 	
-	public boolean updateGuestReference(String hotelId, String orderId, String guest);
+	public boolean makeOrderNonChargeable(String hotelId, String orderId, String guest);
 	
 	public boolean updateOrderType(String hotelId, String orderId, int orderType);
 	

@@ -23,4 +23,8 @@ public interface IOutlet {
 	public Settings getSettings(String outletId);
 
 	ArrayList<Outlet> getOutletsForCorporate(String corporateId);
+	
+	public boolean updatePromotionalBalance(String outletId, int sentSmsCount);
+	
+	public boolean updateTransactionalCount(String outletId, int sentSmsCount);
 }

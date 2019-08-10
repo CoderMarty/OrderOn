@@ -53,4 +53,7 @@ public interface ICustomer extends IAccess{
 	public boolean deleteAllCustomers(String outletId);
 	
 	public JSONObject toggleSMS(String outletId, String mobileNumber);
+	
+	public ArrayList<Customer> getAllCustomersByFilters(String hotelId, JSONArray outletIds, JSONArray userType, 
+			String sex, JSONArray ageGroup);
 }

@@ -17,6 +17,7 @@ import com.orderon.dao.AccessManager.GrossSaleReport;
 import com.orderon.dao.AccessManager.IncentiveReport;
 import com.orderon.dao.AccessManager.ItemWiseReport;
 import com.orderon.dao.AccessManager.MonthReport;
+import com.orderon.dao.AccessManager.OnlineOrderingSalesReport;
 import com.orderon.dao.AccessManager.Order;
 import com.orderon.dao.AccessManager.PaymentWiseSalesReport;
 import com.orderon.dao.AccessManager.Report;
@@ -94,21 +95,9 @@ public interface IReport {
 
 	public BigDecimal getCardPaymentByType(String hotelId, String serviceDate, String serviceType, String cardType);
 
-	public int getAppPaymentByType(String hotelId, String serviceDate, String serviceType, String cardType);
-
 	public int getVoidTransactions(String hotelId, String serviceDate, String serviceType);
 
-	public BigDecimal getTotalCardPayment(String hotelId, String serviceDate, String serviceType);
-
-	public BigDecimal getTotalAppPayment(String hotelId, String serviceDate, String serviceType);
-
-	public BigDecimal getTotalWalletPayment(String hotelId, String serviceDate, String serviceType);
-
-	public BigDecimal getTotalPromotionalCash(String hotelId, String serviceDate, String serviceType);
-	
-	public BigDecimal getTotalCreditAmount(String hotelId, String serviceDate, String serviceType);
-
-	public ArrayList<Report> getSaleSummaryReport(String hotelId, String startDate, String endDate, boolean visible);
+	public ArrayList<Report> getSaleSummaryReport(String hotelId, String startDate, String endDate, int orderType, int portalId, boolean visible);
 
 	public ArrayList<CustomerReport> getCustomerReport(String hotelId, String startDate, String endDate);
 
@@ -130,4 +119,12 @@ public interface IReport {
 			String endDate, boolean visible);
 	
 	public ArrayList<ConsumptionReport> getConsumptionReport(String hotelId, String startDate, String endDate, int department);
+	
+	public ArrayList<OnlineOrderingSalesReport> getOnlineOrderingSalesReport(String hotelId, String startDate, String endDate);
+	
+	public BigDecimal getBarComplimentary(String hotelId, String serviceDate, String serviceType);
+	
+	public Report getAnalytics(String hotelId, String startDate, String endDate);
+	
+	public int getAppPaymentByType(String hotelId, String startDate, String endDate, String serviceType, String cardType);
 }

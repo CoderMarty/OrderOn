@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.orderon.dao.AccessManager.Inventory;
+import com.orderon.dao.AccessManager.InventoryCheckLog;
 
 public interface IInventory {
 
@@ -47,4 +49,8 @@ public interface IInventory {
 	public void revertInventoryForVoid(String outletId, String orderId);
 	
 	public ArrayList<Inventory> getInventoryLogForPurchase(String outletId, String purchaseId);
+	
+	public boolean inventoryCheck(String outletId, JSONArray materialData, String userId);
+	
+	public ArrayList<InventoryCheckLog> getInventoryCheckLog(String outletId, String startDate, String endDate);
 }

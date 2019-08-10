@@ -300,7 +300,7 @@ public class DiscountManager extends AccessManager implements IDiscount{
 			}
 			if(discountType.equals(DISCOUNT_TYPE_DISCOUNT_CODE)){
 				JSONArray appliedDiscounts = order.getDiscountCode();
-				for (int i=0; i>appliedDiscounts.length(); i++) {
+				for (int i=0; i<appliedDiscounts.length(); i++) {
 					if(appliedDiscounts.getString(i).equals(discountCode)) {
 						outObj.put("message", "This code has already been applied. Can't use the same code twice.");
 						return outObj;

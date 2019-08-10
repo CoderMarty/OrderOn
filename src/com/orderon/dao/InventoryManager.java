@@ -14,6 +14,7 @@ import com.orderon.interfaces.IOrderItem;
 import com.orderon.interfaces.IOutlet;
 import com.orderon.interfaces.IPurchase;
 import com.orderon.interfaces.IRecipe;
+import com.orderon.interfaces.IService;
 
 public class InventoryManager extends AccessManager implements IInventory, IPurchase {
 	public InventoryManager(Boolean transactionBased) {
@@ -321,5 +322,30 @@ public class InventoryManager extends AccessManager implements IInventory, IPurc
 
 	public Inventory getMaterialHistoryForMenuItem(String outletId, String menuId, String sku) {
 		return null;
+	}
+
+	@Override
+	public boolean inventoryCheck(String outletId, JSONArray materialData, String userId) {
+		IService serviceDao = new ServiceManager(false);
+		String sql = "INSERT INTO InventoryCheckLog (dateTime, serviceDate, materialData, userId) "
+				+ "VALUES ('"+LocalDateTime.now()+"', '"+serviceDao.getServiceDate(outletId)+"', '"+materialData.toString()+"', "
+				+ "'"+userId+"')";
+		return db.executeUpdate(sql, outletId, true);
+	}
+
+	@Override
+	public ArrayList<InventoryCheckLog> getInventoryCheckLog(String outletId, String startDate, String endDate) {
+
+		String dateQuery = "";
+		if (!endDate.isEmpty()) {
+			dateQuery = " AND serviceDate BETWEEN '" + startDate + "' AND '" + endDate + "' ";
+		} else {
+			dateQuery = " AND serviceDate = '" + startDate + "' ";
+		}
+
+		String sql = "SELECT * FROM InventoryCheckLog WHERE outletId='"
+				+ escapeString(outletId) + "' " + dateQuery + "ORDER BY id DESC;";
+		
+		return db.getRecords(sql, InventoryCheckLog.class, outletId);
 	}
 }

@@ -26,7 +26,7 @@ public class DesignationManager extends AccessManager implements IDesignation {
 
 	@Override
 	public ArrayList<Designation> getDesignationHavingIncentive(String hotelId) {
-		String sql = "SELECT * FROM Designations  WHERE hotelId='" + hotelId + "' AND hasIncentive = 'true';";
+		String sql = "SELECT * FROM Designations WHERE hotelId='" + hotelId + "' AND hasIncentive = 'true';";
 		return db.getRecords(sql, Designation.class, hotelId);
 	}
 }

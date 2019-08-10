@@ -62,14 +62,14 @@ public interface IOrder extends IAccess{
 	public JSONObject placeOrder(String hotelId, String userId, String customer, JSONObject customerDetails, String phone, String address,
 			int orderType, int takeAwayType, String allergyInfo, String reference, String remarks, 
 			String externalOrderId, JSONArray discountCodes, String emailId, String referenceForReview, String section,
-			Double cashToBeCollected, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable);
+			Double cashToBeCollected, Double zomatoVoucherAmount, Double goldDiscount, Double piggyBank, BigDecimal amountReceivable);
 
 	public JSONObject newHomeDeliveryOrder(String hotelId, String userId, String customer, String phone, String address,
 			String allergyInfo, String remarks, String section);
 
 	public JSONObject newTakeAwayOrder(String hotelId, String userId, String customer, JSONObject customerDetails, String phone,
 			String externalId, String allergyInfo, String remarks, String externalOrderId, JSONArray discountCodes,
-			String section, Double cashToBeCollected, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable);
+			String section, Double cashToBeCollected, Double goldDiscount, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable);
 
 	public JSONObject newBarOrder(String hotelId, String userId, String reference, String remarks, String section);
 
@@ -82,8 +82,6 @@ public interface IOrder extends IAccess{
 	public Boolean updateCompleteTime(String hotelId, String orderId);
 	
 	public Boolean updateDeliveryBoy(String hotelId, String orderId, String employeeName);
-
-	public String updateBillNoInOrders(String hotelId, String orderId);
 
 	public Boolean changeOrderStatus(String hotelId, String orderId);
 
@@ -109,6 +107,8 @@ public interface IOrder extends IAccess{
 	public Boolean hasCheckedOutOrders(String hotelId, String serviceDate);
 
 	public int getNextKOTNumber(String hotelId);
+
+	public int getNextBOTNumber(String hotelId);
 
 	public String getNextBillNo(String hotelId, String station);
 
@@ -163,4 +163,6 @@ public interface IOrder extends IAccess{
 	public Boolean redeemPromotionalCash(String outletId, String orderId, BigDecimal promotionalCash);
 	
 	public Boolean updateRiderDetails(String outletId, String orderId, String riderName, String riderNumber, String riderStatus);
+	
+	public Boolean updateEWardsOfferDetails(String outletId, String orderId, int points, String couponCode, int offerType);
 }

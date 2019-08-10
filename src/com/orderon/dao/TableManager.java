@@ -17,7 +17,7 @@ public class TableManager extends AccessManager implements ITable {
 	}
 
 	@Override
-	public ArrayList<TableUsage> getTableUsage(Settings settings, String userId) {
+	public ArrayList<TableUsage> getTableUsage(Settings settings) {
 		String sql = "SELECT Tables.tableId, Tables.type, Tables.showTableView, Tables.section, OrderTables.orderId, Orders.waiterId, Orders.state " + 
 				"FROM Tables " + 
 				"LEFT OUTER JOIN OrderTables ON OrderTables.tableId == Tables.tableId " + 
@@ -192,15 +192,20 @@ public class TableManager extends AccessManager implements ITable {
 	}
 
 	@Override
-	public boolean switchTable(String hotelId, String oldTableNumber, JSONArray newTableNumbers) {
+	public boolean switchTable(String hotelId, String orderId, String oldTableNumber, JSONArray newTableNumbers) {
 
 		String sql = "SELECT orderId FROM OrderTables WHERE tableId = '" + oldTableNumber + "' AND hotelId='" + hotelId
 				+ "';";
-
+		
 		Table table = db.getOneRecord(sql, Table.class, hotelId);
-
-		sql = "DELETE FROM OrderTables WHERE orderId = '" + table.getOrderId() + "' AND hotelId = '" + hotelId + "';";
-		db.executeUpdate(sql, true);
+		if(table == null && orderId.isEmpty()) {
+			return false;
+		}
+		if(table != null) {
+			orderId = table.getOrderId();
+			sql = "DELETE FROM OrderTables WHERE orderId = '" + orderId + "' AND hotelId = '" + hotelId + "';";
+			db.executeUpdate(sql, true);
+		}
 		String tableId = "";
 		String currentTableId = "";
 		ArrayList<String> tables = new ArrayList<String>();
@@ -218,13 +223,13 @@ public class TableManager extends AccessManager implements ITable {
 		for (int i = 0; i < tables.size(); i++) {
 			currentTableId = tables.get(i);
 			sql = "INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId + "','" + currentTableId
-					+ "','" + table.getOrderId() + "');";
+					+ "','" + orderId + "');";
 			db.executeUpdate(sql, true);
 			tableId += currentTableId;
 			if (i < tables.size() - 1)
 				tableId += ", ";
 		}
-		sql = "UPDATE Orders SET tableId = '" + tableId + "' WHERE orderId = '" + table.getOrderId() + "' AND hotelId='"
+		sql = "UPDATE Orders SET tableId = '" + tableId + "', inhouse = " + DINE_IN + " WHERE orderId = '" + orderId + "' AND hotelId='"
 				+ hotelId + "';";
 
 		return db.executeUpdate(sql, true);

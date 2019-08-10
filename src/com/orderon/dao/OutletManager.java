@@ -77,4 +77,20 @@ public class OutletManager extends AccessManager implements IOutlet {
 		String sql = "SELECT * FROM Hotel WHERE hotelId = '"+outletId+"';";
 		return db.getOneRecord(sql, Settings.class, outletId);
 	}
+
+	@Override
+	public boolean updatePromotionalBalance(String outletId, int sentSmsCount) {
+		Settings settings = this.getSettings(outletId);
+		int updatedCount = settings.getPromotionalSMSBalance() - sentSmsCount;
+		String sql = "UPDATE Hotel SET promotionalSMSBalance = " + updatedCount + " WHERE hotelId = '"+outletId+"';";
+		return db.executeUpdate(sql, outletId, true);
+	}
+
+	@Override
+	public boolean updateTransactionalCount(String outletId, int sentSmsCount) {
+		Settings settings = this.getSettings(outletId);
+		int updatedCount = settings.getTransactionSMSCount() + sentSmsCount;
+		String sql = "UPDATE Hotel SET transactionSMSCount = " + updatedCount + " WHERE hotelId = '"+outletId+"';";
+		return db.executeUpdate(sql, outletId, true);
+	}
 }

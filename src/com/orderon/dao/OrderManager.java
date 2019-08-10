@@ -14,7 +14,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.orderon.dao.AccessManager.OnlineOrderingPortal;
+import com.orderon.commons.OnlineOrderingPortals;
 import com.orderon.interfaces.ICustomer;
 import com.orderon.interfaces.IEmployee;
 import com.orderon.interfaces.IInventory;
@@ -319,7 +319,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.waiterId AS waiterId, SUM(OrderItems.qty) AS qty, "
 				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.taxes AS taxes, MenuItems.charges AS charges, "
 				+ "MenuItems.collection AS collection, MenuItems.station AS station, SUM(OrderItems.qty*OrderItems.rate) AS finalAmount, "
-				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, "
+				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, MenuItems.collection AS collection, "
 				+ "OrderItems.rate AS rate, OrderItems.specs AS specs, MenuItems.isTaxable AS isTaxable, "
 				+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE OrderItems.orderId='" + orderId
 				+ "' AND OrderItems.hotelId='" + hotelId + "' AND OrderItems.menuId == MenuItems.menuId AND MenuItems.flags NOT LIKE '%19%' "
@@ -331,10 +331,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.subOrderId AS waiterId, SUM(OrderItemLog.quantity) AS qty, "
 				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.taxes AS taxes, MenuItems.charges AS charges, "
 				+ "MenuItems.collection AS collection, MenuItems.station AS station, SUM(OrderItemLog.quantity*OrderItemLog.rate) AS finalAmount, "
-				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, "
+				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, MenuItems.collection AS collection, "
 				+ "OrderItemLog.rate AS rate, OrderItemLog.subOrderId AS specs, MenuItems.isTaxable AS isTaxable, "
 				+ "OrderItemLog.state AS state FROM OrderItemLog, MenuItems WHERE OrderItemLog.orderId='" + orderId
-				+ "' AND OrderItemLog.hotelId='" + hotelId + "' AND OrderItemLog.menuId == MenuItems.menuId AND MenuItems.flags NOT LIKE '%19%' "
+				+ "' AND OrderItemLog.hotelId='" + hotelId + "' AND OrderItemLog.menuId == MenuItems.menuId AND "
+				+ "MenuItems.flags NOT LIKE '%19%' AND "
+				+ "(OrderItemLog.state == "+AccessManager.SUBORDER_STATE_CANCELED+" OR  OrderItemLog.state == "+AccessManager.SUBORDER_STATE_RETURNED+") "
 				+ "GROUP BY OrderItemLog.menuId";
 		}
 		
@@ -451,10 +453,9 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		
 		return db.getRecords(sql, OnlineOrder.class, hotelId);
 	}
-
+	
 	@Override
 	public boolean updateOnlineOrderStatus(String outletId, int externalRestauranId, int externalOrderId, int status, String orderId, int orderNumber){
-		
 		String sql = "UPDATE OnlineOrders SET status = "+status+", orderId = '"+orderId+"', orderNumber="+orderNumber+" WHERE restaurantId = " 
 		+ externalRestauranId + " AND externalOrderId = "+externalOrderId+";";
 		System.out.println(sql);
@@ -473,7 +474,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	@Override
 	public boolean markOnlineOrderComplete(String outletId, int orderNumber){
 		
-		String sql = "UPDATE OnlineOrders SET status = "+AccessManager.ONLINE_ORDER_DELIVERED+", data = '' WHERE hotelId = '" 
+		String sql = "UPDATE OnlineOrders SET status = "+AccessManager.ONLINE_ORDER_DELIVERED+" WHERE hotelId = '" 
 		+ outletId + "' AND orderNumber = "+orderNumber+";";
 		System.out.println(sql);
 		return db.executeUpdate(sql, outletId, false);
@@ -518,11 +519,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 					tableId.append(",");
 			}
 			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
+			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, orderDateTime, customerName, "
 					+ "customerNumber, customerAddress, isSmsSent, waiterId, numberOfGuests, "
-					+ "state, inhouse, takeAwayType, tableId, serviceType, foodBill, barBill, section, discountCode, remarks, excludedCharges, excludedTaxes) values ('" + hotelId + "', '" + orderId
-					+ "', '" + serviceDate + "','" + customer + "', '" + mobileNumber + "', '"+address+"', 0,'" + userId + "', "
-					+ Integer.toString(peopleCount) + ", ";
+					+ "state, inhouse, takeAwayType, tableId, serviceType, foodBill, barBill, section, discountCode, remarks, excludedCharges, excludedTaxes) values ('" 
+					+ hotelId + "', '" + orderId + "', '" + serviceDate + "', '" + (System.currentTimeMillis() / 1000L) + "','" + customer + "', '" + mobileNumber + "', '" 
+					+ address+"', 0,'" + userId + "', " + Integer.toString(peopleCount) + ", ";
 
 			if (hotelType.equals("PREPAID")) {
 				sql += Integer.toString(ORDER_STATE_BILLING) + "," + DINE_IN + "," + ONLINE_ORDERING_PORTAL_NONE + ",'" + tableId.toString() + "','"
@@ -916,7 +917,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		//Get the last bill of the previous month.
 		String sql = "SELECT billNo AS entityId FROM Orders WHERE orderdate LIKE '"+exDate+"%' AND billNo != '' ORDER BY billNo DESC LIMIT 1;";
 		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		billNo = entity.getId();
+		if(entity == null) {
+			billNo = 0;
+		}else {
+			billNo = entity.getId();
+		}
 		sql = "";
 		
 		for(int i=0; i<orders.size(); i++) {
@@ -947,11 +952,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				outObj.put("message", "Service has not started");
 				return outObj;
 			}
+			
 			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, waiterId, numberOfGuests, "
-					+ "state, inhouse, serviceType, foodBill, barBill, section, reference, remarks, discountCode, excludedCharges, excludedTaxes) values ('" + hotelId + "', '" + orderId
-					+ "', '" + service.getServiceDate() + "', '" + userId + "', 1, "
-					+ Integer.toString(ORDER_STATE_COMPLETE) + "," + NON_CHARGEABLE + ",'" 
+			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, orderDateTime, waiterId, numberOfGuests, "
+					+ "state, inhouse, serviceType, foodBill, barBill, section, reference, remarks, discountCode, excludedCharges, excludedTaxes) values ('" 
+					+ hotelId + "', '" + orderId + "', '" + service.getServiceDate() + "', '" + (System.currentTimeMillis() / 1000L) 
+					+ "', '" + userId + "', 1, " + Integer.toString(ORDER_STATE_SERVICE) + "," + NON_CHARGEABLE + ",'" 
 					+ service.getServiceType() + "',0,0,'"+section+"', '"+reference+"', '"+remarks+"', '[]', '[]', '[]');";
 			
 			if (!db.executeUpdate(sql, true)) {
@@ -984,11 +990,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				return outObj;
 			}
 			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
+			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, orderDateTime, customerName, "
 					+ "customerNumber, customerAddress, waiterId, numberOfGuests, state, inhouse, serviceType, foodBill, barBill, discountCode, excludedCharges, excludedTaxes) values ('"
-					+ hotelId + "', '" + orderId + "', '" + service.getServiceDate() + "','" + customer + "', '" + mobileNumber
-					+ "', '', '" + userId + "', " + 1 + ", " + Integer.toString(ORDER_STATE_COMPLETE) + "," + orderType
-					+ ",'" + service.getServiceType() + "',0,0, '[]', '[]', '[]');";
+					+ hotelId + "', '" + orderId + "', '" + service.getServiceDate() + "', '" + (System.currentTimeMillis() / 1000L) 
+					+ "','" + customer + "', '" + mobileNumber + "', '', '" + userId + "', " + 1 + ", " + Integer.toString(ORDER_STATE_COMPLETE) 
+					+ "," + orderType + ",'" + service.getServiceType() + "',0,0, '[]', '[]', '[]');";
 
 			String[] name = customer.split(" ");
 			String surName = "";
@@ -1016,7 +1022,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public JSONObject placeOrder(String outletId, String userId, String customer, JSONObject customerDetails, String phone, String address,
 			int orderType, int takeAwayType, String allergyInfo, String reference, String remarks, 
 			String externalOrderId, JSONArray discountCodes, String emailId, String referenceForReview, String section,
-			Double cashToBeCollected, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable) {
+			Double cashToBeCollected, Double goldDiscount, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable) {
 		JSONObject outObj = new JSONObject();
 		String orderId = "";
 		String sql = "";
@@ -1067,15 +1073,15 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				orderState = Integer.toString(ORDER_STATE_BILLING);
 
 			orderId = getNextOrderId(outletId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
+			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, orderDateTime, customerName, "
 					+ "customerNumber, customerAddress, isSmsSent,  waiterId, numberOfGuests, state, inhouse, "
 					+ "takeAwayType, serviceType, reference, remarks, discountCode, externalOrderId, excludedCharges, excludedTaxes, section,"
-					+ "cashToBeCollected, zomatoVoucherAmount, piggyBank, amountReceivable, isFoodReady)"
-					+ " values ('" + outletId + "', '" + orderId + "', '" + service.getServiceDate() + "','" + customer + "', '"
-					+ escapeString(phone) + "', '" + escapeString(address) + "',0, '" + userId + "', 1, "
-					+ orderState + "," + orderType + "," + takeAwayType + ",'" + service.getServiceType() + "', '"+reference
+					+ "cashToBeCollected, goldDiscount, zomatoVoucherAmount, piggyBank, amountReceivable, isFoodReady)"
+					+ " values ('" + outletId + "', '" + orderId + "', '" + service.getServiceDate() + "', '" + (System.currentTimeMillis() / 1000L)
+					+ "','" + escapeString(customer) + "', '" + escapeString(phone) + "', '" + escapeString(address) + "',0, '" 
+					+ userId + "', 1, " + orderState + "," + orderType + "," + takeAwayType + ",'" + service.getServiceType() + "', '"+reference
 					+ "', '"+remarks+"', '"+discountCodes.toString()+"', '"+externalOrderId+"', '[]', '[]', '"+section
-					+"', "+ cashToBeCollected + "," +zomatoVoucherAmount+ "," +piggyBank+ ", "+amountReceivable+", 'false');";
+					+"', "+ cashToBeCollected + "," + goldDiscount + "," +zomatoVoucherAmount+ "," +piggyBank+ ", "+amountReceivable+", 'false');";
 			if (!db.executeUpdate(sql, true)) {
 				outObj.put("status", -1);
 				outObj.put("message", "Failed to add order");
@@ -1095,13 +1101,13 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public JSONObject newHomeDeliveryOrder(String hotelId, String userId, String customer, String phone, String address,
 			String allergyInfo, String remarks, String section) {
 		return this.placeOrder(hotelId, userId, customer, null, phone, address, HOME_DELIVERY, ONLINE_ORDERING_PORTAL_NONE, allergyInfo, "", remarks, "", new JSONArray()
-				, "", "", section, 0.0, 0.0, 0.0, new BigDecimal("0.0"));
+				, "", "", section, 0.0, 0.0, 0.0, 0.0, new BigDecimal("0.0"));
 	}
 
 	@Override
 	public JSONObject newTakeAwayOrder(String hotelId, String userId, String customer, JSONObject customerDetails, String phone,
 			String externalId, String allergyInfo, String remarks, String externalOrderId, JSONArray discountCodes,
-			String section, Double cashToBeCollected, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable) {
+			String section, Double cashToBeCollected, Double goldDiscount, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable) {
 		int takeAwaytype = COUNTER_PARCEL_ORDER;
 		IOnlineOrderingPortal protalDao = new OnlineOrderingPortalManager(false);
 		ArrayList<OnlineOrderingPortal> portals = protalDao.getOnlineOrderingPortals(hotelId);
@@ -1115,13 +1121,13 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		}
 		return this.placeOrder(hotelId, userId, customer, customerDetails, phone, "", TAKE_AWAY, takeAwaytype, allergyInfo, 
 				externalId, remarks, externalOrderId, discountCodes, "", "", section, 
-				cashToBeCollected, zomatoVoucherAmount, piggyBank, amountReceivable);
+				cashToBeCollected, zomatoVoucherAmount, goldDiscount, piggyBank, amountReceivable);
 	}
 
 	@Override
 	public JSONObject newBarOrder(String hotelId, String userId, String reference, String remarks, String section) {
 		return this.placeOrder(hotelId, userId, "", null, "", "", BAR, ONLINE_ORDERING_PORTAL_NONE, "", reference, 
-				remarks, "", new JSONArray(), "", "", section, 0.0, 0.0, 0.0, new BigDecimal("0.0"));
+				remarks, "", new JSONArray(), "", "", section, 0.0, 0.0, 0.0, 0.0, new BigDecimal("0.0"));
 	}
 
 	@Override
@@ -1193,33 +1199,6 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "hotelId = '" + hotelId + "' AND orderId = '"+ orderId + "';";
 		
 		return db.executeUpdate(sql, true);
-	}
-
-	@Override
-	public String updateBillNoInOrders(String hotelId, String orderId) {
-
-		String sql = "SELECT DISTINCT billNo AS entityId FROM OrderItems WHERE hotelId = '" + hotelId + "' AND orderId='" + orderId
-				+ "';";
-
-		ArrayList<EntityString> billNos = db.getRecords(sql, EntityString.class, hotelId);
-
-		StringBuilder billNo = new StringBuilder();
-
-		int offset = 1;
-		for (EntityString billNoFeild : billNos) {
-			billNo.append(billNoFeild.getEntity());
-			if (billNos.size() != offset)
-				billNo.append(";");
-			offset++;
-		}
-
-		sql = "UPDATE Orders SET billNo = '" + billNo.toString() + "', billNo2 = '" + billNo.toString() + "' WHERE hotelId = '" + hotelId + "' AND orderId='"
-				+ orderId + "';";
-
-		if (db.executeUpdate(sql, true)) {
-			return billNo.toString();
-		}
-		return "";
 	}
 
 	@Override
@@ -1318,7 +1297,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 			IMenuItem menuDao = new MenuItemManager(false);
 			Order order = getOrderById(hotelId, orderId);
 
-			String sql = "UPDATE Orders SET state=" + ORDER_STATE_VOIDED + ", foodBill = 0, barBill = 0, reason = '"
+			String sql = "UPDATE Orders SET state=" + ORDER_STATE_VOIDED + ", reason = '"
 					+ reason + "', authId = '" + authId + "' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId
 					+ "';";
 
@@ -1381,8 +1360,6 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 			
 			sql = "UPDATE Orders SET foodBill = "+ totalFoodBill+ ", barBill = "+ totalBarBill + " WHERE hotelId = '" + hotelId
 					+ "' AND orderId = '"+ orderId + "';";
-
-			this.updateBillNoInOrders(hotelId, orderId);
 			
 			sql = "UPDATE OrderItemLog SET state=" + ORDER_STATE_VOIDED + ", reason = 'Void' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId
 					+ "';";
@@ -1451,14 +1428,23 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 			outObj.put("message", "Unknown error!");
 			
 			boolean isChoiceItem = false;
-			JSONArray flags = menu.getFlags();
+			boolean isZomatoEasyItem = false;
+			JSONArray flags = new JSONArray();
+			if(!menu.getFlags().toString().equals("[null]")) {
+				flags = menu.getFlags();
+			}
 			for(int i=0; i< flags.length(); i++) {
-				if(flags.get(i).equals(19) || flags.get(i).equals("19")) {
+				int flag = Integer.parseInt(flags.get(i).toString());
+				if(flag == 19 ) {
 					isChoiceItem = true;
+				}else if(flag >= 40) {
+					isZomatoEasyItem = true;
 				}
 			}
 			if(!isChoiceItem) {
-				if(order.getInHouse() == DINE_IN) {
+				if(menu.getIsCombo()) {
+					rate = menu.getComboPrice();
+				}else if(order.getInHouse() == DINE_IN) {
 					String tableType = tableDao.getTableType(outletId, tableId);
 					rate = tableType.equals(TABLE_TYPE_AC)?menu.getDineInRate():menu.getDineInNonAcRate();
 				}else if(order.getInHouse() == NON_CHARGEABLE || order.getInHouse() == BAR) {
@@ -1468,25 +1454,35 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 					rate = menu.getDeliveryRate();
 				else {
 					int menuAssociation = 0;
+					boolean hasIntegration = false;
 					for (OnlineOrderingPortal onlineOrderingPortal : portals) {
 						if(order.getTakeAwayType() == onlineOrderingPortal.getId()){
 							menuAssociation = onlineOrderingPortal.getMenuAssociation();
+							if(onlineOrderingPortal.getHasIntegration())
+								hasIntegration = true;
 							break;
 						}
 					}
-
-					if(menuAssociation == 0) {
-						rate = menu.getOnlineRate();
-					}else if(menuAssociation == 1) {
-						rate = menu.getOnlineRate1();
-					}else if(menuAssociation == 2) {
-						rate = menu.getOnlineRate2();
-					}else if(menuAssociation == 3) {
-						rate = menu.getOnlineRate3();
-					}else if(menuAssociation == 4) {
-						rate = menu.getOnlineRate4();
-					}else if(menuAssociation == 5) {
-						rate = menu.getOnlineRate5();
+					if(!hasIntegration) {
+						if(menuAssociation == 0) {
+							rate = menu.getOnlineRate();
+						}else if(menuAssociation == 1) {
+							rate = menu.getOnlineRate1();
+						}else if(menuAssociation == 2) {
+							rate = menu.getOnlineRate2();
+						}else if(menuAssociation == 3) {
+							rate = menu.getOnlineRate3();
+						}else if(menuAssociation == 4) {
+							rate = menu.getOnlineRate4();
+						}else if(menuAssociation == 5) {
+							rate = menu.getOnlineRate5();
+						}
+					}else {
+						if(order.getTakeAwayType() == OnlineOrderingPortals.ZOMATO.getValue()) {
+							if(isZomatoEasyItem) {
+								rate = menu.getComboReducedPrice();
+							}
+						}
 					}
 				}
 			}
@@ -1505,11 +1501,18 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 						waiterId = table.getWaiterId();
 				}
 			}
-			sql = "INSERT INTO OrderItems (hotelId, subOrderId, subOrderDate, orderId, menuId, qty, rate, specs, state, isKotPrinted, waiterId, kotNumber) values ('"
+			int kotNumber = 0;
+			int botNumber = 0;
+			if(menu.getStation().equals("Bar"))
+				botNumber = this.getNextBOTNumber(outletId);
+			else
+				kotNumber = this.getNextKOTNumber(outletId);
+			
+			sql = "INSERT INTO OrderItems (hotelId, subOrderId, subOrderDate, orderId, menuId, qty, rate, specs, state, isKotPrinted, waiterId, kotNumber, botNumber) values ('"
 					+ outletId + "', '" + subOrderId + "', '"
 					+ (new SimpleDateFormat("yyyy/MM/dd HH:mm")).format(new Date()) + "','" + order.getOrderId() + "', '" + menu.getMenuId()
 					+ "', " + Integer.toString(qty) + ", " + (new DecimalFormat("0.00")).format(rate) + ", '" + specs
-					+ "', " + orderState + ", " + kotPrinting + ", '" + waiterId + "', '"+this.getNextKOTNumber(outletId)+"');";
+					+ "', " + orderState + ", " + kotPrinting + ", '" + waiterId + "', '"+kotNumber+"', '"+botNumber+"');";
 			if (!db.executeUpdate(sql, true)) {
 				outObj.put("status", -1);
 				outObj.put("message", "Failed to add suborder");
@@ -1682,6 +1685,20 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	}
 
 	@Override
+	public int getNextBOTNumber(String hotelId) {
+
+		int botNumber = 1;
+		IService serviceDao = new ServiceManager(false);
+		String serviceDate = serviceDao.getServiceDate(hotelId);
+		String sql = "SELECT MAX(OrderItems.botNumber) AS entityId FROM OrderItems, Orders WHERE OrderItems.hotelId='"
+				+ hotelId + "' AND Orders.orderId == OrderItems.orderId AND Orders.orderDate=='" + serviceDate + "';";
+		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
+		
+		botNumber = entity.getId()+1;
+		return botNumber;
+	}
+
+	@Override
 	public String getNextBillNo(String hotelId, String station) {
 
 		StringBuilder billNo = new StringBuilder();
@@ -1691,21 +1708,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 			billNo.append("F");
 
 		String sql = "SELECT MAX(CAST(REPLACE(billNo, '" + billNo.toString() + "', '') AS integer)) AS entityId "
-				+ "FROM OrderItems WHERE hotelId='" + hotelId + "' ;";
+				+ "FROM Orders WHERE hotelId='" + hotelId + "';";
 		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
 
-		int billNum1 = entity.getId();
+		int billNum = entity.getId();
 
-		sql = "SELECT MAX(CAST(REPLACE(billNo, '" + billNo.toString() + "', '') AS integer)) AS entityId "
-				+ "FROM Orders WHERE hotelId='" + hotelId + "';";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
+		billNo.append(billNum + 1);
 
 		return billNo.toString();
 	}
@@ -1737,22 +1745,13 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		StringBuilder billNo = new StringBuilder();
 		IService serviceDao = new ServiceManager(false);
 		String serviceDate = serviceDao.getServiceDate(hotelId);
-		String sql = "SELECT MAX(CAST(OrderItems.billNo AS integer)) AS entityId FROM OrderItems, Orders WHERE OrderItems.hotelId='"
-				+ hotelId + "' AND Orders.orderId == OrderItems.orderId AND Orders.orderDate=='" + serviceDate + "';";
+		String sql ="SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId 
+				+ "' AND Orders.orderDate=='" + serviceDate + "';";
 		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
 
-		int billNum1 = entity==null?1:entity.getId();
+		int billNum = entity==null?1:entity.getId();
 
-		sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId 
-				+ "' AND Orders.orderDate=='" + serviceDate + "';";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity==null?1:entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
+		billNo.append(billNum + 1);
 
 		return billNo.toString();
 	}
@@ -1763,22 +1762,13 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		StringBuilder billNo = new StringBuilder();
 		IService serviceDao = new ServiceManager(false);
 		String serviceDate = serviceDao.getServiceDate(hotelId);
-		String sql = "SELECT MAX(CAST(OrderItems.billNo AS integer)) AS entityId FROM OrderItems, Orders WHERE OrderItems.hotelId='"
-				+ hotelId + "' AND Orders.orderId == OrderItems.orderId AND Orders.orderDate LIKE '" + serviceDate.substring(0,8) + "%';";
+		String sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId 
+				+ "' AND Orders.orderDate LIKE '" + serviceDate.substring(0,8) + "%';";
 		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
 
-		int billNum1 = entity==null?1:entity.getId();
-
-		sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId 
-				+ "' AND Orders.orderDate LIKE '" + serviceDate.substring(0,8) + "%';";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity==null?1:entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
+		int billNum = entity==null?1:entity.getId();
+		
+		billNo.append(billNum + 1);
 
 		return billNo.toString();
 	}
@@ -1810,7 +1800,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		
 		String sql = "SELECT Orders.state, Orders.billNo, Orders.remarks, Orders.customerAddress as address, "
 				+ "Orders.customerName as customer, Orders.customerNumber as mobileNumber, Orders.orderId, Orders.takeAwayType "
-				+ "FROM Orders WHERE inhouse="
+				+ ", Orders.orderDateTime FROM Orders WHERE inhouse="
 				+ HOME_DELIVERY + " AND ";
 
 		if (settings.getHotelType().equals("PREPAID") && !settings.getHasKds())
@@ -1818,7 +1808,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		else
 			sql += "(Orders.state=" + Integer.toString(ORDER_STATE_SERVICE) + " OR Orders.state=" + Integer.toString(ORDER_STATE_BILLING) + ")";
 
-		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId";
+		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId ORDER BY Orders.id DESC;";
 		return db.getRecords(sql, HomeDelivery.class, settings.getOutletId());
 	}
 
@@ -1826,15 +1816,15 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<HomeDelivery> getActiveTakeAway(Settings settings, String userId) {
 		
 		String sql = "SELECT Orders.Id AS orderNumber, Orders.state, Orders.billNo, Orders.reference, Orders.remarks, Orders.customerName as customer, "
-				+ "Orders.customerNumber as mobileNumber, Orders.orderId, Orders.isFoodReady, Orders.takeAwayType FROM Orders WHERE inhouse="
-				+ TAKE_AWAY + " AND ";
+				+ "Orders.customerNumber as mobileNumber, Orders.orderId, Orders.isFoodReady, Orders.takeAwayType, Orders.orderDateTime "
+				+ " FROM Orders WHERE inhouse = " + TAKE_AWAY + " AND ";
 
 		if (settings.getHotelType().equals("PREPAID") && !settings.getHasKds())
 			sql += "Orders.state=" + Integer.toString(ORDER_STATE_BILLING);
 		else
 			sql += "(Orders.state=" + Integer.toString(ORDER_STATE_SERVICE) + " OR Orders.state=" + Integer.toString(ORDER_STATE_BILLING) + ")";
 
-		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId";
+		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId ORDER BY Orders.id DESC;";
 		return db.getRecords(sql, HomeDelivery.class, settings.getOutletId());
 	}
 
@@ -1842,15 +1832,15 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<HomeDelivery> getActiveBarOrders(Settings settings,  String userId) {
 
 		String sql = "SELECT Orders.state AS state, Orders.customerName as customer, Orders.customerNumber as mobileNumber, "
-				+ "Orders.customerAddress as address, Orders.orderId, Orders.reference, Orders.remarks FROM Orders WHERE inhouse="
-				+ BAR + " AND ";
+				+ "Orders.customerAddress as address, Orders.orderId, Orders.reference, Orders.remarks, Orders.orderDateTime "
+				+ " FROM Orders WHERE inhouse=" + BAR + " AND ";
 
 		if (settings.getHotelType().equals("PREPAID") && !settings.getHasKds())
 			sql += "Orders.state=" + Integer.toString(ORDER_STATE_BILLING);
 		else
 			sql += "(Orders.state=" + Integer.toString(ORDER_STATE_SERVICE) + " OR Orders.state=" + Integer.toString(ORDER_STATE_BILLING) + ")";
 
-		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId";
+		sql += " AND hotelId='" + settings.getOutletId() + "' GROUP BY Orders.orderId ORDER BY Orders.id DESC;";
 
 		return db.getRecords(sql, HomeDelivery.class, settings.getOutletId());
 	}
@@ -2041,7 +2031,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.orderId AS orderId, "
 				+ "OrderItems.subOrderDate AS subOrderDate, OrderItems.qty AS qty, MenuItems.title AS title, "
 				+ "MenuItems.menuId AS menuId, MenuItems.vegType AS vegType, MenuItems.station AS station, "
-				+ "OrderItems.specs AS specs, OrderItems.kotNumber FROM OrderItems, MenuItems WHERE orderId='" + orderId
+				+ "OrderItems.specs AS specs, OrderItems.kotNumber, OrderItems.botNumber FROM OrderItems, MenuItems WHERE orderId='" + orderId
 				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.isKotPrinted = 0 "
 				+ "AND OrderItems.hotelId='" + hotelId + "' ORDER BY MenuItems.collection;";
 		return db.getRecords(sql, OrderItem.class, hotelId);
@@ -2053,7 +2043,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.orderId AS orderId, "
 				+ "OrderItems.subOrderDate AS subOrderDate, OrderItems.qty AS qty, MenuItems.title AS title, "
 				+ "MenuItems.menuId AS menuId, MenuItems.vegType AS vegType, MenuItems.station AS station, "
-				+ "OrderItems.specs AS specs, OrderItems.kotNumber FROM OrderItems, MenuItems WHERE orderId='" + orderId
+				+ "OrderItems.specs AS specs, OrderItems.kotNumber, OrderItems.botNumber FROM OrderItems, MenuItems WHERE orderId='" + orderId
 				+ "' AND OrderItems.menuId==MenuItems.menuId "
 				+ "AND OrderItems.hotelId='" + hotelId + "' ORDER BY MenuItems.collection;";
 		return db.getRecords(sql, OrderItem.class, hotelId);
@@ -2437,6 +2427,41 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		String sql = "UPDATE Orders SET riderName = '"+riderName+"', riderNumber = '"+riderNumber+"', riderStatus='"+riderStatus+
 				"' WHERE hotelId = '"+outletId+"' AND orderId = '"+orderId+"';";
 		
+		return db.executeUpdate(sql, true);
+	}
+	
+	public boolean updateZoamtoVoucherInOrder(String hotelId, String orderId, String discountName, BigDecimal discountAmount) {
+		
+		String sql = "UPDATE Orders SET discountCode = '"+discountName+"', zomatoVoucherAmount = "+discountAmount+" WHERE orderId = '"+orderId+"' AND hotelId = '"+hotelId+"';";
+		
+		return db.executeUpdate(sql, true);
+	}
+
+	@Override
+	public Boolean updateEWardsOfferDetails(String outletId, String orderId, int points, String couponCode,
+			int offerType) {
+		
+		JSONObject eWards = new JSONObject();
+		try {
+			eWards.put("points", points);
+			eWards.put("couponCode", couponCode);
+			eWards.put("offerType", offerType);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Order order = this.getOrderById(outletId, orderId);
+		JSONArray discountArr = order.getDiscountCode();
+		
+		String sql = "UPDATE Orders SET eWards = '"+eWards.toString() + "', ";
+		
+		if(offerType == 1) {
+			discountArr.put("EWARDS");
+			sql += "discountCode = '"+discountArr.toString()+"', fixedRupeeDiscount = " + points + " WHERE hotelId = '" + outletId + "' AND orderId = '" + orderId + "';";
+		}else {
+			discountArr.put(couponCode);
+			sql += "discountCode = '" + discountArr.toString() + "' WHERE hotelId = '" + outletId + "' AND orderId = '" + orderId + "';";
+		}
 		return db.executeUpdate(sql, true);
 	}
 }

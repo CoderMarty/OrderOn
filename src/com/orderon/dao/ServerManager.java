@@ -1,6 +1,7 @@
 package com.orderon.dao;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,6 +67,30 @@ public class ServerManager extends AccessManager implements IServer{
 				+ "','" + LocalDateTime.now() + "', 1);";
 
 		return db.executeUpdate(sql, true);
+	}
+
+	@Override
+	public boolean addTransaction(String hotelId, String transaction) {
+		
+		String sql = "INSERT into DBTransactions ('transactions') VALUES ('" + escapeString(transaction) + "');";
+
+		return db.executeUpdate(sql, false);
+	}
+
+	@Override
+	public ArrayList<DBTransaction> getAllTransactions(String outletId) {
+		
+		String sql = "SELECT * FROM DBTransactions;";
+		
+		return db.getRecords(sql, DBTransaction.class, outletId);
+	}
+
+	@Override
+	public boolean deleteAllTransactions(String hotelId) {
+
+		String sql = "DELETE FROM DBTransactions;";
+
+		return db.executeUpdate(sql, false);
 	}
 
 }
