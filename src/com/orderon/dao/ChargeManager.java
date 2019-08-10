@@ -14,88 +14,97 @@ public class ChargeManager extends AccessManager implements ICharge, ITier {
 	}
 	
 	@Override
-	public ArrayList<Charge> getCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges WHERE hotelId= '"+hotelId+"';";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getCharges(String systemId) {
+		String sql = "SELECT * FROM Charges WHERE systemId= '"+systemId+"';";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 	
 	@Override
-	public ArrayList<Charge> getOrderCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges WHERE applicableOn = 'ORDER' AND hotelId= '"+hotelId+"';";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getOrderCharges(String systemId) {
+		String sql = "SELECT * FROM Charges WHERE applicableOn = 'ORDER' AND systemId= '"+systemId+"';";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Charge> getActiveCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getActiveCharges(String systemId) {
+		String sql = "SELECT * FROM Charges  WHERE systemId='" + systemId + "' AND isActive = 'true'";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 	
 	@Override
-	public ArrayList<Charge> getActiveOrderCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges WHERE hotelId='" + hotelId + "' AND isActive = 'true' AND applicableOn = 'ORDER';";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getActiveOrderCharges(String systemId) {
+		String sql = "SELECT * FROM Charges WHERE systemId='" + systemId + "' AND isActive = 'true' AND applicableOn = 'ORDER';";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Charge> getChargesForIntegration(String hotelId) {
-		String sql = "SELECT * FROM Charges WHERE hotelId='" + hotelId + "' AND isApplicableOnline = 'true';";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getChargesForIntegration(String systemId, String outletId) {
+		String sql = "SELECT * FROM Charges WHERE outletId='" + outletId + "' AND isApplicableOnline = 'true';";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Charge> getOrderChargesForIntegration(String hotelId) {
-		String sql = "SELECT * FROM Charges WHERE hotelId='" + hotelId + "' AND isApplicableOnline = 'true' AND applicableOn = 'ORDER';";
-		return db.getRecords(sql, Charge.class, hotelId);
+	public ArrayList<Charge> getOrderChargesForIntegration(String systemId, String outletId) {
+		String sql = "SELECT * FROM Charges WHERE outletId='" + outletId + "' AND isApplicableOnline = 'true' AND applicableOn = 'ORDER';";
+		return db.getRecords(sql, Charge.class, systemId);
 	}
 
 	@Override
-	public boolean addCharge(String hotelId, String name, BigDecimal value, String type, Boolean isActive,
+	public boolean addCharge(String corporateId, String systemId, String outletId, String name, BigDecimal value, String type, Boolean isActive,
 			String applicableOn, boolean isAlwaysApplicable, BigDecimal minBillAmount, boolean hasTierWiseValues) {
 
-		String sql = "INSERT INTO Charges (hotelId, name, value, type, isActive, applicableOn, isAlwaysApplicable, minBillAmount, hasTierWiseValues"
-				+ ", taxesOnCharge) VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', " + value + ", '" + type + "', '" 
-				+ isActive + "', '" + applicableOn + "', '" + isAlwaysApplicable + "', " + minBillAmount + ", '" + hasTierWiseValues + "');";
+		String sql = "INSERT INTO Charges (corporateId, systemId, outletId, name, value, type, isActive, applicableOn, isAlwaysApplicable, minBillAmount, hasTierWiseValues"
+				+ ", taxesOnCharge) VALUES('" + escapeString(corporateId) + "', '"+ escapeString(systemId) + "', '"+ escapeString(outletId) + "', '" 
+				+ escapeString(name) + "', " + value + ", '" + type + "', '" + isActive + "', '" + applicableOn + "', '" 
+				+ isAlwaysApplicable + "', " + minBillAmount + ", '" + hasTierWiseValues + "');";
 		return db.executeUpdate(sql, true);
 	}
 
 	@Override
-	public Charge getChargeByName(String hotelId, String taxName) {
-		String sql = "SELECT * FROM Charges WHERE name='" + escapeString(taxName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Charge.class, hotelId);
+	public Charge getChargeByName(String systemId, String outletId, String taxName) {
+		String sql = "SELECT * FROM Charges WHERE name='" + escapeString(taxName) + "' AND systemId='"
+				+ escapeString(systemId) + "' AND outletId = '"+outletId+"';";
+		return db.getOneRecord(sql, Charge.class, systemId);
 	}
 
 	@Override
-	public boolean deleteCharge(String hotelId, int id) {
-		String sql = "DELETE FROM Charges WHERE id = " + id + " AND hotelId='" + hotelId + "';";
+	public boolean deleteCharge(String systemId, int id) {
+		String sql = "DELETE FROM Charges WHERE id = " + id + " AND systemId='" + systemId + "';";
 		return db.executeUpdate(sql, true);
 	}
 
 	@Override
-	public ArrayList<Tier> getTiers(String hotelId) {
-		String sql = "SELECT * FROM Tiers  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Tier.class, hotelId);
+	public ArrayList<Tier> getTiers(String systemId) {
+		String sql = "SELECT * FROM Tiers  WHERE systemId='" + systemId + "';";
+		return db.getRecords(sql, Tier.class, systemId);
 	}
 
 	@Override
-	public boolean addTier(String hotelId, BigDecimal value, boolean chargeAlwaysApplicable, BigDecimal minBillAMount) {
+	public ArrayList<Tier> getTiers(String systemId, String outletId) {
+		String sql = "SELECT * FROM Tiers  WHERE systemId='" + systemId + "' AND outletId = '"+outletId+"';";
+		return db.getRecords(sql, Tier.class, systemId);
+	}
 
-		String sql = "INSERT INTO Tiers (hotelId, value, chargeAlwaysApplicable, minBillAmount) VALUES('" + escapeString(hotelId) 
-				+ "', " + value + ", '" + chargeAlwaysApplicable + "', " + minBillAMount + ");";
+	@Override
+	public boolean addTier(String corporateId, String systemId, String outletId, BigDecimal value, boolean chargeAlwaysApplicable, 
+			BigDecimal minBillAMount) {
+
+		String sql = "INSERT INTO Tiers (corporateId, systemId, outletId, value, chargeAlwaysApplicable, minBillAmount) VALUES('" 
+				+ escapeString(corporateId) + "', '" + escapeString(systemId) + "', '" + escapeString(outletId) + "', " 
+				+ value + ", '" + chargeAlwaysApplicable + "', " + minBillAMount + ");";
 		return db.executeUpdate(sql, true);
 	}
 
 	@Override
-	public Tier getTierById(String hotelId, int id) {
-		String sql = "SELECT * FROM Tiers WHERE id='" + id + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Tier.class, hotelId);
+	public Tier getTierById(String systemId, int id) {
+		String sql = "SELECT * FROM Tiers WHERE id='" + id + "' AND systemId='"
+				+ escapeString(systemId) + "';";
+		return db.getOneRecord(sql, Tier.class, systemId);
 	}
 
 	@Override
-	public boolean deleteTier(String hotelId, int id) {
-		String sql = "DELETE FROM Tiers WHERE id = " + id + " AND hotelId='" + hotelId + "';";
+	public boolean deleteTier(String systemId, int id) {
+		String sql = "DELETE FROM Tiers WHERE id = " + id + " AND systemId='" + systemId + "';";
 		return db.executeUpdate(sql, true);
 	}
 }

@@ -324,20 +324,43 @@ public class AccessManager implements IAccess{
 	 * This method updates the database to accommodate any new changes in the latest API.
 	 * Will change with every update.
 	 */
-	public void updateDatabase(String hotelId, String oldVersion, String version) {
+	public boolean updateDatabase(String hotelId, String oldVersion, String version) {
 		String sql = "";
 		
 		if(oldVersion.equals("3.3.3.27")) {
 
+			//Upgrading Charges
+			sql = "CREATE TABLE Charges2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
+			+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Charges2 (id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, chargeLevel, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, systemId, outletId) "
+			+	"SELECT id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, applicableOn, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, hotelId, hotelId FROM Charges;"
+			+	"DROP TABLE Charges;"
+			+	"ALTER TABLE Charges2 RENAME TO Charges;";
+			
+			sql += "CREATE TABLE Tiers2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', "
+			+	"minBillAmount DOUBLE, outletId TEXT NOT NULL, systemId TEXT NOT NULL, corporateId TEXT);"
+			+	"INSERT INTO Tiers2 ( id, value, chargeAlwaysApplicable, minBillAmount, systemId, outletId)"
+			+	"SELECT id, value, chargeAlwaysApplicable, minBillAmount, hotelId, hotelId FROM Tiers;"
+			+	"DROP TABLE Tiers;"
+			+	"ALTER TABLE Tiers2 RENAME TO Tiers;";
+			
+			sql += "Update Hotel SET version = '3.4.2';";
+			
+		} else if(oldVersion.equals("3.3.3.27")) {
+
 			//Upgrading bank
 			sql = "CREATE TABLE Bank2 (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
 			+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));"
-			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, outletId, section) "
-			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, section FROM Bank;"
+			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, systemId, outletId, section) "
+			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, hotelId, section FROM Bank;"
 			+	"DROP TABLE Bank;"
 			+	"ALTER TABLE Bank2 RENAME TO Bank;";
 			
 			sql += "Update Hotel SET version = '3.4.1';";
+			
 		} 
 		//Init Updated
 		if(oldVersion.equals("3.3.3.26")) {
@@ -689,7 +712,7 @@ public class AccessManager implements IAccess{
 				db.executeUpdate(sql, hotelId, true);
 			}
 			System.out.println("Updated Menu Items.");
-			return;
+			return true;
 		}else if(oldVersion.equals("3.3.2.20")) {
 			
 			sql += "ALTER TABLE Collections ADD COLUMN isSpecialCombo TEXT; Update Collections SET isSpecialCombo = 'false';"
@@ -1453,7 +1476,7 @@ public class AccessManager implements IAccess{
 				"update Orders set takeAwayType = 0 WHERE inHouse != 2;";
 		}
 		System.out.println(sql);
-		db.executeUpdate(sql, hotelId, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	public void initDatabase(String hotelId) {
@@ -8221,13 +8244,16 @@ public class AccessManager implements IAccess{
 		private String type;
 		private BigDecimal value;
 		private String isActive;
-		private String applicableOn;
+		private String chargeLevel;
 		private String isApplicableOn;
 		private String isAlwaysApplicable;
 		private BigDecimal minBillAmount;
 		private String hasTierWiseValue;
 		private String taxesOnCharge;
 		private String orderType;
+		private String outletId;
+		private String systemId;
+		private String corporateId;
 		
 		public int getId() {
 			return id;
@@ -8248,9 +8274,14 @@ public class AccessManager implements IAccess{
 		public Boolean getIsActive() {
 			return Boolean.valueOf(isActive);
 		}
+		
+		public String getChargeLevel() {
+			return chargeLevel;
+		}
 
+		@Deprecated
 		public String getApplicableOn() {
-			return applicableOn;
+			return chargeLevel;
 		}
 
 		public String getIsApplicableOn() {
@@ -8289,6 +8320,18 @@ public class AccessManager implements IAccess{
 			return new JSONArray();
 		}
 
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -8297,13 +8340,16 @@ public class AccessManager implements IAccess{
 			this.value = Database.readRsBigDecimal(rs, "value");
 			this.type = Database.readRsString(rs, "type");
 			this.isActive = Database.readRsString(rs, "isActive");
-			this.applicableOn = Database.readRsString(rs, "applicableOn");
+			this.chargeLevel = Database.readRsString(rs, "chargeLevel");
 			this.isApplicableOn = Database.readRsString(rs, "isApplicableOn");
 			this.isAlwaysApplicable = Database.readRsString(rs, "isAlwaysApplicable");
 			this.minBillAmount = Database.readRsBigDecimal(rs, "minBillAmount");
 			this.hasTierWiseValue = Database.readRsString(rs, "hasTierWiseValue");
 			this.taxesOnCharge = Database.readRsString(rs, "taxesOnCharge");
 			this.orderType = Database.readRsString(rs, "orderType");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 		}
 	}
 	

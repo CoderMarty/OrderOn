@@ -215,8 +215,8 @@ import com.orderon.interfaces.IUserAuthentication;
 public class Services {
 
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.4.1";
-	private static final String stable_api_version = "3.4.1";
+	private static final String api_version = "3.4.2";
+	private static final String stable_api_version = "3.4.2";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -283,6 +283,8 @@ public class Services {
 			outObj.put("hotelName", outlet.getName());
 			outObj.put("corporateId", outlet.getCorporateId());
 			outObj.put("hotelId", outlet.getOutletId());
+			outObj.put("outletId", outlet.getOutletId());
+			outObj.put("systemId", outlet.getOutletId());
 			outObj.put("hotelAddress", outlet.getAddress());
 			outObj.put("hotelContact", outlet.getContact());
 			outObj.put("gstNumber", outlet.getGstNumber());
@@ -2115,8 +2117,9 @@ public class Services {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
 
-			if (dao.addTier(inObj.getString("hotelId"), new BigDecimal(Double.toString(inObj.getDouble("value"))), 
-					inObj.getBoolean("chargeAlwaysApplicable"), new BigDecimal(Double.toString(inObj.getDouble("minBillAMount"))))) {
+			if (dao.addTier(inObj.getString("corporateId"), inObj.getString("systemId"), inObj.getString("outletId"), 
+					new BigDecimal(Double.toString(inObj.getDouble("value"))), inObj.getBoolean("chargeAlwaysApplicable"), 
+					new BigDecimal(Double.toString(inObj.getDouble("minBillAMount"))))) {
 				outObj.put("status", true);
 			}
 		} catch (Exception e) {
@@ -2277,9 +2280,10 @@ public class Services {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
 
-			if (dao.addCharge(inObj.getString("hotelId"), inObj.getString("name"), new BigDecimal(Double.toString(inObj.getDouble("value"))), 
-					inObj.getString("type"), inObj.getBoolean("isActive"), inObj.getString("applicableOn"), inObj.getBoolean("isAlwaysApplicable"),
-					 new BigDecimal(Double.toString(inObj.getDouble("minBillAmount"))), inObj.getBoolean("hasTierWiseValues"))) {
+			if (dao.addCharge(inObj.getString("corporateId"), inObj.getString("systemId"), inObj.getString("outletId"), 
+					inObj.getString("name"), new BigDecimal(Double.toString(inObj.getDouble("value"))), inObj.getString("type"), 
+					inObj.getBoolean("isActive"), inObj.getString("applicableOn"), inObj.getBoolean("isAlwaysApplicable"),
+					new BigDecimal(Double.toString(inObj.getDouble("minBillAmount"))), inObj.getBoolean("hasTierWiseValues"))) {
 				outObj.put("status", true);
 			}
 		} catch (Exception e) {
@@ -2291,20 +2295,20 @@ public class Services {
 	@GET
 	@Path("/v3/getCharges")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getCharges(@QueryParam("hotelId") String hotelId, @QueryParam("getActive") Boolean getActive) {
+	public String getCharges(@QueryParam("systemId") String systemId, @QueryParam("getActive") Boolean getActive) {
 		JSONObject outObj = new JSONObject();
 
 		ICharge dao = new ChargeManager(false);
 		ITier tierDao = new ChargeManager(false);
 		ArrayList<Charge> charges = null;
 		if(getActive)
-			charges = dao.getActiveCharges(hotelId);
+			charges = dao.getActiveCharges(systemId);
 		else
-			charges = dao.getCharges(hotelId);
+			charges = dao.getCharges(systemId);
 		
 		try {
 			outObj.put("charges", charges);
-			outObj.put("tiers", tierDao.getTiers(hotelId));
+			outObj.put("tiers", tierDao.getTiers(systemId));
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -2315,20 +2319,21 @@ public class Services {
 	@GET
 	@Path("/v3/getOrderCharges")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getOrderCharges(@QueryParam("hotelId") String hotelId, @QueryParam("getActive") Boolean getActive) {
+	public String getOrderCharges(@QueryParam("systemId") String systemId, @QueryParam("outletId") String outletId, 
+			@QueryParam("getActive") Boolean getActive) {
 		JSONObject outObj = new JSONObject();
 
 		ICharge dao = new ChargeManager(false);
 		ITier tierDao = new ChargeManager(false);
 		ArrayList<Charge> charges = null;
 		if(getActive)
-			charges = dao.getActiveOrderCharges(hotelId);
+			charges = dao.getActiveOrderCharges(systemId);
 		else
-			charges = dao.getOrderCharges(hotelId);
+			charges = dao.getOrderCharges(systemId);
 		
 		try {
 			outObj.put("charges", charges);
-			outObj.put("tiers", tierDao.getTiers(hotelId));
+			outObj.put("tiers", tierDao.getTiers(systemId, outletId));
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -2338,14 +2343,14 @@ public class Services {
 	@GET
 	@Path("/v3/Integration/getCharges")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getChargesForIntegration(@QueryParam("hotelId") String hotelId) {
+	public String getChargesForIntegration(@QueryParam("systemId") String systemId, @QueryParam("outletId") String outletId) {
 		JSONObject outObj = new JSONObject();
 
 		ICharge dao = new ChargeManager(false);
 		ITier tierDao = new ChargeManager(false);
 		try {
-			outObj.put("charges", dao.getChargesForIntegration(hotelId));
-			outObj.put("tiers", tierDao.getTiers(hotelId));
+			outObj.put("charges", dao.getChargesForIntegration(systemId, outletId));
+			outObj.put("tiers", tierDao.getTiers(systemId, outletId));
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -2356,14 +2361,14 @@ public class Services {
 	@GET
 	@Path("/v3/Integration/getOrderCharges")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getOrderChargesForIntegration(@QueryParam("hotelId") String hotelId) {
+	public String getOrderChargesForIntegration(@QueryParam("systemId") String systemId, @QueryParam("outletId") String outletId) {
 		JSONObject outObj = new JSONObject();
 
 		ICharge dao = new ChargeManager(false);
 		ITier tierDao = new ChargeManager(false);
 		try {
-			outObj.put("charges", dao.getOrderChargesForIntegration(hotelId));
-			outObj.put("tiers", tierDao.getTiers(hotelId));
+			outObj.put("charges", dao.getOrderChargesForIntegration(systemId, outletId));
+			outObj.put("tiers", tierDao.getTiers(systemId, outletId));
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -2383,7 +2388,7 @@ public class Services {
 		try {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
-			outObj.put("status", dao.deleteCharge(inObj.getString("hotelId"), inObj.getInt("chargeId")));
+			outObj.put("status", dao.deleteCharge(inObj.getString("outletId"), inObj.getInt("chargeId")));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
