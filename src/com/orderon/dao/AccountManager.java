@@ -16,31 +16,33 @@ public class AccountManager extends AccessManager implements IAccount{
 	
 	@Override
 	public ArrayList<Account> getBankAccounts(String outletId) {
-		String sql = "SELECT * FROM Bank WHERE hotelId='" + outletId + "';";
+		String sql = "SELECT * FROM Bank WHERE outletId='" + outletId + "';";
 		return db.getRecords(sql, Account.class, outletId);
 	}
 	
 	@Override
 	public Account getBankAccount(String outletId, int accountNumber) {
-		String sql = "SELECT * FROM Bank WHERE hotelId='" + outletId + "' AND accountNumber = "+accountNumber+";";
+		String sql = "SELECT * FROM Bank WHERE outletId='" + outletId + "' AND accountNumber = "+accountNumber+";";
 		return db.getOneRecord(sql, Account.class, outletId);
 	}
 
 	@Override
-	public JSONObject addAccount(String outletId, int accountNumber, String accountName, String accountType,
+	public JSONObject addAccount(String corporateId, String systemId, String outletId, int accountNumber, String accountName, String accountType,
 			String bankName, BigDecimal initialBalance, String section) {
 
 		JSONObject outObj = new JSONObject();
 		
 		String sql = "INSERT INTO Bank "
-				+ "(hotelId, accountNumber, accountName, accountType, bankName, initialBalance, section) VALUES('"
-				+ escapeString(outletId) + "', " 
-				+ accountNumber + ", '" 
+				+ "(corporateId, systemId, outletId, accountNumber, accountName, accountType, bankName, initialBalance, section) VALUES('"
+				+ escapeString(corporateId) + "', '" 
+				+ escapeString(systemId) 	+ "', '" 
+				+ escapeString(outletId) 	+ "', " 
+				+ accountNumber 			+ ", '" 
 				+ escapeString(accountName) + "', '"
-				+ accountType + "', '"
-				+ escapeString(bankName) + "', "
-				+ initialBalance + ", '"
-				+ section + "');";
+				+ accountType 				+ "', '"
+				+ escapeString(bankName) 	+ "', "
+				+ initialBalance 			+ ", '"
+				+ section 					+ "');";
 		
 		try {
 			outObj.put("status", db.executeUpdate(sql, true));

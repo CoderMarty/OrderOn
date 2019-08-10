@@ -215,8 +215,8 @@ import com.orderon.interfaces.IUserAuthentication;
 public class Services {
 
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.3.3.27";
-	private static final String stable_api_version = "3.3.3.27";
+	private static final String api_version = "3.4.1";
+	private static final String stable_api_version = "3.4.1";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"

@@ -326,13 +326,18 @@ public class AccessManager implements IAccess{
 	 */
 	public void updateDatabase(String hotelId, String oldVersion, String version) {
 		String sql = "";
-			
 		
 		if(oldVersion.equals("3.3.3.27")) {
 
-			sql = "";
+			//Upgrading bank
+			sql = "CREATE TABLE Bank2 (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
+			+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));"
+			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, outletId, section) "
+			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, section FROM Bank;"
+			+	"DROP TABLE Bank;"
+			+	"ALTER TABLE Bank2 RENAME TO Bank;";
 			
-			sql += "Update Hotel SET version = '3.4';";
+			sql += "Update Hotel SET version = '3.4.1';";
 		} 
 		//Init Updated
 		if(oldVersion.equals("3.3.3.26")) {
@@ -1688,9 +1693,8 @@ public class AccessManager implements IAccess{
 		+ "isActive TEXT NOT NULL, scheduleIds TEXT , description TEXT, imgUrl TEXT, isSpecialCombo TEXT, isActiveOnZomato TEXT, tags TEXT DEFAULT '[]');";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Bank ( accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
-		+ "balance INTEGER NOT NULL DEFAULT 0, hotelId TEXT, section TEXT,"
-	 	+ "PRIMARY KEY(accountNumber));";
+		sql = "CREATE TABLE IF NOT EXISTS Bank (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, " + 
+			"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Attendance ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, employeeId text NOT NULL, "
