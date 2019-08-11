@@ -215,8 +215,8 @@ import com.orderon.interfaces.IUserAuthentication;
 public class Services {
 
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.4.2";
-	private static final String stable_api_version = "3.4.2";
+	private static final String api_version = "3.4.3";
+	private static final String stable_api_version = "3.4.3";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -245,7 +245,14 @@ public class Services {
 	public String hearbeat() {
 		JSONObject outObj = new JSONObject();
 		try {
-			outObj.put("hotelId", Configurator.getOutletId());
+			String systemId = Configurator.getSystemId();
+			if(systemId.isEmpty()) {
+				outObj.put("status", false);
+				outObj.put("message", "Pleae add SystemId to config file");
+				return outObj.toString();
+			}
+			outObj.put("hotelId", systemId);
+			outObj.put("systemId", systemId);
 			outObj.put("ip", Configurator.getIp());
 			outObj.put("status", true);
 		} catch (Exception e) {
@@ -269,8 +276,21 @@ public class Services {
 	@GET
 	@Path("/v1/getHotelDetailsJSON")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getHotelDetail(@QueryParam("hotelId") String outletId) {
+	@Deprecated
+	public String getHotelDetailv1(@QueryParam("hotelId") String hotelId) {
 		
+		return this.getHotelDetails(hotelId);
+	}
+
+	@GET
+	@Path("/v3/getHotelDetailsJSON")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getHotelDetail(@QueryParam("systemId") String systemId) {
+		
+		return this.getHotelDetails(systemId);
+	}
+	
+	private String getHotelDetails(String systemId) {
 		JSONObject outObj = new JSONObject();
 		JSONArray outArr = new JSONArray();
 		JSONObject tempObj = new JSONObject();
@@ -278,8 +298,8 @@ public class Services {
 		IOutlet dao = new OutletManager(false);
 		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
 		try {
-			Settings settings = dao.getSettings(outletId);
-			Outlet outlet = dao.getOutlet(outletId);
+			Settings settings = dao.getSettings(systemId);
+			Outlet outlet = dao.getOutlet(systemId);
 			outObj.put("hotelName", outlet.getName());
 			outObj.put("corporateId", outlet.getCorporateId());
 			outObj.put("hotelId", outlet.getOutletId());
@@ -324,7 +344,7 @@ public class Services {
 			outObj.put("smsApiKey", settings.getSmsAPIKey());
 			outObj.put("downloadReports", settings.getDownloadReports());
 			
-			ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortalsForIntegration(outletId);
+			ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortalsForIntegration(systemId);
 			for(int i=0; i<portals.size(); i++) {
 				tempObj = new JSONObject();
 				tempObj.put("name", portals.get(i).getName());
@@ -353,7 +373,7 @@ public class Services {
 			outObj.put("hasSms", settings.getIsSmsEnabled());
 			if (settings.getHasServer()) {
 				IServer serverDao = new ServerManager(false);
-				ServerLog server = serverDao.getLastServerLog(outletId);
+				ServerLog server = serverDao.getLastServerLog(systemId);
 				outObj.put("updateStatus", server.getStatus());
 				outObj.put("lastUpdateTime", server.getUpdateTime());
 			}
@@ -530,21 +550,21 @@ public class Services {
 			
 			byte[] auth = authString.getBytes();
 			String[] decoded = Base64.decodeAsString(auth).split(":");
-			String outletId = "";
+			String systemId = "";
 
-			if(!inObj.has("hotelId")) {
-				outObj.put("message", "HotelId not found.");
+			if(!inObj.has("systemId")) {
+				outObj.put("message", "SystemId not found.");
 				return outObj.toString();
 			}else if(decoded.length<2) {
 				outObj.put("message", "UserId or Password not found.");
 				return outObj.toString();
 			}
 			
-			outletId = inObj.getString("hotelId");
+			systemId = inObj.getString("systemId");
 			
-			Settings settings = outletDao.getSettings(outletId);
+			Settings settings = outletDao.getSettings(systemId);
 
-			User user = dao.validateUser(outletId, decoded[0], decoded[1]);
+			User user = dao.validateUser(systemId, decoded[0], decoded[1]);
 
 			outObj.put("systemUpdated", false);
 			if (user == null) {
@@ -559,8 +579,11 @@ public class Services {
 				if(!Configurator.getIsServer()) {
 					while(!settings.getVersion().equals(api_version)) {
 						System.out.println("Updating database.");
-						managerDao.updateDatabase(outletId, settings.getVersion(), api_version);
-						settings = outletDao.getSettings(outletId);
+						if(!managerDao.updateDatabase(systemId, settings.getVersion(), api_version)) {
+							System.out.println("Error updating database.");
+							break;
+						}
+						settings = outletDao.getSettings(systemId);
 						outObj.put("systemUpdated", true);
 					}
 				}
@@ -2388,7 +2411,7 @@ public class Services {
 		try {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
-			outObj.put("status", dao.deleteCharge(inObj.getString("outletId"), inObj.getInt("chargeId")));
+			outObj.put("status", dao.deleteCharge(inObj.getString("systemId"), inObj.getInt("chargeId")));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2410,8 +2433,8 @@ public class Services {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
 
-			if (dao.addTax(inObj.getString("hotelId"), inObj.getString("name"), new BigDecimal(Double.toString(inObj.getDouble("value"))),
-					inObj.getString("type"), inObj.getBoolean("isActive"))) {
+			if (dao.addTax(inObj.getString("corporateId"), inObj.getString("systemId"), inObj.getString("outletId"), inObj.getString("name"), 
+					new BigDecimal(Double.toString(inObj.getDouble("value"))), inObj.getString("type"), inObj.getBoolean("isActive"))) {
 				outObj.put("status", true);
 			}
 		} catch (Exception e) {
@@ -2423,15 +2446,15 @@ public class Services {
 	@GET
 	@Path("/v3/getTaxes")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getTaxes(@QueryParam("hotelId") String hotelId, @QueryParam("getActive") Boolean getActive) {
+	public String getTaxes(@QueryParam("systemId") String systemId, @QueryParam("getActive") Boolean getActive) {
 		JSONObject outObj = new JSONObject();
 
 		ITax dao = new TaxManager(false);
 		ArrayList<Tax> taxes = null;
 		if(getActive)
-			taxes = dao.getActiveTaxes(hotelId);
+			taxes = dao.getActiveTaxes(systemId);
 		else
-			taxes = dao.getTaxes(hotelId);
+			taxes = dao.getTaxes(systemId);
 		try {
 			outObj.put("taxes", taxes);
 		} catch (JSONException e) {
@@ -2452,7 +2475,7 @@ public class Services {
 		try {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
-			outObj.put("status", dao.deleteTax(inObj.getString("hotelId"), inObj.getInt("taxId")));
+			outObj.put("status", dao.deleteTax(inObj.getString("systemId"), inObj.getInt("taxId")));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -4743,7 +4766,7 @@ public class Services {
 				+ " Order Id :" + externalOrderId);
 			}
 			System.out.println("Authenticated");
-			outObj.put("hotelId", Configurator.getOutletId());
+			outObj.put("hotelId", Configurator.getSystemId());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

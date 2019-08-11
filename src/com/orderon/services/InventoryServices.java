@@ -550,12 +550,12 @@ public class InventoryServices {
 	@GET
 	@Path("/v3/getTaxesForMaterials")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getTaxesForMaterials(@QueryParam("outletId") String outletId) {
+	public String getTaxesForMaterials(@QueryParam("systemId") String systemId) {
 		JSONObject outObj = new JSONObject();
 
 		ITax dao = new TaxManager(false);
 		ArrayList<Tax> taxes = null;
-		taxes = dao.getTaxesForMaterials(outletId);
+		taxes = dao.getTaxesForMaterials(systemId);
 		try {
 			outObj.put("taxes", taxes);
 		} catch (JSONException e) {

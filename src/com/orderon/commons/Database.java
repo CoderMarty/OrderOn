@@ -38,12 +38,12 @@ public class Database {
 	}
 	
 	public Connection getConnection() throws Exception{
-		return getConnection(Configurator.getOutletId());
+		return getConnection(Configurator.getSystemId());
 	}
 	
 	private void openDB(String outletId) {
 		if(outletId.equals("")) {
-			outletId = Configurator.getOutletId();
+			outletId = Configurator.getSystemId();
 			if(outletId.equals("")) {
 				mConn = null;
 				return;
@@ -75,7 +75,7 @@ public class Database {
 	
 	public void beginTransaction(String outletId) {
 		if(outletId.equals(""))
-			outletId = Configurator.getOutletId();
+			outletId = Configurator.getSystemId();
 		try {
 			if (!mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
@@ -89,7 +89,7 @@ public class Database {
 	}
 	
 	public void beginTransaction(){
-		beginTransaction(Configurator.getOutletId());
+		beginTransaction(Configurator.getSystemId());
 	}
 
 	public void commitTransaction(String outletId, boolean isAServerUpdate) {

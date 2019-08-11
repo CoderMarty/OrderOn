@@ -327,7 +327,19 @@ public class AccessManager implements IAccess{
 	public boolean updateDatabase(String hotelId, String oldVersion, String version) {
 		String sql = "";
 		
-		if(oldVersion.equals("3.3.3.27")) {
+		if(oldVersion.equals("3.4.2")) {
+
+			//Upgrading Charges
+			sql = "CREATE TABLE Taxes2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Taxes2 (id, name, value, type, isActive, applicableOn, outletId, systemId) "
+			+	"SELECT id, name, value, type, isActive, applicableOn, hotelId, hotelId FROM Taxes;"
+			+	"DROP TABLE Taxes;"
+			+	"ALTER TABLE Taxes2 RENAME TO Taxes;";
+			
+			sql += "Update Hotel SET version = '3.4.3';";
+			
+		} else if(oldVersion.equals("3.4.1")) {
 
 			//Upgrading Charges
 			sql = "CREATE TABLE Charges2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
@@ -8361,6 +8373,9 @@ public class AccessManager implements IAccess{
 		private BigDecimal value;
 		private String isActive;
 		private String applicableOn;
+		private String outletId;
+		private String systemId;
+		private String corporateId;
 		
 		public int getId() {
 			return id;
@@ -8386,6 +8401,18 @@ public class AccessManager implements IAccess{
 			return applicableOn;
 		}
 
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -8395,6 +8422,9 @@ public class AccessManager implements IAccess{
 			this.type = Database.readRsString(rs, "type");
 			this.isActive = Database.readRsString(rs, "isActive");
 			this.applicableOn = Database.readRsString(rs, "applicableOn");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 		}
 	}
 	

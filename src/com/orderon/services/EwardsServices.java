@@ -37,7 +37,7 @@ public class EwardsServices {
 	public String hearbeat() {
 		JSONObject outObj = new JSONObject();
 		try {
-			outObj.put("hotelId", Configurator.getOutletId());
+			outObj.put("hotelId", Configurator.getSystemId());
 			outObj.put("ip", Configurator.getIp());
 			outObj.put("status", true);
 		} catch (Exception e) {

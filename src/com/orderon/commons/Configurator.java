@@ -2,8 +2,6 @@ package com.orderon.commons;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,31 +30,8 @@ public class Configurator {
 		return sb.toString();
 	}
 	
-	public static void writeToServerFile(String content) {
-		FileWriter fw = null;
-		try{
-			fw = new FileWriter(getServerFile());
-			fw.write(content);
-
-		}catch(IOException e) {
-			System.out.println("Server File Writer Caused IOException.");
-			e.printStackTrace();
-		}finally {
-			try{
-				if(fw != null)
-					fw.close();
-			} catch (IOException ex) {
-				ex.printStackTrace();
-			}
-		}
-	}
-	
 	private static String getConfigFile() {
 		return System.getenv("ORDERON_CONFIG");
-	}
-	
-	public static String getServerFile() {
-		return System.getenv("ORDERON_SERVER");
 	}
 	
 	public static String getDBConnectionString() {
@@ -71,12 +46,12 @@ public class Configurator {
 		return "";
 	}
 	
-	public static String getOutletId() {
+	public static String getSystemId() {
 		String config = readConfigFile(getConfigFile());
 		JSONObject configObj;
 		try {
 			configObj = new JSONObject(config);
-			return configObj.getString("hotelId");
+			return configObj.getString("systemId");
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
@@ -165,11 +140,6 @@ public class Configurator {
 			return false;
 		}
 	}
-	
-	public static String getTransactionLog() {
-		return readConfigFile(getServerFile());
-	}
-	
 	public static String getTomcatLocation() {
 		return System.getenv("CATALINA_HOME");
 	}
