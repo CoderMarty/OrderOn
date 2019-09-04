@@ -13,7 +13,7 @@ public interface ICustomer extends IAccess{
 	public Boolean customerExists(String outletId, String mobileNumber);
 	
 	public Boolean addCustomer(String hotelId, String firstName, String surName, String phone, String address, String birthdate,
-			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, String referenceForReview);
+			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, String sex, String referenceForReview);
 	
 	public Boolean updateCustomer(String hotelId, Integer id, String firstName, String surName, String phone, String birthdate,
 			String anniversary, String remarks, String allergyInfo, String address, Boolean wantsPromotion, String emailId, String sex);
@@ -26,7 +26,7 @@ public interface ICustomer extends IAccess{
 			int noOfGuests, String allergyInfo);
 
 	public Boolean editCustomerDetails(String hotelId, String orderId, String firstName, String surName, String number, String address,
-			int noOfGuests, String allergyInfo);
+			int noOfGuests, String allergyInfo, String emailId, String sex);
 
 	public Customer getCustomerById(String hotelId, int id);
 	

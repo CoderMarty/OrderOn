@@ -13,30 +13,31 @@ public class TaxManager extends AccessManager implements ITax{
 	}
 
 	@Override
-	public ArrayList<Tax> getTaxes(String systemId) {
-		String sql = "SELECT * FROM Taxes  WHERE systemId='" + systemId + "' AND applicableOn != 'INVENTORY';";
+	public ArrayList<Tax> getTaxes(String systemId, String outletId) {
+		String sql = "SELECT * FROM Taxes  WHERE outletId='" + outletId + "' AND applicableOn != 'INVENTORY';";
 		return db.getRecords(sql, Tax.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Tax> getActiveTaxes(String systemId) {
-		String sql = "SELECT * FROM Taxes  WHERE systemId='" + systemId + "' AND isActive = 'true' AND applicableOn != 'INVENTORY';";
+	public ArrayList<Tax> getActiveTaxes(String systemId, String outletId) {
+		String sql = "SELECT * FROM Taxes  WHERE outletId='" + outletId + "' AND isActive = 'true' AND applicableOn != 'INVENTORY';";
 		return db.getRecords(sql, Tax.class, systemId);
 	}
 	
 	@Override
-	public ArrayList<Tax> getTaxesForMaterials(String systemId) {
-		String sql = "SELECT * FROM Taxes  WHERE systemId='" + systemId + "' AND applicableOn = 'INVENTORY';";
+	public ArrayList<Tax> getTaxesForMaterials(String systemId, String outletId) {
+		String sql = "SELECT * FROM Taxes  WHERE outletId='" + outletId + "' AND applicableOn = 'INVENTORY';";
 		return db.getRecords(sql, Tax.class, systemId);
 	}
 
 	@Override
-	public boolean addTax(String corporateId, String systemId, String outletId, String name, BigDecimal value, String type, Boolean isActive) {
+	public boolean addTax(String corporateId, String restaurantId, String systemId, String outletId, String name, 
+			BigDecimal value, String type, Boolean isActive) {
 
-		String sql = "INSERT INTO Taxes (corporateId, systemId, outletId, name, value, type, isActive) VALUES('" 
-				+ escapeString(corporateId) + "', '" + escapeString(systemId) + "', '" + escapeString(outletId) + "', '" 
+		String sql = "INSERT INTO Taxes (corporateId, restaurantId, systemId, outletId, name, value, type, isActive) VALUES('" 
+				+ corporateId + "', '" + restaurantId + "', '" + systemId + "', '" + outletId + "', '" 
 				+ escapeString(name) + "', " + value + ", '" + type + "', '" + isActive + "');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
@@ -48,7 +49,7 @@ public class TaxManager extends AccessManager implements ITax{
 
 	@Override
 	public boolean deleteTax(String systemId, int id) {
-		String sql = "DELETE FROM Taxes WHERE id = " + id + " AND systemId='" + systemId + "';";
-		return db.executeUpdate(sql, true);
+		String sql = "DELETE FROM Taxes WHERE id = " + id + ";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 }

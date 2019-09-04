@@ -5,7 +5,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-import com.orderon.interfaces.IOutlet;
 import com.orderon.interfaces.IService;
 
 public class ServiceManager extends AccessManager implements IService{
@@ -43,32 +42,25 @@ public class ServiceManager extends AccessManager implements IService{
 				+ "VALUES('" + escapeString(hotelId) + "', '" + serviceDate + "', '"
 				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', '', '"
 				+ escapeString(serviceType) + "', " + 0 + ", " + cashInHand + ", 'false');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
-
-	@Override
-	public boolean checkSevicesEnded(String outletId, String serviceDate, String serviceType) {
-
-		IOutlet outlet = new OutletManager(false);
-		Settings setting = outlet.getSettings(outletId);
-		if(setting.getSection().equals(""))
-			return true;
-		String sql = "SELECT COUNT(section) AS entityId FROM TotalRevenue WHERE hotelId = '"+outletId+"' AND serviceDate = '"+serviceDate
-				+ "' AND serviceType = '"+serviceType+"';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, outletId);
-		if((setting.getSections().length-1) == entity.getId())
-			return true;
-		else
-			return false;
-	}
-
+	
 	@Override
 	public boolean endService(String hotelId, String serviceDate, String serviceType) {
 
 		String sql = "UPDATE ServiceLog SET endTimeStamp ='"
 				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', isCurrent = 1  WHERE hotelId = '"
 				+ hotelId + "' AND serviceDate = '" + serviceDate + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
+	}
+	
+	@Override
+	public boolean updateEndTime(String hotelId, String serviceDate, String serviceType) {
+
+		String sql = "UPDATE ServiceLog SET endTimeStamp ='"
+				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "'  WHERE hotelId = '"
+				+ hotelId + "' AND serviceDate = '" + serviceDate + "';";
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -76,7 +68,7 @@ public class ServiceManager extends AccessManager implements IService{
 
 		String sql = "UPDATE ServiceLog SET smsEmailSent ='true' WHERE hotelId = '"
 				+ hotelId + "' AND serviceDate = '" + serviceDate + "' AND serviceType = '" + serviceType + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -85,7 +77,7 @@ public class ServiceManager extends AccessManager implements IService{
 		String sql = "UPDATE ServiceLog SET smsEmailSent ='false', reportForEmail = '"
 				+ reportForEmail + "' WHERE hotelId = '"
 				+ hotelId + "' AND serviceDate = '" + serviceDate + "' AND serviceType = '" + serviceType + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -116,9 +108,9 @@ public class ServiceManager extends AccessManager implements IService{
 	@Override
 	public BigDecimal getSaleForService(String hotelId, String serviceDate, String serviceType) {
 		
-		String sql = "SELECT ROUND(SUM(Payment.total)*100)/100 AS entityId FROM Payment, Orders WHERE Payment.hotelId = '" 
+		String sql = "SELECT ROUND(SUM(Payments.total)*100)/100 AS entityId FROM Payments, Orders WHERE Payments.systemId = '" 
 				+ hotelId + "' AND Orders.orderDate = '" + serviceDate + "' AND Orders.serviceType = '" + serviceType
-				+ "' AND Orders.orderID == Payment.orderId;";
+				+ "' AND Orders.orderID == Payments.orderId;";
 
 		return db.getOneRecord(sql, EntityBigDecimal.class, hotelId).getId();
 	}

@@ -8,13 +8,14 @@ import com.orderon.dao.AccessManager.Schedule;
 
 public interface ISchedules{
 
-	public ArrayList<Schedule> getSchedules(String hotelId);
+	public ArrayList<Schedule> getSchedules(String systemId, String outletId);
 	
-	public boolean addSchedule(String hotelId, String name, String days, String timeSlots);
+	public boolean addSchedule(String corporateID, String restaurantId, String systemId, String outletId, 
+			String name, String days, String timeSlots);
 	
-	public Schedule getScheduleById(String hotelId, int scheduleId);
+	public Schedule getScheduleById(String systemId, int scheduleId);
 	
-	public boolean deleteSchedule(String hotelId, int scheduleId);
+	public boolean deleteSchedule(String systemId, int scheduleId);
 	
-	public JSONArray getSchedules(String hotelId, JSONArray scheduleIds);
+	public JSONArray getSchedules(String systemId, String outletId, JSONArray scheduleIds);
 }

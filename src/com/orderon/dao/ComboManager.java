@@ -19,7 +19,7 @@ public class ComboManager extends AccessManager implements ICombo{
 	}
 
 	@Override
-	public JSONObject getCombos(String outletId) {
+	public JSONObject getCombos(String systemId, String outletId) {
 		
 		JSONObject outObj = new JSONObject();
 		JSONArray collectionsArr = new JSONArray();
@@ -40,7 +40,7 @@ public class ComboManager extends AccessManager implements ICombo{
 		IMenuItem menuDao = new MenuItemManager(false);
 		IGroup groupDao = new GroupManager(false);
 
-		collections = collectionDao.getComboCollections(outletId);
+		collections = collectionDao.getComboCollections(systemId, outletId);
 		try {
 			outObj = new JSONObject();
 			collectionsArr = new JSONArray();
@@ -56,7 +56,7 @@ public class ComboManager extends AccessManager implements ICombo{
 					
 					subCollectionObj= new JSONObject(subCollection);
 					
-					menuItems = menuDao.getMenuItems(outletId, collection.getName(), subCollection.getName());
+					menuItems = menuDao.getMenuItems(systemId, outletId, collection.getName(), subCollection.getName());
 					for (MenuItem menuItem : menuItems) {
 						menuItemObj = new JSONObject(menuItem);
 						

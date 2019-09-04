@@ -16,153 +16,159 @@ import com.orderon.dao.AccessManager.Settings;
 
 public interface IOrder extends IAccess{
 	
-	public ArrayList<Order> getAllOrders(String hotelId, String date, int orderTypeFilter, String query, boolean visible);
+	public ArrayList<Order> getAllOrders(String systemId, String outletId, String date, int orderTypeFilter, String query);
 	
-	public ArrayList<Order> getCompletedOrders(String hotelId);
+	public ArrayList<Order> getCompletedOrders(String systemId);
 	
 	public JSONObject newOnlineOrder(String jsonObj, JSONObject orderObj, int portalId);
 	
-	public ArrayList<OnlineOrder> getOnlineOrders(String hotelId);
+	public ArrayList<OnlineOrder> getOnlineOrders(String systemId);
 	
-	public OnlineOrder getOnlineOrder(String hotelId, int externalRestauranId, int externalOrderId);
+	public OnlineOrder getOnlineOrder(String systemId, int externalRestauranId, int externalOrderId);
 
-	public boolean updateOnlineOrderStatus(String hotelId, int externalRestauranId, int externalOrderId, int status, String orderId, int orderNumber);
+	public boolean updateOnlineOrderStatus(String systemId, int externalRestauranId, int externalOrderId, int status, String orderId, int orderNumber);
 
-	public boolean editOnlineOrder(String outletId, int externalOrderId, int status);
+	public boolean editOnlineOrder(String systemId, int externalOrderId, int status);
 	
-	public boolean updateOnlineRiderData(String outletId, int externalOrderId, String riderName, String riderNumber, String riderStatus);
+	public boolean updateOnlineRiderData(String systemId, int externalOrderId, String riderName, String riderNumber, String riderStatus);
 	
-	public ArrayList<OnlineOrder> getOrderDeliveryUpdate(String hotelId);
+	public ArrayList<OnlineOrder> getOrderDeliveryUpdate(String systemId);
 	
-	public boolean markOnlineOrderComplete(String outletId, int orderNumber);
+	public boolean markOnlineOrderComplete(String systemId, int orderNumber);
 	
-	public JSONObject newOrder(String hotelId, String hotelType, String userId, String[] tableIds, int peopleCount, String customer,
-			String mobileNumber, String address, String section, String remarks, ServiceLog currentService);
+	public JSONObject newOrder(String systemId, String outletId, String hotelType, String userId, String[] tableIds, int peopleCount, String customer,
+			String customerNumber, String address, String section, String remarks, ServiceLog currentService);
 	
-	public JSONObject deleteOrdersMonthWise(String hotelId, String month, double foodSalePercent, double barSalePercent);
+	public JSONObject deleteOrdersMonthWise(String systemId, String month, double foodSalePercent, double barSalePercent);
 
-	public JSONObject deleteOrdersDayWise(String hotelId, double deductionAmount, double foodSalePercent, 
+	public JSONObject deleteOrdersDayWise(String systemId, double deductionAmount, double foodSalePercent, 
 			double barSalePercent, String serviceDate, String serviceType);
 
-	public JSONObject hideOrder(String hotelId, String serviceDate, String serviceType, BigDecimal cashAmount);
+	public JSONObject hideOrder(String systemId, String serviceDate, String serviceType, BigDecimal cashAmount);
 	
-	public void AlignBillNumbersContinuous(String hotelId, int billNo, String startDate);
+	public void AlignBillNumbersContinuous(String systemId, int billNo, String startDate);
 	
-	public void AlignBillNumbersMonthWise(String hotelId, String month);
+	public void AlignBillNumbersMonthWise(String systemId, String month);
 	
-	public void AlignAllBillNumbers(String hotelId, String startMonth);
+	public void AlignAllBillNumbers(String systemId, String startMonth);
 	
-	public void AlignBillNumbersDayWise(String hotelId, String serviceDate);
+	public void AlignBillNumbersDayWise(String systemId, String serviceDate);
 	
-	public JSONObject newNCOrder(String hotelId, String userId, String reference, String section, String remarks);
+	public JSONObject newNCOrder(String systemId, String outletId, String userId, String reference, String section, String remarks);
 
-	public JSONObject newQsrOrder(String hotelId, String userId, String customer, String mobileNumber,
+	public JSONObject newQsrOrder(String systemId, String outletId, String userId, String customer, String customerNumber,
 			String allergyInfo, int orderType, String emailId, String referenceForReview);
 
-	public JSONObject placeOrder(String hotelId, String userId, String customer, JSONObject customerDetails, String phone, String address,
+	public JSONObject placeOrder(String systemId, String outletId, String userId, String customer, JSONObject customerDetails, String customerNumber, String address,
 			int orderType, int takeAwayType, String allergyInfo, String reference, String remarks, 
 			String externalOrderId, JSONArray discountCodes, String emailId, String referenceForReview, String section,
-			Double cashToBeCollected, Double zomatoVoucherAmount, Double goldDiscount, Double piggyBank, BigDecimal amountReceivable);
+			Double cashToBeCollected, Double zomatoVoucherAmount, Double goldDiscount, Double piggyBank, BigDecimal amountReceivable,
+			int orderPreparationTime, JSONObject onlineOrderData);
 
-	public JSONObject newHomeDeliveryOrder(String hotelId, String userId, String customer, String phone, String address,
+	public JSONObject newHomeDeliveryOrder(String systemId, String outletId, String userId, String customer, String customerNumber, String address,
 			String allergyInfo, String remarks, String section);
 
-	public JSONObject newTakeAwayOrder(String hotelId, String userId, String customer, JSONObject customerDetails, String phone,
+	public JSONObject newTakeAwayOrder(String systemId, String outletId, String userId, String customer, JSONObject customerDetails, String customerNumber,
 			String externalId, String allergyInfo, String remarks, String externalOrderId, JSONArray discountCodes,
-			String section, Double cashToBeCollected, Double goldDiscount, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable);
+			String section, Double cashToBeCollected, Double goldDiscount, Double zomatoVoucherAmount, Double piggyBank, BigDecimal amountReceivable,
+			int orderPreparationTime, JSONObject onlineOrderData);
 
-	public JSONObject newBarOrder(String hotelId, String userId, String reference, String remarks, String section);
+	public JSONObject newBarOrder(String systemId, String outletId, String userId, String reference, String remarks, String section);
 
-	public Boolean unCheckOutOrder(String hotelId, String orderId);
+	public Boolean unCheckOutOrder(String systemId, String orderId);
 
-	public Boolean checkOutOrder(String hotelId, String orderId);
+	public Boolean checkOutOrder(String systemId, String outletId, String orderId);
 	
-	public Boolean updateDeliveryTime(String hotelId, String orderId);
+	public Boolean updateDeliveryTime(String systemId, String orderId);
 	
-	public Boolean updateCompleteTime(String hotelId, String orderId);
+	public Boolean updateCompleteTime(String systemId, String orderId);
 	
-	public Boolean updateDeliveryBoy(String hotelId, String orderId, String employeeName);
+	public Boolean updateDeliveryBoy(String systemId, String orderId, String employeeName);
 
-	public Boolean changeOrderStatus(String hotelId, String orderId);
+	public Boolean changeOrderStatus(String systemId, String orderId);
 
-	public Boolean changeOrderStateToHidden(String hotelId, String orderId);
+	public Boolean changeOrderStateToHidden(String systemId, String orderId);
 
-	public Boolean changeOrderStateToCancelled(String hotelId, String orderId);
+	public Boolean changeOrderStateToCancelled(String systemId, String orderId);
 
-	public Boolean markPaymentComplete(String hotelId, String orderId);
+	public Boolean markPaymentComplete(String systemId, String orderId);
 
-	public Boolean changeOrderStatusToService(String hotelId, String orderId);
+	public Boolean changeOrderStatusToService(String systemId, String orderId);
 
-	public Boolean removeOrderedSpecification(String hotelId, String orderId, String subOrderId, String menuId,
+	public Boolean removeOrderedSpecification(String systemId, String orderId, String subOrderId, String menuId,
 			int itemId);
 
-	public JSONObject voidOrder(String hotelId, String orderId, String reason, String authId, String section);
+	public JSONObject voidOrder(String systemId, String outletId, String orderId, String reason, String authId, String section);
 
-	public Boolean complimentaryOrder(String hotelId, String orderId, String authId);
+	public Boolean complimentaryOrder(String systemId, String outletId, String orderId, String authId);
 
-	public Integer getOrderCount(String hotelId, String userId, Date dt);
+	public Integer getOrderCount(String systemId, String outletId, String userId, Date dt);
 	
-	public Order getOrderById(String hotelId, String orderId);
+	public Order getOrderById(String systemId, String orderId);
 
-	public Boolean hasCheckedOutOrders(String hotelId, String serviceDate);
+	public Boolean hasCheckedOutOrders(String systemId, String serviceDate);
 
-	public int getNextKOTNumber(String hotelId);
+	public int getNextKOTNumber(String systemId, String outletId);
 
-	public int getNextBOTNumber(String hotelId);
+	public int getNextBOTNumber(String systemId, String outletId);
 
-	public String getNextBillNo(String hotelId, String station);
+	public String getNextBillNoNumberFormatYearly(String systemId, String outletId);
 
-	public String getNextBillNoNumberFormat(String hotelId);
+	public String getNextBillNoNumberFormatDaywise(String systemId, String outletId);
 
-	public String getNextBillNoNumberFormatDaywise(String hotelId);
+	public String getNextBillNoNumberFormatMonthwise(String systemId, String outletId);
 
-	public String getNextBillNoNumberFormatMonthwise(String hotelId);
+	public ArrayList<HomeDelivery> getActiveHomeDeliveries(String systemId, Settings settings, String outletId, String userId);
 
-	public ArrayList<HomeDelivery> getActiveHomeDeliveries(Settings settings, String userId);
+	public ArrayList<HomeDelivery> getActiveTakeAway(String systemId, Settings settings, String outletId, String userId);
 
-	public ArrayList<HomeDelivery> getActiveTakeAway(Settings settings, String userId);
+	public ArrayList<HomeDelivery> getActiveBarOrders(String systemId, Settings settings, String outletId, String userId);
 
-	public ArrayList<HomeDelivery> getActiveBarOrders(Settings settings, String userId);
+	public Boolean isHomeDeliveryOrder(String systemId, String orderId);
 
-	public Boolean isHomeDeliveryOrder(String hotelId, String orderId);
+	public Boolean isTakeAwayOrder(String systemId, String orderId);
 
-	public Boolean isTakeAwayOrder(String hotelId, String orderId);
-
-	public Boolean isBarOrder(String hotelId, String orderId);
+	public Boolean isBarOrder(String systemId, String orderId);
 	
-	public Boolean deleteOrder(String hotelId, String orderId);
+	public Boolean deleteOrder(String systemId, String orderId);
 
-	public boolean updateOrderPrintCount(String hotelId, String orderId);
+	public boolean updateOrderPrintCount(String systemId, String orderId);
 
-	public boolean updateOrderSMSStatusDone(String hotelId, String orderId);
+	public boolean updateOrderSMSStatusDone(String systemId, String orderId);
 
-	public int getOrderPrintCount(String hotelId, String orderId);
+	public int getOrderPrintCount(String systemId, String orderId);
 	
-	public Boolean updateItemRatesInOrder(String hotelId, String orderId, String newTableType);
+	public Boolean updateItemRatesInOrder(String systemId, String orderId, String newTableType);
 
-	public boolean applyCustomerGST(String hotelId, String orderId, String gst);
+	public boolean applyCustomerGST(String systemId, String orderId, String gst);
 
-	public boolean applyOrderRemark(String hotelId, String orderId, String remark);
+	public boolean applyOrderRemark(String systemId, String orderId, String remark);
 	
-	public ArrayList<Order> getOrdersOfOneCustomer(String hotelId, String mobileNumber);
+	public ArrayList<Order> getOrdersOfOneCustomer(String systemId, String customerNumber);
 
 	public String getOrderType(int orderTypeCode);
 	
-	public boolean toggleChargeInOrder(String hotelId, String orderId, int chargeId);
+	public boolean toggleChargeInOrder(String systemId, String orderId, int chargeId);
 	
-	public boolean toggleTaxInOrder(String hotelId, String orderId, int taxId);
+	public boolean toggleTaxInOrder(String systemId, String orderId, int taxId);
 
-	public EntityString getMobileNoFromOrderId(String hotelId, String orderId);
+	public EntityString getMobileNoFromOrderId(String systemId, String orderId);
 	
-	public Boolean markFoodReady(String outletId, String orderId);
+	public Boolean markFoodReady(String systemId, String orderId);
 	
-	public Boolean updateWalletTransactionId(String outletId, String orderId, int walletTransactionId);
+	public Boolean updateWalletTransactionId(String systemId, String orderId, int walletTransactionId);
 	
-	public Boolean removeCustomerFromOrder(String outletId, String orderId);
+	public Boolean removeCustomerFromOrder(String systemId, String orderId);
 	
-	public Boolean redeemPromotionalCash(String outletId, String orderId, BigDecimal promotionalCash);
+	public Boolean redeemPromotionalCash(String systemId, String orderId, BigDecimal promotionalCash);
 	
-	public Boolean updateRiderDetails(String outletId, String orderId, String riderName, String riderNumber, String riderStatus);
+	public Boolean updateRiderDetails(String systemId, String orderId, String riderName, String riderNumber, String riderStatus);
 	
-	public Boolean updateEWardsOfferDetails(String outletId, String orderId, int points, String couponCode, int offerType);
+	public Boolean updateEWardsOfferDetails(String systemId, String orderId, int points, String couponCode, int offerType);
+	
+	public Boolean checkIfOnlineOrderExists(String systemId, String outletId, String externalOrderId, String serviceDate);
+	
+	public void deleteBlankOrders(String systemId, String serviceDate);
+	
+	public boolean assignBillNumberToOrder(String systemId, String outletId, String orderId);
 }

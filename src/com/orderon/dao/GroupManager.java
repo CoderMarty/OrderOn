@@ -16,21 +16,21 @@ public class GroupManager extends AccessManager implements IGroup {
 	}
 
 	@Override
-	public Boolean groupExists(String hotelId, String groupName) {
-		String sql = "SELECT * FROM Groups WHERE hotelId = '"+hotelId+"' AND name = '"+groupName+"';";
-		return db.hasRecords(sql, hotelId);
+	public Boolean groupExists(String systemId, String outletId, String groupName) {
+		String sql = "SELECT * FROM Groups WHERE outletId = '"+outletId+"' AND name = '"+groupName+"';";
+		return db.hasRecords(sql, systemId);
 	}
 
 	@Override
-	public ArrayList<Group> getGroups(String hotelId) {
-		String sql = "SELECT * FROM Groups  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Group.class, hotelId);
+	public ArrayList<Group> getGroups(String systemId, String outletId) {
+		String sql = "SELECT * FROM Groups  WHERE outletId='" + outletId + "'";
+		return db.getRecords(sql, Group.class, systemId);
 	}
 	
 	@Override
-	public JSONArray getLast2GroupIds(String hotelId) {
-		String sql = "SELECT id FROM Groups WHERE hotelId='" + hotelId + "' ORDER BY id DESC LIMIT 2";
-		ArrayList<Group> groups = db.getRecords(sql, Group.class, hotelId);
+	public JSONArray getLast2GroupIds(String systemId, String outletId) {
+		String sql = "SELECT id FROM Groups WHERE outletId='" + outletId + "' ORDER BY id DESC LIMIT 2;";
+		ArrayList<Group> groups = db.getRecords(sql, Group.class, systemId);
 		JSONArray groupArr = new JSONArray();
 		for (Group group : groups) {
 			groupArr.put(group.getId());
@@ -39,23 +39,26 @@ public class GroupManager extends AccessManager implements IGroup {
 	}
 
 	@Override
-	public ArrayList<Group> getActiveGroups(String hotelId) {
-		String sql = "SELECT * FROM Groups  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, Group.class, hotelId);
+	public ArrayList<Group> getActiveGroups(String systemId, String outletId) {
+		String sql = "SELECT * FROM Groups  WHERE outletId='" + outletId + "' AND isActive = 'true';";
+		return db.getRecords(sql, Group.class, systemId);
 	}
 
 	@Override
-	public JSONObject addGroup(String hotelId, String itemIds, String name, String description, int max, int min, 
+	public JSONObject addGroup(String corparateId, String restaurantId, String systemId, String outletId,
+			String itemIds, String name, String description, int max, int min, 
 			Boolean isActive, String title, String subTitle) {
 
 		JSONObject outObj = new JSONObject();
 		try {
 			outObj.put("status", false);
 		
-			String sql = "INSERT INTO Groups (hotelId, itemIds, name, description, max, min, isActive, title, subTitle) VALUES('" 
-					+ escapeString(hotelId) + "', '" + itemIds + "', '" + escapeString(name) + "', '" + escapeString(description) 
-					+ "', " + max + ", " + min + ", '" + isActive+ "', '" + title+ "', '" + subTitle + "');";
-			if(db.executeUpdate(sql, true)) {
+			String sql = "INSERT INTO Groups (corparateId, restaurantId, systemId, outletId, itemIds, name, description, max, min, "
+					+ "isActive, isActiveOnline, title, subTitle) VALUES('" + escapeString(corparateId) + "', '" 
+					+ escapeString(restaurantId) + "', '"  + escapeString(systemId) + "', '"  + escapeString(outletId) + "', '" 
+					+ itemIds + "', '" + escapeString(name) + "', '" + escapeString(description) 
+					+ "', " + max + ", " + min + ", '" + isActive+ "', '" + isActive+ "', '" + title+ "', '" + subTitle + "');";
+			if(db.executeUpdate(sql, systemId, true)) {
 				outObj.put("status", true);
 			}
 		} catch (JSONException e) {
@@ -66,33 +69,33 @@ public class GroupManager extends AccessManager implements IGroup {
 	}
 
 	@Override
-	public boolean updateGroup(String hotelId, int groupId, String itemIds, String name, String description, 
-			int max, int min, Boolean isActive, String title, String subTitle) {
+	public boolean updateGroup(String systemId, String outletId, int groupId, String itemIds, String name, String description, 
+			int max, int min, Boolean isActive, Boolean isActiveOnline, String title, String subTitle) {
 
 		String sql = "UPDATE Groups SET itemIds = '" + itemIds + "', name = '" + name 
 				+ "', description = '" + description + "', max = " + max + ", min = " + min 
-				+ ", isActive = '" + isActive + "', title = '" + title + "', subTitle = '" + subTitle 
-				+ "' WHERE hotelId = '" + hotelId + "' AND id = " + groupId + ";";
-		return db.executeUpdate(sql, true);
+				+ ", isActive = '" + isActive + ", isActiveOnline = '" + isActiveOnline + "', title = '" + title 
+				+ "', subTitle = '" + subTitle + "' WHERE outletId = '" + outletId + "' AND id = " + groupId + ";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public Group getGroupByName(String hotelId, String groupName) {
-		String sql = "SELECT * FROM Groups WHERE name='" + escapeString(groupName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Group.class, hotelId);
+	public Group getGroupByName(String systemId, String outletId, String groupName) {
+		String sql = "SELECT * FROM Groups WHERE name='" + escapeString(groupName) + "' AND systemId='"
+				+ escapeString(systemId) + "';";
+		return db.getOneRecord(sql, Group.class, systemId);
 	}
 
 	@Override
-	public Group getGroupById(String hotelId, int groupId) {
-		String sql = "SELECT * FROM Groups WHERE id='" + groupId + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Group.class, hotelId);
+	public Group getGroupById(String systemId, int groupId) {
+		String sql = "SELECT * FROM Groups WHERE id='" + groupId + "' AND systemId='"
+				+ escapeString(systemId) + "';";
+		return db.getOneRecord(sql, Group.class, systemId);
 	}
 
 	@Override
-	public boolean deleteGroup(String hotelId, int id) {
-		String sql = "DELETE FROM Groups WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+	public boolean deleteGroup(String systemId, int id) {
+		String sql = "DELETE FROM Groups WHERE id = " + id + ";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 }

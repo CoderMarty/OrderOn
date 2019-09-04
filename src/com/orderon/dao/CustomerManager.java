@@ -35,16 +35,16 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 
 	@Override
 	public Boolean addCustomer(String hotelId, String firstName, String surName, String phone, String address, String birthdate,
-			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, 
+			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, String sex, 
 			String referenceForReview) {
 		ILoyaltySettings loyalty = new LoyaltyManager(false);
 		String sql = "INSERT INTO Customers (hotelId, firstName, surName,address,mobileNumber, birthdate, anniversary, allergyInfo, "
-				+ "points, wantsPromotion, isPriority, userType, emailId, reference, communicationMode, sendSMS, joiningDate) VALUES ('"
+				+ "points, wantsPromotion, isPriority, userType, emailId, sex, reference, communicationMode, sendSMS, joiningDate) VALUES ('"
 				+ escapeString(hotelId) + "', '" + escapeString(firstName) + "', '" + escapeString(surName) + "', '" + escapeString(address) + "', '"
 				+ escapeString(phone) + "', '" + escapeString(birthdate) + "', '" + escapeString(anniversary) + "', '"
 				+ escapeString(allergyInfo) + "', 0, '" + wantsPromotion + "', '"+ isPriorityCust + "', '"+loyalty.getBaseLoyaltySetting(hotelId).getUserType()
-				+ "', '"+escapeString(emailId)+"', '"+escapeString(referenceForReview)+"', '[]', 'true', '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"');";
-		return db.executeUpdate(sql, true);
+				+ "', '"+escapeString(sex)+ "', '"+escapeString(emailId)+"', '"+escapeString(referenceForReview)+"', '[]', 'true', '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"');";
+		return db.executeUpdate(sql, hotelId, true);
 	}
 	
 	@Override
@@ -149,7 +149,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 				+ allergyInfo + remarks + address + emailId + sex + "', wantsPromotion = '" + wantsPromotion + "', mobileNumber='"
 				+ escapeString(phone) + "' WHERE id = "+id+";";
 			}
-			return db.executeUpdate(sql, true);
+			return db.executeUpdate(sql, hotelId, true);
 		}
 		return true;
 	}
@@ -160,7 +160,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 		int visitCount = customer.getVisitCount()+1;
 		String sql = "UPDATE Customers SET visitCount="+ visitCount +", lastVisitDate = '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"' WHERE mobileNumber='"
 				+ customer.getMobileNumber() +"';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -178,12 +178,12 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 			firstName = customerName.split(" ")[0];
 			surName = customerName.split(" ")[1];
 		}
-		return this.editCustomerDetails(hotelId, orderId, firstName, surName, number, address, noOfGuests, allergyInfo);
+		return this.editCustomerDetails(hotelId, orderId, firstName, surName, number, address, noOfGuests, allergyInfo, "", "NONE");
 	}
 
 	@Override
 	public Boolean editCustomerDetails(String hotelId, String orderId, String firstName, String surName, String number, String address,
-			int noOfGuests, String allergyInfo) {
+			int noOfGuests, String allergyInfo, String emailId, String sex) {
 		
 		IOrder orderDao = new OrderManager(false);
 		Order order = orderDao.getOrderById(hotelId, orderId);
@@ -204,13 +204,13 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 			noOfGuests = order.getNumberOfGuests();
 		String sql = "UPDATE Orders SET customerName ='" + escapeString(firstName + " " + surName) + "', numberOfGuests = "
 				+ Integer.toString(noOfGuests) + ", customerNumber = '" + escapeString(number)
-				+ "', customerAddress = '" + escapeString(address) + "' WHERE hotelId = '" + escapeString(hotelId)
-				+ "' AND orderId = '" + escapeString(orderId) + "';";
+				+ "', customerAddress = '" + escapeString(address)
+				+ "' WHERE orderId = '" + escapeString(orderId) + "';";
 
-		boolean hasUpdated = db.executeUpdate(sql, true);
+		boolean hasUpdated = db.executeUpdate(sql, hotelId, true);
 		if (hasUpdated) {
 			if (customer == null) {
-				this.addCustomer(hotelId, firstName, surName, number, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE, "", "");
+				this.addCustomer(hotelId, firstName, surName, number, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE, emailId, sex, "");
 			} else {
 				this.updateCustomer(hotelId, null, firstName, surName, number, "", "", "", allergyInfo, address,
 						customer.getWantsPromotion() == null ? false : customer.getWantsPromotion(), "", "");
@@ -355,7 +355,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 
 	@Override
 	public ArrayList<Customer> getAllCustomerDetailsForOrdering(String hotelId) {
-		String sql = "SELECT id, mobileNumber, firstName, surName, address FROM Customers;";
+		String sql = "SELECT id, mobileNumber, firstName, surName, address, sex FROM Customers;";
 		return db.getRecords(sql, Customer.class, hotelId);
 	}
 
@@ -377,7 +377,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 					+ "VALUES ('"+outletId+"', '"+mobileNumber+"', "+amount+", '"+orderId+"', '"+
 					CUSTOMER_CREDIT_UNSETTLED+"', '"+serviceDao.getServiceDate(outletId)+"')";
 			
-			outObj.put("status", db.executeUpdate(sql, true));
+			outObj.put("status", db.executeUpdate(sql, outletId, true));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -397,7 +397,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 					+ "WHERE outletId = '"+outletId+"' AND mobileNumber = '"+mobileNumber+"' AND "
 					+ "orderId = '"+orderId+"';";
 			
-			outObj.put("status", db.executeUpdate(sql, true));
+			outObj.put("status", db.executeUpdate(sql, outletId, true));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -430,7 +430,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 	public boolean deleteAllCustomers(String outletId) {
 		
 		String sql = "DELETE FROM Customers;";
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, outletId, false);
 	}
 
 	@Override
@@ -446,7 +446,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 			}
 			boolean status = customer.getSendSMS()?false:true;
 			String sql = "UPDATE Customers SET sendSMS = '"+status+"' WHERE mobileNumber = '"+mobileNumber+"';";
-			outObj.put("status", db.executeUpdate(sql, true));
+			outObj.put("status", db.executeUpdate(sql, outletId, true));
 			
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
@@ -469,7 +469,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 		String sql = "INSERT INTO PromotionalCampaign (outletId, name, messageContent, outletIds, userTypes, sex, ageGroup, status) VALUES ('"
 				+ escapeString(outletId) + "', '" + escapeString(name) + "', '" + escapeString(messageContent) + "', '" + outletIds.toString() + "', '"
 				+ userTypes.toString() + "', '" + sex + "', '"+ageGroup+"', 'DRAFTED');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -490,7 +490,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 	public boolean deleteCampaign(String outletId, int id) {
 		
 		String sql = "DELETE FROM PromotionalCampaign WHERE outletId = '"+outletId+"' AND id = "+id+";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override

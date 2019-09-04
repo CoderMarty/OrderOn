@@ -43,7 +43,7 @@ public class ServerManager extends AccessManager implements IServer{
 				+ hotelId + "';";
 
 		try {
-			outObj.put("status", db.executeUpdate(sql, false));
+			outObj.put("status", db.executeUpdate(sql, hotelId, false));
 			outObj.put("time", now.toString());
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
@@ -57,7 +57,7 @@ public class ServerManager extends AccessManager implements IServer{
 
 		String sql = "UPDATE ServerLog SET status = 0 WHERE hotelId = '" + hotelId + "';";
 
-		return db.executeUpdate(sql, updateServer);
+		return db.executeUpdate(sql, hotelId, updateServer);
 	}
 
 	@Override
@@ -66,7 +66,7 @@ public class ServerManager extends AccessManager implements IServer{
 		String sql = "INSERT into ServerLog ('hotelId', 'lastUpdateTime', 'status') VALUES ('" + escapeString(hotelId)
 				+ "','" + LocalDateTime.now() + "', 1);";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class ServerManager extends AccessManager implements IServer{
 		
 		String sql = "INSERT into DBTransactions ('transactions') VALUES ('" + escapeString(transaction) + "');";
 
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, hotelId, false);
 	}
 
 	@Override
@@ -90,7 +90,7 @@ public class ServerManager extends AccessManager implements IServer{
 
 		String sql = "DELETE FROM DBTransactions;";
 
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, hotelId, false);
 	}
 
 }

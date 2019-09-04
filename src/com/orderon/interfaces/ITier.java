@@ -11,7 +11,7 @@ public interface ITier {
 
 	public ArrayList<Tier> getTiers(String systemId, String outletId);
 
-	public boolean addTier(String corporateId, String systemId, String outletId, BigDecimal value, boolean chargeAlwaysApplicable, 
+	public boolean addTier(String corporateId, String restaurantId, String systemId, String outletId, BigDecimal value, boolean chargeAlwaysApplicable, 
 			BigDecimal minBillAMount);
 
 	public Tier getTierById(String systemId, int id);

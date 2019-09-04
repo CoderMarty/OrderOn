@@ -16,43 +16,49 @@ public class CollectionManager extends AccessManager implements ICollection{
 	}
 
 	@Override
-	public ArrayList<Collection> getCollections(String hotelId) {
-		String sql = "SELECT * FROM Collections WHERE hotelId='" + hotelId + "' ORDER BY collectionOrder";
-		return db.getRecords(sql, Collection.class, hotelId);
+	public ArrayList<Collection> getCollections(String systemId, String outletId) {
+		String sql = "SELECT * FROM Collections WHERE outletId = '"+outletId+"' ORDER BY collectionOrder";
+		
+		return db.getRecords(sql, Collection.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Collection> getActiveCollections(String hotelId) {
-		String sql = "SELECT * FROM Collections WHERE hotelId='" + hotelId + "' AND isActive = 'true' ORDER BY collectionOrder;";
-		return db.getRecords(sql, Collection.class, hotelId);
+	public ArrayList<Collection> getActiveCollections(String systemId, String outletId) {
+		String sql = "SELECT * FROM Collections WHERE outletId = '"+ outletId
+				+ "' AND isActive = 'true' ORDER BY collectionOrder;";
+		return db.getRecords(sql, Collection.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Collection> getComboCollections(String hotelId) {
-		String sql = "SELECT * FROM Collections WHERE hotelId='" + hotelId + "' AND isSpecialCombo = 'true' ORDER BY collectionOrder;";
-		return db.getRecords(sql, Collection.class, hotelId);
+	public ArrayList<Collection> getComboCollections(String systemId, String outletId) {
+		String sql = "SELECT * FROM Collections WHERE outletId='" + outletId + "' "
+				+ "AND isSpecialCombo = 'true' ORDER BY collectionOrder;";
+		
+		return db.getRecords(sql, Collection.class, systemId);
 	}
 
 	@Override
-	public JSONObject addCollection(String hotelId, String name, String description, String image,
-			 int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo, JSONArray tags) {
+	public JSONObject addCollection(String corparateId, String restaurantId, String systemId, String outletId, String name, 
+			String description, String imgUrl, int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, 
+			boolean isSpecialCombo , JSONArray tags) {
 
 		JSONObject outObj = new JSONObject();
 		try {
 			name = name.toUpperCase();
 			outObj.put("status", false);
-			if(collectionExists(hotelId, name)) {
+			if(collectionExists(systemId, outletId, name)) {
 				outObj.put("message", "CollectionManager Already exists.");
 				return outObj;
 			}
 			
-			String sql = "INSERT INTO Collections (hotelId, name, description, image, collectionOrder, hasSubCollection, isActive"
-					+ ", isActiveOnZomato, isSpecialCombo, scheduleIds, tags) "
-					+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', '" + escapeString(description) + "', '" 
-					+ (image.equals("No image") ? "" : "1") + "', "+collectionOrder+", '"+hasSubCollection
+			String sql = "INSERT INTO Collections (corparateId, restaurantId, systemId, outletId, name, description, imgUrl, "
+					+ "collectionOrder, hasSubCollection, isActive, isActiveOnZomato, isSpecialCombo, scheduleIds, tags) "
+					+ "VALUES('" + escapeString(corparateId) + "', '" + escapeString(restaurantId) + "', '" + escapeString(systemId) 
+					+ "', '" + escapeString(outletId) + "', '" + escapeString(name) + "', '" + escapeString(description) + "', '" 
+					+ escapeString(imgUrl) + "', '" + "', "+collectionOrder+", '"+hasSubCollection
 					+"', 'true', '"+isActiveOnZomato+"', '"+isSpecialCombo+"', '[]', '"+tags+"');";
 			
-			if(db.executeUpdate(sql, true)) {
+			if(db.executeUpdate(sql, systemId, true)) {
 				outObj.put("status", true);
 			}
 			
@@ -64,14 +70,15 @@ public class CollectionManager extends AccessManager implements ICollection{
 	}
 
 	@Override
-	public JSONObject editCollection(int collectionId, String hotelId, String name, String description, boolean isActive,
-			int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, boolean isSpecialCombo, JSONArray tags) {
+	public JSONObject editCollection(int collectionId, String systemId, String outletId, String name, 
+			String description, boolean isActive, int collectionOrder, boolean isActiveOnZomato, boolean hasSubCollection, 
+			boolean isSpecialCombo, JSONArray tags, String imgUrl) {
 
 		JSONObject outObj = new JSONObject();
 		try {
 			outObj.put("status", false);
 			
-			Collection collection = this.getCollectionById(hotelId, collectionId);
+			Collection collection = this.getCollectionById(systemId, collectionId);
 			
 			String sql = "UPDATE Collections SET "
 					+ "name = '"+name+"', "
@@ -81,12 +88,15 @@ public class CollectionManager extends AccessManager implements ICollection{
 					+ "isActive = '"+isActive+"',"
 					+ "isActiveOnZomato = '"+isActiveOnZomato+"', "
 					+ "isSpecialCombo = '"+isSpecialCombo+"', "
-					+ "tags = '"+tags+"' "
-					+ "WHERE hotelId = '"+hotelId+"' "
+					+ "tags = '"+tags+"', "
+					+ "imgUrl = '"+imgUrl+"' "
+					+ "WHERE outletId = '"+outletId+"' "
 					+ "AND id = '"+collectionId+"';";
 			
-			sql += "UPDATE MenuItems SET collection = '"+name+"' WHERE collection = '"+collection.getName()+"';";
-			if(db.executeUpdate(sql, true)) {
+			sql += "UPDATE MenuItems SET collection = '"+name+"' WHERE collection = '"+collection.getName()
+				+"' AND outletId = '"+outletId+"';";
+			
+			if(db.executeUpdate(sql, systemId, true)) {
 				outObj.put("status", true);
 			}
 			
@@ -98,8 +108,8 @@ public class CollectionManager extends AccessManager implements ICollection{
 	}
 
 	@Override
-	public Boolean collectionExists(String hotelId, String collectionName) {
-		Collection collection = getCollectionByName(hotelId, collectionName);
+	public Boolean collectionExists(String systemId, String outletId, String collectionName) {
+		Collection collection = getCollectionByName(systemId, outletId, collectionName);
 		if (collection != null) {
 			return true;
 		}
@@ -107,29 +117,28 @@ public class CollectionManager extends AccessManager implements ICollection{
 	}
 
 	@Override
-	public Collection getCollectionByName(String hotelId, String collectionName) {
-		String sql = "SELECT * FROM Collections WHERE name='" + escapeString(collectionName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Collection.class, hotelId);
+	public Collection getCollectionByName(String systemId, String outletId, String collectionName) {
+		String sql = "SELECT * FROM Collections WHERE name='" + escapeString(collectionName) + "' AND outletId='"
+				+ escapeString(outletId) + "';";
+		return db.getOneRecord(sql, Collection.class, systemId);
 	}
 
 	@Override
-	public Collection getCollectionById(String hotelId, int id) {
-		String sql = "SELECT * FROM Collections WHERE id=" + id + " AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Collection.class, hotelId);
+	public Collection getCollectionById(String systemId, int collectionId) {
+		String sql = "SELECT * FROM Collections WHERE id=" + collectionId + ";";
+		return db.getOneRecord(sql, Collection.class, systemId);
 	}
 
 	@Override
-	public boolean deleteCollection(String hotelId, String collectionName) {
-		String sql = "DELETE FROM Collections WHERE name = '" + collectionName + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+	public boolean deleteCollection(String systemId, int collectionId) {
+		String sql = "DELETE FROM Collections WHERE id = " + collectionId + ";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public boolean updateCollectionImageUrl(String outletId, int collectionId, String imageUrl) {
+	public boolean updateCollectionImageUrl(String systemId, int collectionId, String imageUrl) {
 		
-		String sql = "UPDATE Collections SET image = '"+imageUrl+"' WHERE id = "+collectionId+";";
-		return db.executeUpdate(sql, outletId, true);
+		String sql = "UPDATE Collections SET imgUrl = '"+imageUrl+"' WHERE id = "+collectionId+";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 }

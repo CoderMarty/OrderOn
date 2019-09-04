@@ -13,42 +13,30 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 	}
 	
 	@Override
-	public MenuItem itemExists(String hotelId, String title) {
-		String sql = "SELECT * FROM MenuItems WHERE title='" + escapeString(title) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
+	public boolean itemExists(String systemId, String outletId, String title) {
+		String sql = "SELECT * FROM MenuItems WHERE title='" + escapeString(title) + "' AND outletId='" + outletId + "';";
 
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
+		return db.hasRecords(sql, systemId);
 	}
 
 	@Override
-	public boolean isTaxableMenuItem(String hotelId, String menuId) {
+	public String addMenuItem(String corporateId, String restaurantId, String systemId, String outletId, String title, String description, 
+			String collection, String subCollection, String station, String flags, String groups, int preparationTime, 
+			BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, BigDecimal onlineRate, BigDecimal zomatoRate, 
+			BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, BigDecimal costPrice, String imgUrl, String coverImgUrl, 
+			int incentiveQuantity, int incentiveAmount, String code, String taxes, String charges, boolean isRecomended, boolean isTreats, 
+			boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice, boolean syncOnZomato, 
+			boolean gstInclusive, String discountType, BigDecimal discountValue) {
 
-		String sql = "SELECT * FROM MenuItems WHERE menuId = '" + escapeString(menuId) + "' AND hotelId='"
-				+ escapeString(hotelId) + "' AND isTaxable = 0;";
-
-		return db.hasRecords(sql, hotelId);
-	}
-
-	@Override
-	public String addMenuItem(String hotelId, String title, String description, String collection, String subCollection, String station,
-			String flags, String groups, int preparationTime, BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, 
-			BigDecimal onlineRate, BigDecimal zomatoRate, BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, 
-			BigDecimal costPrice, String image, String coverImgUrl, int incentiveType, int incentive, String code, String taxes, String charges,
-			boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice, boolean isAddon
-			, boolean syncOnZomato, boolean gstInclusive, String discountType, BigDecimal discountValue) {
-
-		String menuId = getNextMenuId(hotelId);
+		String menuId = getNextMenuId(systemId, outletId);
+		
 		taxes = taxes.replaceAll("\"", "");
 		charges = charges.replaceAll("\"", "");
+		flags = flags.replace("\"", "");
+		
 		title = AccessManager.toTitleCase(title);
-		int vegType = 1;	
-		if(flags.contains("2")) {
-			vegType = 2;
-		}else if(flags.contains("5")) {
-			vegType = 3;
-		}else if(flags.contains("3")) {
-			vegType = 4;
-		}
+		
+		//If gst inclusive of price calculate GST amount, subtract amount from the rate.
 		if(gstInclusive) {
 			BigDecimal gstCal = new BigDecimal("0.95238095");
 			dineInRate = dineInRate.multiply(gstCal).setScale(2, BigDecimal.ROUND_HALF_UP);
@@ -57,92 +45,102 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 			onlineRate = gstCal.multiply(onlineRate).setScale(2, BigDecimal.ROUND_HALF_UP);
 		}
 		
-		flags = flags.replace("\"", "");
 		String sql = "INSERT INTO MenuItems "
-				+ "(corporateId, hotelId, menuId, title, description, collection, subCollection, station, flags, groups, preparationTime, deliveryRate, "
+				+ "(corporateId, restaurantId, systemId, outletId, menuId, title, description, collection, subCollection, station, flags, groups, preparationTime, deliveryRate, "
 				+ "dineInRate, dineInNonAcRate, onlineRate, onlineRate1, onlineRate2, onlineRate3, onlineRate4, onlineRate5, comboPrice, costPrice, "
-				+ "img, coverImgUrl, method, code, state, hasIncentive, incentive, taxes, charges, isRecomended, isTreats, isDefault, isBogo, isCombo, "
-				+ "comboReducedPrice, isAddon, vegType, isTaxable, syncOnZomato, discountType, discountValue) VALUES('', '"
-				+ escapeString(hotelId) + "', '" + escapeString(menuId) + "', '" + escapeString(title) + "', '"
-				+ escapeString(description) + "', '" + escapeString(collection) + "', '" + escapeString(subCollection) + "', '" 
-				+ escapeString(station) + "', '" + escapeString(flags) +"', '" + escapeString(groups) +  "', " + Integer.toString(preparationTime) + ", " + deliveryRate
-				+ ", " + dineInRate + ", " + dineInNonAcRate + ", " + onlineRate + ", " + zomatoRate + ", " + swiggyRate + ", " + uberEatsRate + ", " 
-				+ onlineRate + ", " + onlineRate + ", " + comboPrice + ", " + costPrice + ", '" + image + "', '" + coverImgUrl + "', '', '"
-				+ code + "', " + MENUITEM_STATE_AVAILABLE + ", " + incentiveType + ", " + incentive + ", '"+taxes+"'" 
-				+ ", '" + escapeString(charges) + "', '" + Boolean.toString(isRecomended) + "', '" + Boolean.toString(isTreats) 
-				+ "', '" + Boolean.toString(isDefault) + "', '" + Boolean.toString(isBogo) + "', '" + Boolean.toString(isCombo) + "', " + comboReducedPrice + ", '" + Boolean.toString(isAddon)
-				+ "', "+vegType+", 0, '"+syncOnZomato+"', '"+discountType+"', "+discountValue+");";
+				+ "imgUrl, coverImgUrl, code, incentiveQuantity, incentiveAmount, taxes, charges, isRecomended, isTreats, isDefault, isBogo, isCombo, "
+				+ "comboReducedPrice, syncOnZomato, discountType, discountValue) VALUES('"
+				+ escapeString(corporateId) + "', '" + escapeString(restaurantId) + "', '" + escapeString(systemId) + "', '" + escapeString(outletId) + "', '" 
+				+ escapeString(menuId) + "', '" + escapeString(title) + "', '" + escapeString(description) + "', '" + escapeString(collection) + "', '" 
+				+ escapeString(subCollection) + "', '" + escapeString(station) + "', '" + escapeString(flags) +"', '" + escapeString(groups) +  "', " + preparationTime + ", " 
+				+ deliveryRate + ", " + dineInRate + ", " + dineInNonAcRate + ", " + onlineRate + ", " + zomatoRate + ", " + swiggyRate + ", " + uberEatsRate + ", " 
+				+ onlineRate + ", " + onlineRate + ", " + comboPrice + ", " + costPrice + ", '" + imgUrl + "', '" + coverImgUrl + "', '"+ code + "', " 
+				+ incentiveQuantity + ", " + incentiveAmount + ", '"+taxes+"'" + ", '" + charges + "', '" + Boolean.toString(isRecomended) + "', '" 
+				+ Boolean.toString(isTreats) + "', '" + Boolean.toString(isDefault) + "', '" + Boolean.toString(isBogo) + "', '" + Boolean.toString(isCombo) + "', " 
+				+ comboReducedPrice + ", '" +syncOnZomato+"', '"+discountType+"', "+discountValue+");";
 
 		System.out.println(sql);
-		if(db.executeUpdate(sql, hotelId, true)) {
+		if(db.executeUpdate(sql, systemId, true)) {
 			return menuId;
 		}
 		return "";
 	}
 
 	@Override
-	public MenuItem getMenuById(String hotelId, String menuId) {
-		String sql = "SELECT * FROM MenuItems WHERE menuId='" + escapeString(menuId) + "' AND hotelId='" + hotelId + "';";
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
+	public MenuItem getMenuById(String systemId, String menuId) {
+		String sql = "SELECT * FROM MenuItems WHERE menuId='" + escapeString(menuId) + "';";
+		return db.getOneRecord(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public MenuItem getMenuItemByTitle(String hotelId, String title) {
+	public MenuItem getMenuItemByTitle(String systemId, String outletId, String title) {
 
-		String sql = "SELECT * FROM MenuItems WHERE title = '" + escapeString(title) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
+		String sql = "SELECT * FROM MenuItems WHERE title = '" + escapeString(title) + "' AND outletId='"
+				+ escapeString(outletId) + "';";
 
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
+		return db.getOneRecord(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public ArrayList<MenuItem> getMenuItemBySearch(String hotelId, String query) {
+	public ArrayList<MenuItem> getMenuItemBySearch(String systemId, String outletId, String query) {
 
 		query = escapeString(query);
 		String sql = "SELECT * FROM MenuItems WHERE title LIKE '%" + query + "%' OR menuId LIKE '%" + query
-				+ "%' OR code LIKE '%" + query + "%' OR collection LIKE '%" + query + "%' AND hotelId='" + escapeString(hotelId) + "';";
-
-		return db.getRecords(sql, MenuItem.class, hotelId);
+				+ "%' OR code LIKE '%" + query + "%' OR collection LIKE '%" + query + "%' ";
+		
+		if(!outletId.isEmpty()) {
+			sql += "AND outletId = '"+ outletId + "'";
+		}
+		sql += ";";
+		return db.getRecords(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public ArrayList<MenuItem> getMenu(String hotelId) {
-		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "' AND state = " + MENUITEM_STATE_AVAILABLE
-				+ " ORDER BY title;";
-		return db.getRecords(sql, MenuItem.class, hotelId);
+	public ArrayList<MenuItem> getMenu(String systemId) {
+		String sql = "SELECT * FROM MenuItems ORDER BY title;";
+		return db.getRecords(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public ArrayList<MenuItem> getMenuForIntegration(String hotelId) {
-		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "' AND state = " + MENUITEM_STATE_AVAILABLE
-				+ " AND syncOnZomato = 'true';";
-		return db.getRecords(sql, MenuItem.class, hotelId);
+	public ArrayList<MenuItem> getMenu(String systemId, String outletId) {
+		String sql = "SELECT * FROM MenuItems  WHERE outletId='" + outletId + "' AND inStock = 'true' ORDER BY title;";
+		return db.getRecords(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public ArrayList<EntityString> getMenuItems(String hotelId) {
-		String sql = "SELECT title AS entityId FROM MenuItems  WHERE hotelId='" + hotelId + "';";
-		return db.getRecords(sql, EntityString.class, hotelId);
+	public ArrayList<MenuItem> getMenuForIntegration(String systemId, String outletId) {
+		String sql = "SELECT * FROM MenuItems  WHERE outletId='" + outletId + "' AND state = 'true' AND syncOnZomato = 'true';";
+		return db.getRecords(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public ArrayList<MenuItem> getMenuItems(String hotelId, String collection, String subCollection) {
-		String sql = "SELECT * FROM MenuItems WHERE hotelId='" + hotelId + "' AND collection = '"+collection+"' AND subCollection = '"+subCollection+"';";
-		return db.getRecords(sql, MenuItem.class, hotelId);
+	public ArrayList<EntityString> getMenuItems(String systemId, String outletId) {
+		String sql = "SELECT title AS entityId FROM MenuItems WHERE outletId = '"+outletId+"';";
+		return db.getRecords(sql, EntityString.class, systemId);
 	}
 
 	@Override
-	public ArrayList<MenuItem> getMenuMP(String hotelId) {
-		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, MenuItem.class, hotelId);
+	public ArrayList<MenuItem> getMenuItems(String systemId, String outletId, String collection, String subCollection) {
+		String sql = "SELECT * FROM MenuItems WHERE outletId='" + outletId + "' AND collection = '"+collection+"' AND subCollection = '"+subCollection+"';";
+		return db.getRecords(sql, MenuItem.class, systemId);
 	}
 
 	@Override
-	public String getNextMenuId(String hotelId) {
+	public ArrayList<MenuItem> getMenuMP(String systemId, String outletId) {
+		String sql = "SELECT * FROM MenuItems ";
+		if(!outletId.isEmpty()) {
+			sql += "WHERE outletId = '"+ outletId + "' ";
+		}
+		sql += "ORDER BY outletId, collection, subcollection;";
+		return db.getRecords(sql, MenuItem.class, systemId);
+	}
 
-		String sql = "SELECT MAX(CAST(menuId AS integer)) AS entityId FROM MenuItems WHERE hotelId='" + hotelId + "'";
+	@Override
+	public String getNextMenuId(String systemId, String outletId) {
 
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
+		String sql = "SELECT MAX(CAST(menuId AS integer)) AS entityId FROM MenuItems WHERE outletId='" + outletId + "'";
+
+		EntityId entity = db.getOneRecord(sql, EntityId.class, systemId);
 
 		if (entity != null) {
 			return Integer.toString((entity.getId() + 1));
@@ -151,24 +149,16 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 	}
 
 	@Override
-	public Boolean updateMenuItem(String hotelId, String menuId, String title, String description, String collection, String subCollection, String station,
-				String flags, String groups, int preparationTime, BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, 
-				BigDecimal onlineRate, BigDecimal zomatoRate, BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, 
-				BigDecimal costPrice, String image, String coverImgUrl, int incentiveType, int incentive, String code, String taxes, String charges,
-				boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice, boolean isAddon,
-				boolean syncOnZomato, boolean gstInclusive, String discountType, BigDecimal discountValue) {
+	public Boolean updateMenuItem(String systemId, String outletId, String menuId, String title, String description, String collection, String subCollection, String station,
+			String flags, String groups, int preparationTime, BigDecimal deliveryRate, BigDecimal dineInRate, BigDecimal dineInNonAcRate, 
+			BigDecimal onlineRate, BigDecimal zomatoRate, BigDecimal swiggyRate, BigDecimal uberEatsRate, BigDecimal comboPrice, 
+			BigDecimal costPrice, String imgUrl, String coverImgUrl, int incentiveQuantity, int incentiveAmount, String code, String taxes, String charges,
+			boolean isRecomended, boolean isTreats, boolean isDefault, boolean isBogo, boolean isCombo, BigDecimal comboReducedPrice,
+			boolean syncOnZomato, boolean gstInclusive, String discountType, BigDecimal discountValue) {
 		
 		title = AccessManager.toTitleCase(title);
 
-		int vegType = 1;
-		if(flags.contains("2")) {
-			vegType = 2;
-		}else if(flags.contains("5")) {
-			vegType = 3;
-		}else if(flags.contains("3")) {
-			vegType = 4;
-		}
-		MenuItem menuItem = this.getMenuById(hotelId, menuId);
+		MenuItem menuItem = this.getMenuById(systemId, menuId);
 
 		if(gstInclusive != menuItem.getGstInclusive()) {
 			if(gstInclusive) {
@@ -182,8 +172,8 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 		}
 		flags = flags.replace("\"", "");
 		
-		if(menuItem.getImg().length()>10 && image.isEmpty()) {
-			image = menuItem.getImg();
+		if(menuItem.getImgUrl().length()>10 && imgUrl.isEmpty()) {
+			imgUrl = menuItem.getImgUrl();
 		}
 		
 		String sql = "UPDATE MenuItems SET title = '" + escapeString(title) 
@@ -205,13 +195,12 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 				+ ", onlineRate5 = " + onlineRate  
 				+ ", comboPrice = " + comboPrice 
 				+ ", costPrice = " + costPrice 
-				+ ", hasIncentive = " + incentiveType
-				+ ", incentive = " + incentive 
-				+ ", vegType = " + vegType 
+				+ ", incentiveQuantity = " + incentiveQuantity
+				+ ", incentiveAmount = " + incentiveAmount 
 				+ ", code = '" + code
 				+ "', taxes = '" + taxes 
 				+ "', charges = '" + charges 
-				+ "', img  ='" + image
+				+ "', imgUrl  ='" + imgUrl
 				+ "', coverImgUrl  ='" + coverImgUrl 
 				+ "', isRecomended = '" + isRecomended
 				+ "', isTreats = '" + isTreats
@@ -219,64 +208,51 @@ public class MenuItemManager extends AccessManager implements IMenuItem {
 				+ "', isBogo = '" + isBogo
 				+ "', isCombo = '" + isCombo
 				+ "', isDefault = '" + isDefault
-				+ "', isAddon = '" + isAddon
 				+ "', comboReducedPrice = " + comboReducedPrice
 				+ ", discountType = '" + discountType
 				+ "', discountValue = " + discountValue
-				+ " WHERE hotelId = '" + hotelId 
-				+ "' AND menuId = '" + menuId + "';";
-		System.out.println(sql);
-		return db.executeUpdate(sql, true);
+				+ " WHERE menuId = '" + menuId + "';";
+
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public Boolean updateMenuItemStockState(String hotelId, String menuId, int state) {
+	public Boolean updateMenuItemStockState(String systemId, String menuId, boolean inStock) {
 
-		String sql = "UPDATE MenuItems SET state = " + Integer.toString(state) + " WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
+		String sql = "UPDATE MenuItems SET inStock = " + inStock + " WHERE menuId = '" + escapeString(menuId) + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public Boolean updateMenuItemStateOnZomato(String hotelId, String menuId, boolean state) {
+	public Boolean updateMenuItemStateOnZomato(String systemId, String menuId, boolean state) {
 
-		String sql = "UPDATE MenuItems SET syncOnZomato = '" + state + "' WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
+		String sql = "UPDATE MenuItems SET syncOnZomato = '" + state + "' WHERE menuId = '" + escapeString(menuId) + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public boolean deleteItem(String hotelId, String menuId) {
-		String sql = "DELETE FROM MenuItems WHERE menuId = '" + menuId + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	@Override
-	public boolean changeMenuItemState(String hotelId, String menuId, int state) {
-
-		String sql = "UPDATE MenuItems SET state = '" + state + "' WHERE hotelId = '" + hotelId + "' AND menuId = '"
-				+ menuId + "';";
-		return db.executeUpdate(sql, true);
+	public boolean deleteItem(String systemId, String menuId) {
+		String sql = "DELETE FROM MenuItems WHERE menuId = '" + menuId + "';";
+		return db.executeUpdate(sql, systemId, true);
 	}
 	
-	public void loadShortForms(String hotelId) {
+	public void loadShortForms(String systemId, String outletId) {
 
-		ArrayList<MenuItem> menuItems = this.getMenu(hotelId);
+		ArrayList<MenuItem> menuItems = this.getMenu(systemId, outletId);
 		for (MenuItem menuItem : menuItems) {
 			String sql = "UPDATE MenuItems SET shortform = '" + this.generateShortForm(menuItem.getTitle())
 					+ "' WHERE menuId = '" + menuItem.getMenuId() + "';";
-			db.executeUpdate(sql, false);
+			db.executeUpdate(sql, systemId, false);
 		}
 	}
 
 	@Override
-	public Boolean updateMenuImageUrl(String hotelId, String menuId, String imageUrl) {
+	public Boolean updateMenuImageUrl(String systemId, String menuId, String imageUrl) {
 
-		String sql = "UPDATE MenuItems SET img = '"+ imageUrl +"' WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
+		String sql = "UPDATE MenuItems SET img = '"+ imageUrl +"' WHERE menuId = '" + escapeString(menuId) + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
 	}
 }

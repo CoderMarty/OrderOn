@@ -13,67 +13,61 @@ import com.orderon.dao.AccessManager.Settings;
 
 public interface IOrderItem extends IAccess, IOrderAddOn, ISpecification{
 
-	public boolean updateKOTStatus(String outletId, String orderId);
+	public boolean updateKOTStatus(String systemId, String orderId);
 
-	public boolean updateOrderItemLog(String outletId, String orderId, String subOrderId, String menuId, String reason,
+	public boolean updateOrderItemLog(String systemId, String outletId, String orderId, String subOrderId, String menuId, String reason,
 			String type, int quantity, BigDecimal rate, int itemId);
 	
-	public ArrayList<OrderItem> getCancellableOrderedItems(String outletId, String orderId);
+	public ArrayList<OrderItem> getCancellableOrderedItems(String systemId, String orderId);
 	
-	public ArrayList<OrderItem> getReturnedOrders(String outletId, String orderId);
+	public ArrayList<OrderItem> getReturnedOrders(String systemId, String orderId);
 
-	public BigDecimal getOrderTotal(String outletId, String orderId);
+	public BigDecimal getOrderTotal(String systemId, String orderId);
 
-	public int getTotalBillAmount(String outletId, String orderId);
+	public int getTotalBillAmount(String systemId, String orderId);
 
-	public String getNextSubOrderId(String outletId, String orderId);
+	public String getNextSubOrderId(String systemId, String orderId);
 
-	public String getNextBillNoNumberFormatMonthwise(String outletId);
+	public String getNextBillNoNumberFormatMonthwise(String systemId, String outletId);
 
-	public ArrayList<OrderItem> getReturnedItems(String outletId, String orderId);
+	public ArrayList<OrderItem> getReturnedItems(String systemId, String orderId);
 
-	public OrderItem getOrderStatus(String outletId, String orderId, String subOrderId, String menuId);
+	public OrderItem getOrderStatus(String systemId, String orderId, String subOrderId, String menuId);
 
-	public Boolean changeOrderStatus(String outletId, String orderId, String subOrderId, String menuId);
+	public Boolean changeOrderStatus(String systemId, String orderId, String subOrderId, String menuId);
 
-	public Boolean updateSpecifications(String outletId, String orderId, String subOrderId, String menuId,
+	public Boolean updateSpecifications(String systemId, String orderId, String subOrderId, String menuId,
 			String specs);
 
-	public JSONObject newSubOrder(String outletId, Settings settings, Order order, MenuItem menu, Integer qty, String specs,
+	public JSONObject newSubOrder(String systemId, String outletId, Settings settings, Order order, MenuItem menu, Integer qty, String specs,
 			String subOrderId, String waiterId, BigDecimal rate, String tableId);
+
+	public OrderItem getOrderedItem(String systemId, String orderId, String subOrderId, String menuId);
+
+	public ArrayList<OrderItem> getOrderedItems(String systemId, String orderId, boolean showReturned);
 	
-	public BigDecimal getTaxableFoodBill(String outletId, String orderId);
+	public ArrayList<OrderItem> getOrderedItemForVoid(String systemId, String orderId);
 
-	public BigDecimal getTaxableBarBill(String outletId, String orderId);
+	public Boolean editSubOrder(String systemId, String orderId, String subOrderId, String menuId, int qty);
 
-	public OrderItem getOrderedItem(String outletId, String orderId, String subOrderId, String menuId);
+	public ArrayList<EntityString> getUniqueMenuIdForComplimentaryOrder(String systemId, String orderId);
 
-	public ArrayList<OrderItem> getOrderedItems(String outletId, String orderId, boolean showReturned);
-	
-	public ArrayList<OrderItem> getOrderedItemForVoid(String outletId, String orderId);
-
-	public Boolean editSubOrder(String outletId, String orderId, String subOrderId, String menuId, int qty);
-
-	public ArrayList<EntityString> getUniqueMenuIdForComplimentaryOrder(String outletId, String orderId);
-
-	public boolean complimentaryItem(String outletId, String orderId, String menuId, String authId, String subOrderId,
+	public boolean complimentaryItem(String systemId, String outletId, String orderId, String menuId, String authId, String subOrderId,
 			BigDecimal rate, int qty, String reason);
 
-	public Boolean removeSubOrder(String outletId, String orderId, String subOrderId, String menuId, int qty);
+	public Boolean removeSubOrder(String systemId, String orderId, String subOrderId, String menuId, int qty);
 
-	public ArrayList<OrderItem> getOrderedItemForBill(String outletId, String orderId, boolean showReturned);
+	public ArrayList<OrderItem> getOrderedItemForBill(String systemId, String orderId, boolean showReturned);
 
-	public ArrayList<OrderItem> getOrderedItemForBillCI(String outletId, String orderId);
+	public ArrayList<OrderItem> getOrderedItemForBillCI(String systemId, String orderId);
 
-	public ArrayList<OrderItem> getComplimentaryOrderedItemForBill(String outletId, String orderId);
+	public ArrayList<OrderItem> getComplimentaryOrderedItemForBill(String systemId, String orderId);
 
-	public Boolean updateItemRatesInOrder(String outletId, String orderId, String newTableType);
+	public Boolean updateItemRatesInOrder(String systemId, String orderId, String newTableType);
 
-	public ArrayList<EntityString> getCaptainOrderService(String outletId, String startDate, String endDate);
+	public ArrayList<EntityString> getCaptainOrderService(String systemId, String startDate, String endDate);
 	
-	public ArrayList<OrderItem> getOrderedItemsForKOT(String outletId, String orderId);
+	public ArrayList<OrderItem> getOrderedItemsForKOT(String systemId, String orderId);
 	
-	public ArrayList<OrderItem> getOrderedItemsForReprintKOT(String outletId, String orderId);
-
-	public ArrayList<OrderItem> checkKOTPrinting(String outletId);
+	public ArrayList<OrderItem> getOrderedItemsForReprintKOT(String systemId, String orderId);
 }

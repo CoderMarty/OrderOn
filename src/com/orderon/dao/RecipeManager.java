@@ -16,20 +16,20 @@ public class RecipeManager extends AccessManager implements IRecipe{
 	public boolean deleteRecipeItem(String outletId, int sku, String menuId) {
 		String sql = "DELETE FROM Recipe WHERE sku = '" + sku + "' AND menuId='" + menuId + "' AND hotelId='" + outletId
 				+ "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
 	public boolean deleteRecipeItemForProcessedMaterial(String outletId, int processedMaterialSku) {
 		String sql = "DELETE FROM Recipe WHERE processedMaterialSku = '" + processedMaterialSku + "' AND hotelId='" + outletId + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
 	public boolean deleteRecipeItem(String outletId, int sku, int processedMaterialSku) {
 		String sql = "DELETE FROM Recipe WHERE sku = '" + sku + "' AND processedMaterialSku=" + processedMaterialSku + " AND hotelId='" + outletId
 				+ "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -83,7 +83,7 @@ public class RecipeManager extends AccessManager implements IRecipe{
 		String sql = "INSERT INTO Recipe (hotelId, sku, unit, menuId, quantity) VALUES('" + escapeString(outletId)
 				+ "', '" + sku + "', '" + escapeString(unit) + "', '" + escapeString(menuId) + "', "
 				+ quantity + ");";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -97,7 +97,7 @@ public class RecipeManager extends AccessManager implements IRecipe{
 		String sql = "UPDATE Recipe SET quantity = " + quantity + ", unit = '" + escapeString(unit)
 				+ "' WHERE hotelId = '" + escapeString(outletId) + "' AND sku = '" + sku
 				+ "' AND menuId = '" + escapeString(menuId) + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -105,7 +105,7 @@ public class RecipeManager extends AccessManager implements IRecipe{
 
 		String sql = "UPDATE MenuItems SET method = '" + escapeString(method) + "' WHERE hotelId = '"
 				+ escapeString(outletId) + "' AND menuId = '" + escapeString(menuId) + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -113,7 +113,7 @@ public class RecipeManager extends AccessManager implements IRecipe{
 			String unit) {
 		String sql = "INSERT INTO Recipe (hotelId, sku, unit, processedMaterialSku, menuId, quantity) VALUES('" + escapeString(outletId)
 				+ "', '" + sku + "', '" + escapeString(unit) + "', " + processedMaterialSku + ",'', " + quantity + ");";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override
@@ -121,6 +121,6 @@ public class RecipeManager extends AccessManager implements IRecipe{
 
 		String sql = "UPDATE Recipe SET menuId = '" + menuId + "' WHERE hotelId = '" + escapeString(outletId) + "' AND sku = '" + sku
 				+ "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 }

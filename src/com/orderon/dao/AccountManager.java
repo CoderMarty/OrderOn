@@ -45,7 +45,7 @@ public class AccountManager extends AccessManager implements IAccount{
 				+ section 					+ "');";
 		
 		try {
-			outObj.put("status", db.executeUpdate(sql, true));
+			outObj.put("status", db.executeUpdate(sql, outletId, true));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

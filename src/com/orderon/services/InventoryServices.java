@@ -1,6 +1,7 @@
 package com.orderon.services;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -241,7 +242,7 @@ public class InventoryServices {
 			if(isCountable) {
 				countableUnit = CountableUnit.valueOf(inObj.getString("countableUnit"));
 				countableConversion = new BigDecimal(inObj.getDouble("countableConversion"));
-				ratePerUnit = ratePerUnit.divide(countableConversion);
+				ratePerUnit = ratePerUnit.divide(countableConversion, 2, RoundingMode.HALF_UP);
 			}
 			materialType = inObj.getString("type");
 			subType = inObj.getString("subType");
@@ -550,12 +551,13 @@ public class InventoryServices {
 	@GET
 	@Path("/v3/getTaxesForMaterials")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String getTaxesForMaterials(@QueryParam("systemId") String systemId) {
+	public String getTaxesForMaterials(@QueryParam("systemId") String systemId,
+			@QueryParam("outletId") String outletId) {
 		JSONObject outObj = new JSONObject();
 
 		ITax dao = new TaxManager(false);
 		ArrayList<Tax> taxes = null;
-		taxes = dao.getTaxesForMaterials(systemId);
+		taxes = dao.getTaxesForMaterials(systemId, outletId);
 		try {
 			outObj.put("taxes", taxes);
 		} catch (JSONException e) {
@@ -696,7 +698,7 @@ public class InventoryServices {
 					measurableUnit = MeasurableUnit.valueOf(material.getDisplayableUnit());
 					
 					if(material.getIsCountable()) {
-						ratePerUnit = ratePerUnit.divide(material.getCountableConversion());
+						ratePerUnit = ratePerUnit.divide(material.getCountableConversion(), 2, RoundingMode.HALF_UP);
 						quantity = quantity.multiply(material.getCountableConversion());
 					}
 					taxes = materialObj.getJSONArray("tax");
@@ -910,17 +912,19 @@ public class InventoryServices {
 				return outObj.toString();
 			}
 			
-			String outletId = inObj.getString("outletId");
+			String systemId = inObj.getString("systemId");
 			String userId = inObj.getString("userId");
 			String emailText = inObj.getString("printableData");
+			String outletStr = "";
 			
-			Outlet outlet = outletDao.getOutlet(outletId);
+			ArrayList<Outlet> outlets = outletDao.getOutletsForSystem(systemId);
+			for (Outlet outlet : outlets) {
+				outletStr += outlet.getName() + ", " + outlet.getLocation().getString("place") + " &";
+			}
+			outletStr = outletStr.substring(0, outletStr.length()-1);
+			String emailSubject = "Inventory Check performed at Outlet: " + outletStr + " by " + userId;
 			
-			String emailSubject = "Inventory Check performed at Outlet: " + outlet.getName() + ", " 
-					+ outlet.getLocation().getString("place")
-					+ " by " + userId;
-			
-			Services.SendEmailWithAttachment(outletId, emailSubject, emailText, "", null, false, false);
+			Services.SendEmailWithAttachment(systemId, emailSubject, emailText, "", null, false, false);
 
 			outObj.put("status", true);
 		} catch (DateTimeParseException e) {

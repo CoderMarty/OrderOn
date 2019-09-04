@@ -21,7 +21,7 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(subject) + "', '" + escapeString(emailText) + "', '" 
 			+ escapeString(smsText) + "', '" + (mobileNumbers.toString()) + "', '" +escapeString(emailIds.toString())+"');";
 		
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, outletId, false);
 	}
 
 	@Override
@@ -37,7 +37,7 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 		
 		String sql = "DELETE FROM ReportBuffer WHERE id = '"+id+"';";
 		
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, outletId, false);
 	}
 
 	@Override
@@ -45,6 +45,6 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 		
 		String sql = "DELETE FROM ReportBuffer;";
 		
-		return db.executeUpdate(sql, false);
+		return db.executeUpdate(sql, outletId, false);
 	}
 }

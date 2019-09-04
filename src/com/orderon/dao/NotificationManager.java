@@ -31,7 +31,7 @@ public class NotificationManager extends AccessManager implements INotification 
 		} else {
 			sql = "DELETE FROM Notification WHERE notId=" + notifs.get(0).getNotificationId() + " AND hotelId='" + hotelId
 					+ "' AND orderId LIKE '" + userId + ":%';";
-			db.executeUpdate(sql, true);
+			db.executeUpdate(sql, hotelId, true);
 			return notifs.get(0);
 		}
 	}
@@ -47,7 +47,7 @@ public class NotificationManager extends AccessManager implements INotification 
 		//notification.setOutOfStock(db.getOneRecord(sql, MPNotification.class, hotelId).getOutOfStock());
 		notification.setHotelId(hotelId);
 
-		sql = "SELECT COUNT(Id) AS checkOutOrders FROM Orders WHERE hotelId = '" + hotelId + "' AND state = 1";
+		sql = "SELECT COUNT(Id) AS checkOutOrders FROM Orders WHERE outletId = '" + hotelId + "' AND state = 1";
 
 		notification.setCheckoutOrders(db.getOneRecord(sql, MPNotification.class, hotelId).getCheckoutOrders());
 

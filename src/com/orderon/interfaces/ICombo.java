@@ -4,5 +4,5 @@ import org.json.JSONObject;
 
 public interface ICombo {
 
-	public JSONObject getCombos(String outletId);
+	public JSONObject getCombos(String systemId, String outletId);
 }

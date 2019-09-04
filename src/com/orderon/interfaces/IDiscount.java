@@ -12,34 +12,40 @@ import com.orderon.dao.AccessManager.Order;
 
 public interface IDiscount extends IAccess{
 	
-	public JSONObject addDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue,
+	public JSONObject addDiscount(String corporateId, String restaurantId, String systemId, String outletId, String name, String description, int type, int foodValue, int barValue,
 			String startDate, String expiryDate, String usageLimit, JSONArray validColletions, int offerQuantity,
 			boolean hasExpiry, String offerType, boolean applicableOnZomato, String bogoItems,
 			String startTime, String endTime, int minOrderAmount, boolean firstOrderOnly, 
 			int maxFoodDiscountAmount, int maxBarDiscountAmount) throws ParseException;
 
-	public JSONObject editDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue, 
+	public JSONObject editDiscount(String systemId, String outletId, String name, String description, int type, int foodValue, int barValue, 
 			String startDate, String expiryDate, String usageLimit, JSONArray validColletions,  int offerQuantity,
 			boolean hasExpiry, String offerType, boolean applicableOnZomato, String bogoItems,
 			String startTime, String endTime, int minOrderAmount, boolean firstOrderOnly) throws ParseException;
 
-	public Boolean updateUsageLimit(String hotelId, String name, int usageLimit);
+	public Boolean updateUsageLimit(String systemId, int discountId, int usageLimit);
 
-	public ArrayList<Discount> getAllDiscounts(String hotelId);
+	public ArrayList<Discount> getAllDiscounts(String systemId);
 
-	public ArrayList<Discount> getDiscountsForZomato(String hotelId);
+	public ArrayList<Discount> getAllDiscounts(String systemId, String outletId);
 
-	public Boolean deleteDiscount(String hotelId, String name);
+	public ArrayList<Discount> getDiscountsForZomato(String systemId, String outletId);
 
-	public Boolean discountExists(String hotelId, String name);
+	public Boolean deleteDiscount(String systemId, int discountId);
 
-	public Discount getDiscountByName(String hotelId, String name);
+	public Boolean discountExists(String systemId, String outletId, String name);
 
-	public String getDiscountUsageLimit(String hotelId, String name);
-
-	public BigDecimal getAppliedDiscount(String hotelId, String orderId);
-
-	public JSONObject applyDiscount(String hotelId, Order order, String discountCode, String discountType);
+	public Discount getDiscountById(String systemId, int id);
 	
-	public boolean removeDiscount(String hotelId, String orderId);
+	public Discount getDiscountByName(String systemId, String outletId, String name);
+
+	public String getDiscountUsageLimit(String systemId, int discountId);
+
+	public BigDecimal getAppliedDiscount(String systemId, String outletId, String orderId);
+
+	public JSONObject applyDiscount(String systemId, String outletId, Order order, String discountCode, String discountType);
+	
+	public boolean removeAllDiscounts(String systemId, String outletId, String orderId);
+	
+	public boolean removeDiscount(String systemId, String outletId, String orderId, String discountCode);
 }

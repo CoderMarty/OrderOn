@@ -7,15 +7,17 @@ import com.orderon.dao.AccessManager.Specifications;
 
 public interface ISpecification extends IAccess{
 	
-	public Boolean addOrderSpecification(String hotelId, String orderId, String subOrderId, String menuId, int itemId,
+	public Boolean addOrderSpecification(String systemId, String outletId, String orderId, String subOrderId, String menuId, int itemId,
 			String specification);
 
-	public ArrayList<Specifications> getSpecifications(String hotelId);
+	public ArrayList<Specifications> getSpecifications(String systemId, String outletId);
 
-	public boolean addSpecification(String name);
+	public boolean addSpecification(String sysmteId, String name);
 
-	public ArrayList<OrderSpecification> getOrderedSpecification(String hotelId, String orderId, String menuId,
+	public ArrayList<OrderSpecification> getOrderedSpecification(String systemId, String orderId, String menuId,
 			String subOrderId, int itemId);
 
-	public ArrayList<OrderSpecification> getOrderedSpecification(String hotelId, String orderId, String menuId);
+	public ArrayList<OrderSpecification> getOrderedSpecification(String systemId, String orderId, String menuId);
+
+	public Specifications getSpecification(String hotelId, String spec);
 }

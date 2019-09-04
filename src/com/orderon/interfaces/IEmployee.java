@@ -7,7 +7,7 @@ import com.orderon.dao.AccessManager.Outlet;
 
 public interface IEmployee {
 
-	public String addEmployee(Outlet outlet, String firstName, String middleName, String surName, String address,
+	public String addEmployee(String systemId, String systemCode, String firstName, String middleName, String surName, String address,
 			String contactNumber, String dob, String sex, String hiringDate, String designation,
 			int salary, int bonus, String image, String email);
 

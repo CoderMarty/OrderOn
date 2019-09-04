@@ -146,7 +146,7 @@ public class VendorManager extends AccessManager implements IVendor, IVendorTran
 	@Override
 	public boolean deleteVendor(String outletId, int vendorId) {
 		String sql = "DELETE FROM Vendors WHERE outletId = '"+outletId+"' AND id = "+vendorId+";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override

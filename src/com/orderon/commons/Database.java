@@ -37,17 +37,10 @@ public class Database {
 		}
 	}
 	
-	public Connection getConnection() throws Exception{
-		return getConnection(Configurator.getSystemId());
-	}
-	
 	private void openDB(String outletId) {
 		if(outletId.equals("")) {
-			outletId = Configurator.getSystemId();
-			if(outletId.equals("")) {
-				mConn = null;
-				return;
-			}
+			mConn = null;
+			return;
 		}
 		try {
 			if (mAutoCommit) {
@@ -74,9 +67,11 @@ public class Database {
 	}
 	
 	public void beginTransaction(String outletId) {
-		if(outletId.equals(""))
-			outletId = Configurator.getSystemId();
 		try {
+			if(outletId.equals("")) {
+				mConn = null;
+				return;
+			}
 			if (!mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
 				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
@@ -87,13 +82,13 @@ public class Database {
 			e.printStackTrace();
 		}
 	}
-	
-	public void beginTransaction(){
-		beginTransaction(Configurator.getSystemId());
-	}
 
 	public void commitTransaction(String outletId, boolean isAServerUpdate) {
 		try {
+			if(outletId.equals("")) {
+				mConn = null;
+				return;
+			}
 			if(mConn == null) {
 				return;
 			}
@@ -255,23 +250,6 @@ public class Database {
 		IServer dao = new ServerManager(false);
 		dao.addTransaction(outletId, transactionLog.toString());
 		transactionLog = new StringBuilder();
-	}
-
-	/*
-	 * Use this method for INSERT/UPDATE/DELETE queries.
-	 * Updates the database and also writes to the transaction log file.
-	 * The transaction log file is a file that stores all the transaction that takes please on the app/management portal/kds.
-	 * This file is used to update the database on the cloud periodically. 
-	 * Once the database on cloud is updated, this contents of this file are deleted.
-	 * 
-	 * @param sql 			Stores the sql queries.
-	 * @param outletId 		Stores the hotel Id of the current hotel.
-	 * @param writeToFile	True if needs this transaction be shown on cloud.
-	 * 
-	 * @return				True if Database is updated.
-	 */
-	public Boolean executeUpdate(String sql, boolean writeToFile){
-		return executeUpdate(sql, "", writeToFile);
 	}
 	
 	public static String readRsString(ResultSet rs, String fieldName) {

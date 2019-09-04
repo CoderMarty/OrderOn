@@ -12,11 +12,11 @@ public class EmployeeManager extends AccessManager implements IEmployee{
 	}
 
 	@Override
-	public String addEmployee(Outlet outlet, String firstName, String middleName, String surName, String address,
+	public String addEmployee(String systemId, String systemCode, String firstName, String middleName, String surName, String address,
 			String contactNumber, String dob, String sex, String hiringDate, String designation,
 			int salary, int bonus, String image, String email) {
 
-		String employeeId = getNextEmployeeId(outlet.getOutletId(), outlet.getOutletCode());
+		String employeeId = getNextEmployeeId(systemId, systemCode);
 		boolean sendOperationalEmail = false;
 		boolean sendEODEmail = false;
 		if(designation.equals(com.orderon.commons.Designation.OWNER.toString())) {
@@ -27,7 +27,7 @@ public class EmployeeManager extends AccessManager implements IEmployee{
 		}
 		String sql = "INSERT INTO Employee "
 				+ "(hotelId, employeeId, firstName, surName, address, contactNumber, dob, sex, hiringDate, designation"
-				+ ", salary, bonus, image, middleName, email, sendOperationalEmail, sendEODEmail) VALUES('" + escapeString(outlet.getOutletId()) + "', '"
+				+ ", salary, bonus, image, middleName, email, sendOperationalEmail, sendEODEmail) VALUES('" + escapeString(systemId) + "', '"
 				+ escapeString(employeeId) + "', '" + escapeString(firstName) + "', '" + escapeString(surName) + "', '"
 				+ escapeString(address) + "', '" + escapeString(contactNumber) + "', '" + escapeString(dob) + "', '"
 				+ escapeString(sex) + "', '" + escapeString(hiringDate) + "', '" + escapeString(designation) 
@@ -35,7 +35,7 @@ public class EmployeeManager extends AccessManager implements IEmployee{
 				+ (image.equals("No image") ? "" : "1") + "', '" + escapeString(middleName) + "', '"
 				+ escapeString(email) + "', '"+sendOperationalEmail+"', '"+sendEODEmail+"');";
 
-		if (db.executeUpdate(sql, true)) {
+		if (db.executeUpdate(sql, systemId, true)) {
 			return employeeId;
 		} else
 			return "";
@@ -56,7 +56,7 @@ public class EmployeeManager extends AccessManager implements IEmployee{
 				+ "' WHERE hotelId = '" + escapeString(hotelId) + "' AND employeeId = '" + escapeString(employeeId)
 				+ "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -119,6 +119,6 @@ public class EmployeeManager extends AccessManager implements IEmployee{
 	@Override
 	public boolean deleteEmployee(String hotelId, String employeeId) {
 		String sql = "DELETE FROM Employee WHERE employeeId = '" + employeeId + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 }

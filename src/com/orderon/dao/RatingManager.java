@@ -31,7 +31,7 @@ public class RatingManager extends AccessManager implements IRating {
 				ICustomer customerDao = new CustomerManager(false);
 				if (!customerDao.hasCustomer(hotelId, customerNumber)) {
 					customerDao.addCustomer(hotelId, name[0], surName, customerNumber, "", customerBirthdate, customerAnniversary, "",
-							wantsPromotion, Boolean.FALSE, customerEmailId, referenceForReview);
+							wantsPromotion, Boolean.FALSE, customerEmailId, "NONE", referenceForReview);
 				} else {
 					customerDao.updateCustomer(hotelId, null, name[0], surName, customerNumber, customerBirthdate, customerAnniversary, "",
 							"", "", wantsPromotion, "", "");
@@ -43,7 +43,7 @@ public class RatingManager extends AccessManager implements IRating {
 					+ ratings.getInt("qualityOfFoodRating") + ", rating_service=" + ratings.getInt("serviceRating")
 					+ ", rating_hygiene=" + ratings.getInt("hygieneRating") + ", reviewSuggestions='"
 					+ reviewSuggestions + "' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-			return db.executeUpdate(sql, true);
+			return db.executeUpdate(sql, hotelId, true);
 		} catch (Exception e) {
 			return false;
 		}

@@ -12,6 +12,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.orderon.interfaces.IDiscount;
+import com.orderon.interfaces.IOrder;
 
 public class DiscountManager extends AccessManager implements IDiscount{
 
@@ -21,7 +22,7 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 	
 	@Override
-	public JSONObject addDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue,
+	public JSONObject addDiscount(String corporateId, String restaurantId, String systemId, String outletId, String name, String description, int type, int foodValue, int barValue,
 			String startDate, String expiryDate, String usageLimit, JSONArray validColletions, int offerQuantity,
 			boolean hasExpiry, String offerType, boolean applicableOnZomato, String bogoItems,
 			String startTime, String endTime, int minOrderAmount, boolean firstOrderOnly, 
@@ -38,14 +39,14 @@ public class DiscountManager extends AccessManager implements IDiscount{
 			}
 			//If zomato offer do the necessary checks.
 			if(applicableOnZomato) {
-				ArrayList<Discount> discounts = this.getDiscountsForZomato(hotelId);
+				ArrayList<Discount> discounts = this.getDiscountsForZomato(systemId, outletId);
 				for (Discount discount : discounts) {
 					if(discount.getOfferType().equals(OFFER_TYPE_BOGO) && offerType.equals(OFFER_TYPE_BOGO)) {
 						outObj.put("message", "A BOGO offer cannot co-exist with any other offer on a restaurant at the same time.");
 						return outObj;
 					}
-					sql = "SELECT onlineRate AS entityId FROM MenuItems WHERE hotelId = '"+hotelId+"' AND syncOnZomato = 'true' ORDER BY onlineRate LIMIT 1;";
-					EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
+					sql = "SELECT onlineRate AS entityId FROM MenuItems WHERE outletId = '"+outletId+"' AND syncOnZomato = 'true' ORDER BY onlineRate LIMIT 1;";
+					EntityId entity = db.getOneRecord(sql, EntityId.class, systemId);
 					int allowableMinOrderAmount = entity.getId()*2;
 					if(allowableMinOrderAmount > minOrderAmount) {
 						outObj.put("message", "Min Order Amount should be less than or equal to the Cost For Two for the outlet.");
@@ -85,17 +86,18 @@ public class DiscountManager extends AccessManager implements IDiscount{
 				startDate = "01/01/2018";
 				expiryDate = "31/12/3000";
 			}
-			sql = "INSERT INTO Discount "
-					+ "(hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, "
+			sql = "INSERT INTO Discounts "
+					+ "(corporateId, restaurantId, systemId, outletId, name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, "
 					+ "offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, endTime, minOrderAmount, firstOrderOnly, "
 					+ "maxFoodDiscountAmount, maxBarDiscountAmount) "
-					+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', '" + escapeString(description)
-					+ "', '" + Integer.toString(type) + "', " + Integer.toString(foodValue) + ", " + Integer.toString(barValue) + ", '" + startDate
-					+ "', '" + expiryDate + "', '" + escapeString(usageLimit) + "', '"
+					+ "VALUES('" + escapeString(corporateId) + "', '" + escapeString(restaurantId) + "', '" + escapeString(systemId) 
+					+ "', '" + escapeString(outletId) + "', '" + escapeString(name) 
+					+ "', '" + escapeString(description) + "', '" + Integer.toString(type) + "', " + Integer.toString(foodValue) + ", " 
+					+ Integer.toString(barValue) + ", '" + startDate + "', '" + expiryDate + "', '" + escapeString(usageLimit) + "', '"
 					+ escapeString(collections) + "', '"+offerType+"', '"+applicableOnZomato+"', "+offerQuantity+", '"+bogoItems+"'"
 					+ ", '"+startTime+"', '"+endTime+"', "+minOrderAmount+", '"+firstOrderOnly+"', "+maxFoodDiscountAmount+", "+maxBarDiscountAmount+");";
 			System.out.println(sql);
-			if(db.executeUpdate(sql, true)) {
+			if(db.executeUpdate(sql, systemId, true)) {
 				outObj.put("status", true);
 			}else {
 				outObj.put("message", "Discount could not be added. Please try again.");
@@ -109,9 +111,9 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 
 	@Override
-	public JSONObject editDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue, 
-			String startDate, String expiryDate, String usageLimit, JSONArray validColletions,  int offerQuantity,
-			boolean hasExpiry, String offerType, boolean applicableOnZomato, String bogoItems,
+	public JSONObject editDiscount(String systemId, String outletId, String name, String description, 
+			int type, int foodValue, int barValue, String startDate, String expiryDate, String usageLimit, JSONArray validColletions, 
+			int offerQuantity, boolean hasExpiry, String offerType, boolean applicableOnZomato, String bogoItems,
 			String startTime, String endTime, int minOrderAmount, boolean firstOrderOnly) throws ParseException {
 
 		JSONObject outObj = new JSONObject();
@@ -124,14 +126,14 @@ public class DiscountManager extends AccessManager implements IDiscount{
 			}
 			//If zomato offer do the necessary checks.
 			if(applicableOnZomato) {
-				ArrayList<Discount> discounts = this.getDiscountsForZomato(hotelId);
+				ArrayList<Discount> discounts = this.getDiscountsForZomato(systemId, outletId);
 				for (Discount discount : discounts) {
 					if(discount.getOfferType().equals(OFFER_TYPE_BOGO) && offerType.equals(OFFER_TYPE_BOGO)) {
 						outObj.put("message", "A BOGO offer cannot co-exist with any other offer on a restaurant at the same time.");
 						return outObj;
 					}
-					sql = "SELECT onlineRate AS entityId FROM MenuItems WHERE hotelId = '"+hotelId+"' AND syncOnZomato = 'true' ORDER BY onlineRate LIMIT 1;";
-					EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
+					sql = "SELECT onlineRate AS entityId FROM MenuItems WHERE outletId = '"+outletId+"' AND syncOnZomato = 'true' ORDER BY onlineRate LIMIT 1;";
+					EntityId entity = db.getOneRecord(sql, EntityId.class, systemId);
 					int allowableMinOrderAmount = entity.getId()*2;
 					if(allowableMinOrderAmount > minOrderAmount) {
 						outObj.put("message", "Min Order Amount should be less than or equal to the Cost For Two for the outlet.");
@@ -169,15 +171,15 @@ public class DiscountManager extends AccessManager implements IDiscount{
 				startDate = "01/01/2018";
 				expiryDate = "31/12/3000";
 			}
-			 sql = "UPDATE Discount SET description = '" + escapeString(description) + "', type = '"
+			 sql = "UPDATE Discounts SET description = '" + escapeString(description) + "', type = '"
 					+ type + "', foodValue = " + foodValue + ", barValue = " + barValue + ", offerQuantity = " + offerQuantity
 					+ ", startDate = '" + startDate + "', expiryDate = '" + expiryDate + "', usageLimit = '"
 					+ escapeString(usageLimit) + "', validCollections = '" + escapeString(collections)
 					+ "', offerType = '"+offerType+"', applicableOnZomato = '"+applicableOnZomato
 					+ "', startTime = '"+startTime+"', endTime = '"+endTime
 					+ "', minOrderAmount = "+minOrderAmount+", firstOrderOnly = '"+firstOrderOnly
-					+ "', bogoItems = '"+bogoItems + "' WHERE  hotelId='" + hotelId + "' AND name = '" + name + "';";
-			if(db.executeUpdate(sql, true)) {
+					+ "', bogoItems = '"+bogoItems + "' WHERE  outletId='" + outletId + "' AND name = '" + name + "';";
+			if(db.executeUpdate(sql, systemId, true)) {
 				outObj.put("status", true);
 			}else {
 				outObj.put("message", "Discount could not be edited. Please try again.");
@@ -191,34 +193,39 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 
 	@Override
-	public Boolean updateUsageLimit(String hotelId, String name, int usageLimit) {
+	public Boolean updateUsageLimit(String systemId, int discountId, int usageLimit) {
 
-		String sql = "UPDATE Discount SET usageLimit = '" + Integer.toString(usageLimit) + "' WHERE  hotelId='"
-				+ escapeString(hotelId) + "' AND name = '" + name + "';";
-		return db.executeUpdate(sql, true);
+		String sql = "UPDATE Discounts SET usageLimit = '" + Integer.toString(usageLimit) + "' WHERE id = '" + discountId + "';";
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public ArrayList<Discount> getAllDiscounts(String hotelId) {
-		String sql = "SELECT * FROM Discount WHERE hotelId='" + escapeString(hotelId) + "' AND isActive  = 'true';";
-		return db.getRecords(sql, Discount.class, hotelId);
+	public ArrayList<Discount> getAllDiscounts(String systemId) {
+		String sql = "SELECT * FROM Discounts WHERE systemId='" + escapeString(systemId) + "' AND isActive  = 'true';";
+		return db.getRecords(sql, Discount.class, systemId);
 	}
 
 	@Override
-	public ArrayList<Discount> getDiscountsForZomato(String hotelId) {
-		String sql = "SELECT * FROM Discount WHERE hotelId='" + escapeString(hotelId) + "' AND isActive  = 'true' AND applicableOnZomato = 'true';";
-		return db.getRecords(sql, Discount.class, hotelId);
+	public ArrayList<Discount> getAllDiscounts(String systemId, String outletId) {
+		String sql = "SELECT * FROM Discounts WHERE outletId='" + escapeString(outletId) + "' AND isActive  = 'true';";
+		return db.getRecords(sql, Discount.class, systemId);
 	}
 
 	@Override
-	public Boolean deleteDiscount(String hotelId, String name) {
-		String sql = "UPDATE Discount SET isActive = 'false' WHERE name='" + name + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+	public ArrayList<Discount> getDiscountsForZomato(String systemId, String outletId) {
+		String sql = "SELECT * FROM Discounts WHERE outletId='" + escapeString(outletId) + "' AND isActive  = 'true' AND applicableOnZomato = 'true';";
+		return db.getRecords(sql, Discount.class, systemId);
 	}
 
 	@Override
-	public Boolean discountExists(String hotelId, String name) {
-		Discount discount = getDiscountByName(hotelId, name.trim());
+	public Boolean deleteDiscount(String systemId, int discountId) {
+		String sql = "UPDATE Discounts SET isActive = 'false' WHERE id='" + discountId + "';";
+		return db.executeUpdate(sql, systemId, true);
+	}
+
+	@Override
+	public Boolean discountExists(String systemId, String outletId, String name) {
+		Discount discount = getDiscountByName(systemId, outletId, name.trim());
 		if (discount != null) {
 			return true;
 		}
@@ -226,27 +233,31 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 
 	@Override
-	public Discount getDiscountByName(String hotelId, String name) {
-		String sql = "SELECT * FROM Discount WHERE name='" + escapeString(name) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Discount.class, hotelId);
+	public Discount getDiscountByName(String systemId, String outletId, String name) {
+		String sql = "SELECT * FROM Discounts WHERE name='" + escapeString(name) + "';";
+		return db.getOneRecord(sql, Discount.class, systemId);
 	}
 
 	@Override
-	public String getDiscountUsageLimit(String hotelId, String name) {
-		String sql = "SELECT usageLimit FROM Discount WHERE name='" + escapeString(name) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		Discount dis = db.getOneRecord(sql, Discount.class, hotelId);
+	public Discount getDiscountById(String systemId, int discountId) {
+		String sql = "SELECT * FROM Discounts WHERE id=" + discountId + ";";
+		return db.getOneRecord(sql, Discount.class, systemId);
+	}
+
+	@Override
+	public String getDiscountUsageLimit(String systemId, int discountId) {
+		String sql = "SELECT usageLimit FROM Discounts WHERE id='" + discountId + "';";
+		Discount dis = db.getOneRecord(sql, Discount.class, systemId);
 
 		return dis.getUsageLimit();
 	}
 
 	@Override
-	public BigDecimal getAppliedDiscount(String hotelId, String orderId) {
-		String sql = "SELECT (foodDiscount+barDiscount) AS entityId FROM PAYMENT WHERE hotelId = '" + hotelId + "' AND orderId = '"
+	public BigDecimal getAppliedDiscount(String systemId, String outletId, String orderId) {
+		String sql = "SELECT (foodDiscount+barDiscount) AS entityId FROM PAYMENT WHERE outletId = '" + outletId + "' AND orderId = '"
 				+ orderId + "';";
 
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
+		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, systemId);
 		if (entity != null) {
 			return entity.getId();
 		}
@@ -254,7 +265,7 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 
 	@Override
-	public JSONObject applyDiscount(String hotelId, Order order, String discountCode, String discountType) {
+	public JSONObject applyDiscount(String systemId, String outletId, Order order, String discountCode, String discountType) {
 
 		JSONObject outObj = new JSONObject();
 		try {
@@ -264,11 +275,11 @@ public class DiscountManager extends AccessManager implements IDiscount{
 			
 			if(discountType.equals(DISCOUNT_TYPE_ZOMATO_VOUCHER) || discountType.equals(DISCOUNT_TYPE_PIGGYBANK) 
 					|| discountType.equals(DISCOUNT_TYPE_FIXED_RUPEE_DISCOUNT)) {
-				status = this.discountExists(hotelId, discountType);
-				discount = this.getDiscountByName(hotelId, discountType);
+				status = this.discountExists(systemId, outletId, discountType);
+				discount = this.getDiscountByName(systemId, outletId, discountType);
 			}else {
-				status = this.discountExists(hotelId, discountCode);
-				discount = this.getDiscountByName(hotelId, discountCode);
+				status = this.discountExists(systemId, outletId, discountCode);
+				discount = this.getDiscountByName(systemId, outletId, discountCode);
 			}
 			if(!status) {
 				outObj.put("message", "This code does not exist. Please enter a valid discount code.");
@@ -299,7 +310,7 @@ public class DiscountManager extends AccessManager implements IDiscount{
 				return outObj;
 			}
 			if(discountType.equals(DISCOUNT_TYPE_DISCOUNT_CODE)){
-				JSONArray appliedDiscounts = order.getDiscountCode();
+				JSONArray appliedDiscounts = order.getDiscountCodes();
 				for (int i=0; i<appliedDiscounts.length(); i++) {
 					if(appliedDiscounts.getString(i).equals(discountCode)) {
 						outObj.put("message", "This code has already been applied. Can't use the same code twice.");
@@ -307,33 +318,33 @@ public class DiscountManager extends AccessManager implements IDiscount{
 					}
 				}
 			}else {
-				if(order.getDiscountCode().toString().contains(discountType)) {
+				if(order.getDiscountCodes().toString().contains(discountType)) {
 					outObj.put("message", "This code has already been applied. Can't use the same code twice.");
 					return outObj;
 				}
 			}
-			JSONArray discountArr = order.getDiscountCode();
+			JSONArray discountArr = order.getDiscountCodes();
 
 			String sql = "";
 			if(discountType.equals(DISCOUNT_TYPE_ZOMATO_VOUCHER)) {
 				discountArr.put(discountType);
-				sql = "UPDATE Orders SET discountCode = '" + discountArr.toString() + "', zomatoVoucherAmount = '" + discountCode
-						+ "' WHERE hotelId = '" + hotelId + "' AND orderId = '" + order.getOrderId() + "';";
+				sql = "UPDATE Orders SET discountCodes = '" + discountArr.toString() + "', zomatoVoucherAmount = '" + discountCode
+						+ "' WHERE outletId = '" + outletId + "' AND orderId = '" + order.getOrderId() + "';";
 			}else if(discountType.equals(DISCOUNT_TYPE_PIGGYBANK)) {
 				discountArr.put(discountType);
-				sql = "UPDATE Orders SET discountCode = '" + discountArr.toString() + "', piggyBank = '" + discountCode
-						+ "' WHERE hotelId = '" + hotelId + "' AND orderId = '" + order.getOrderId() + "';";
+				sql = "UPDATE Orders SET discountCodes = '" + discountArr.toString() + "', piggyBank = '" + discountCode
+						+ "' WHERE outletId = '" + outletId + "' AND orderId = '" + order.getOrderId() + "';";
 			}else if(discountType.equals(DISCOUNT_TYPE_FIXED_RUPEE_DISCOUNT)) {
 				discountArr.put(discountType);
-				sql = "UPDATE Orders SET discountCode = '" + discountArr.toString() + "', fixedRupeeDiscount = '" + discountCode
-						+ "' WHERE hotelId = '" + hotelId + "' AND orderId = '" + order.getOrderId() + "';";
+				sql = "UPDATE Orders SET discountCodes = '" + discountArr.toString() + "', fixedRupeeDiscount = '" + discountCode
+						+ "' WHERE outletId = '" + outletId + "' AND orderId = '" + order.getOrderId() + "';";
 			}else if(discountType.equals(DISCOUNT_TYPE_DISCOUNT_CODE)) {
 				discountArr.put(discountCode);
-				sql = "UPDATE Orders SET discountCode = '" + discountArr.toString() + "' WHERE hotelId = '" + hotelId
+				sql = "UPDATE Orders SET discountCodes = '" + discountArr.toString() + "' WHERE outletId = '" + outletId
 						+ "' AND orderId = '" + order.getOrderId() + "';";
 			}
 			
-			if(!db.executeUpdate(sql, true)) {
+			if(!db.executeUpdate(sql, systemId, true)) {
 				outObj.put("message", "This discount code could not be applied. Please contact support.");
 				return outObj;
 			}
@@ -389,11 +400,35 @@ public class DiscountManager extends AccessManager implements IDiscount{
 	}
 
 	@Override
-	public boolean removeDiscount(String hotelId, String orderId) {
+	public boolean removeAllDiscounts(String systemId, String outletId, String orderId) {
 
-		String sql = "UPDATE Orders SET discountCode = '[]' WHERE hotelId = '" + hotelId
+		String sql = "UPDATE Orders SET discountCodes = '[]' WHERE outletId = '" + outletId
 					+ "' AND orderId = '" + orderId + "';";
 			
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
+	}
+
+	@Override
+	public boolean removeDiscount(String systemId, String outletId, String orderId, String discountCode) {
+
+		IOrder dao = new OrderManager(false);
+		JSONArray discounts = dao.getOrderById(systemId, orderId).getDiscountCodes();
+		JSONArray newDiscounts = new JSONArray();
+		try {
+			for(int i=0; i< discounts.length(); i++) {
+				
+				if(!discounts.getString(i).equals(discountCode)) {
+					newDiscounts.put(discounts.getString(i));
+				}
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		String sql = "UPDATE Orders SET discountCodes = '"+newDiscounts.toString()+"' WHERE outletId = '" + outletId
+					+ "' AND orderId = '" + orderId + "';";
+			
+		return db.executeUpdate(sql, systemId, true);
 	}
 }

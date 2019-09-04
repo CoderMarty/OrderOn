@@ -13,9 +13,9 @@ public interface IService {
 
 	public boolean addService(String hotelId, String serviceType, String serviceDate, int cashInHand);
 
-	public boolean checkSevicesEnded(String hotelId, String serviceDate, String serviceType);
-
 	public boolean endService(String hotelId, String serviceDate, String serviceType);
+
+	public boolean updateEndTime(String hotelId, String serviceDate, String serviceType);
 
 	public boolean updateReportStatusToSent(String hotelId, String serviceDate, String serviceType);
 

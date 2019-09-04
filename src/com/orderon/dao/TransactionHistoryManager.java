@@ -53,10 +53,10 @@ public class TransactionHistoryManager extends AccessManager implements ITransac
 				+ trAccountName + "', '" + paymentType + "', " + amount + ", " + accountBalance + ", '" + LocalDateTime.now() + "', '" 
 				+ userId + "', '" + authoriser + "', '" + employeeId + "', '" + escapeString(hotelId) + "', '" + serviceDao.getServiceDate(hotelId) + "');";
 
-		db.executeUpdate(sql, true);
+		db.executeUpdate(sql, hotelId, true);
 		
 		sql = "UPDATE Employee SET accountBalance = "+accountBalance+ " WHERE hotelId = '"+hotelId+"' AND employeeId = '"+employeeId+"';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override

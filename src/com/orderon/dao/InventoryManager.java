@@ -21,6 +21,7 @@ public class InventoryManager extends AccessManager implements IInventory, IPurc
 		super(transactionBased);
 	}
 
+	@Override
 	public JSONObject addPurchase(String billNo, String challanNo, int vendorId, String outletId,
 			BigDecimal additionalDiscount, BigDecimal totalDiscount, BigDecimal charge, BigDecimal roundOff,
 			BigDecimal totalGst, BigDecimal grandTotal, String purchaseDate, String paymentType, String account,
@@ -308,7 +309,7 @@ public class InventoryManager extends AccessManager implements IInventory, IPurc
 		IOrderItem dao = new OrderManager(Boolean.valueOf(false));
 		ArrayList<OrderItem> orderItems = dao.getOrderedItems(outletId, orderId, false);
 		for (OrderItem orderItem : orderItems) {
-			revertInventoryForReturn(outletId, orderId, orderItem.getMenuId(), orderItem.getQty());
+			revertInventoryForReturn(outletId, orderId, orderItem.getMenuId(), orderItem.getQuantity());
 		}
 	}
 

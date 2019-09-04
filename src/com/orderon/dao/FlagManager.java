@@ -22,7 +22,7 @@ public class FlagManager extends AccessManager implements IFlag {
 
 		String sql = "INSERT INTO Flags (hotelId, name, groupId) VALUES('" + escapeString(hotelId) 
 				+ "', '" + name + "', '" + groupId + "');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -35,6 +35,6 @@ public class FlagManager extends AccessManager implements IFlag {
 	@Override
 	public boolean deleteFlag(String hotelId, int id) {
 		String sql = "DELETE FROM Flags WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 }

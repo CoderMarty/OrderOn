@@ -44,7 +44,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 	public Boolean removeAttendance(String hotelId, String employeeId, int shift, String serviceDate) {
 		String sql = "DELETE FROM Attendance WHERE checkInDate = '" + serviceDate
 				+ "' AND employeeId = '" + employeeId + "' AND hotelId = '" + hotelId + "' AND shift = "+shift+";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -73,7 +73,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 				+ LocalDateTime.now() + "', '" + escapeString(serviceDate) + "', " + AUTHORIZE + ", "
 				+ EXCUSED + ", " + shift + ", '" + reason + "');";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -84,7 +84,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 				+ LocalDateTime.now() + "', '" + escapeString(serviceDate) + "', " + AUTHORIZE + ", "
 				+ ABSENT + ", " + shift + ");";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -99,7 +99,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 				+ "' WHERE hotelId = '" + hotelId + "' AND isPresent = 1 AND checkOutDate is null;";
 		
 		System.out.println(sql);
-		db.executeUpdate(sql, true);
+		db.executeUpdate(sql, hotelId, true);
 
 		return checkOutDate;
 	}
@@ -115,7 +115,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 		String sql = "UPDATE ATTENDANCE SET checkOutTime = '" + now + "', checkOutDate = '" + checkOutDate
 				+ "' WHERE hotelId = '" + hotelId + "' AND Id = '" + attendanceId + "';";
 
-		db.executeUpdate(sql, true);
+		db.executeUpdate(sql, hotelId, true);
 
 		return checkOutDate;
 	}
@@ -132,7 +132,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 				+ serviceDate + "', " + UNAUTHORIZE + ", " + PRESENT + ", " + shift
 				+ ");";
 
-		db.executeUpdate(sql, true);
+		db.executeUpdate(sql, hotelId, true);
 
 		return checkInTime;
 	}
@@ -143,7 +143,7 @@ public class AttendanceManager extends AccessManager implements IAttendance{
 		String sql = "UPDATE ATTENDANCE SET authorisation = " + AUTHORIZE + " WHERE hotelId = '" + hotelId
 				+ "' AND Id = '" + attendanceId + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override

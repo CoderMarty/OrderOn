@@ -7,13 +7,13 @@ import com.orderon.dao.AccessManager.Tax;
 
 public interface ITax {
 
-	public ArrayList<Tax> getTaxes(String systemId);
+	public ArrayList<Tax> getTaxes(String systemId, String outletId);
 	
-	public ArrayList<Tax> getActiveTaxes(String systemId);
+	public ArrayList<Tax> getActiveTaxes(String systemId, String outletId);
 	
-	public ArrayList<Tax> getTaxesForMaterials(String systemId);
+	public ArrayList<Tax> getTaxesForMaterials(String systemId, String outletId);
 
-	public boolean addTax(String corporateId, String systemId, String outletId, String name, BigDecimal value, String type, Boolean isActive);
+	public boolean addTax(String corporateId, String restaurantId, String systemId, String outletId, String name, BigDecimal value, String type, Boolean isActive);
 
 	public Tax getTaxByName(String systemId, String outletId, String taxName);
 

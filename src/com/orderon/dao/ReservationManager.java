@@ -21,18 +21,18 @@ public class ReservationManager extends AccessManager implements IReservation {
 		ICustomer dao = new CustomerManager(false);
 		Customer customer = dao.getCustomerDetails(hotelId, mobileNumber);
 		if(customer == null) {
-			dao.addCustomer(hotelId, firstName, surName, mobileNumber, "", "", "", "", false, isPriorityCust, emailId, "");
+			dao.addCustomer(hotelId, firstName, surName, mobileNumber, "", "", "", "", false, isPriorityCust, emailId, "NONE", "");
 			customer = dao.getCustomerDetails(hotelId, mobileNumber);
 		}else if(isPriorityCust) {
 			String sql = "UPDATE Customer SET isPriority = '" +true+ "' WHERE id = "+customer.getId()+";";
-			db.executeUpdate(sql, true);
+			db.executeUpdate(sql, hotelId, true);
 		}
 		
 		String sql = "INSERT INTO Reservations(hotelId, customerId, maleCount, femaleCount, childrenCount, bookingTime, timeStamp, state, type)"
 				+ "VALUES('" + hotelId + "', " + customer.getId() + ", " + maleCount
 				+ ", " + femaleCount + ", " + childrenCount + ", '" + bookingTime + "', '" + LocalDateTime.now()
 				+ "', " + RESERVATION_STATE_BOOKED + ", " + TYPE_RESERVATION + "');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -42,18 +42,18 @@ public class ReservationManager extends AccessManager implements IReservation {
 		ICustomer dao = new CustomerManager(false);
 		Customer customer = dao.getCustomerDetails(hotelId, mobileNumber);
 		if(customer == null) {
-			dao.addCustomer(hotelId, firstName, surName, mobileNumber, "", "", "", "", false, isPriorityCust, emailId, "");
+			dao.addCustomer(hotelId, firstName, surName, mobileNumber, "", "", "", "", false, isPriorityCust, emailId, "NONE", "");
 			customer = dao.getCustomerDetails(hotelId, mobileNumber);
 		}else if(isPriorityCust) {
 			String sql = "UPDATE Customer SET isPriority = '" +true+ "' WHERE id = "+customer.getId()+";";
-			db.executeUpdate(sql, true);
+			db.executeUpdate(sql, hotelId, true);
 		}
 		
 		String sql = "INSERT INTO Reservations(hotelId, customerId, maleCount, femaleCount, childrenCount, bookingTime, bookingDate, timeStamp, state, type)"
 				+ "VALUES('" + hotelId + "', " + customer.getId() + ", " + maleCount
 				+ ", " + femaleCount + ", " + childrenCount + ", '" + parseTime("HH:mm") + "', '" + LocalDateTime.now()
 				+ "', " + RESERVATION_STATE_WAITING + ", " + TYPE_WAITLIST + "');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -63,14 +63,14 @@ public class ReservationManager extends AccessManager implements IReservation {
 		String sql = "UPDATE Reservations SET maleCount = " + maleCount + ", femaleCount = "
 				+ femaleCount + ", childrenCount = " + childrenCount + ", bookingTime = '" + bookingTime
 				+ "' WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
 	public Boolean updateReservationState(String hotelId, int reservationId, int state) {
 
 		String sql = "UPDATE Reservations SET state = " + state + " WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -78,7 +78,7 @@ public class ReservationManager extends AccessManager implements IReservation {
 
 		String sql = "UPDATE Reservations SET state = " + state 
 				+ ", orderId = '"+orderId+"' WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override

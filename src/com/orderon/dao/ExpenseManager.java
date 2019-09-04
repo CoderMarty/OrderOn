@@ -60,7 +60,7 @@ public class ExpenseManager extends AccessManager implements IExpense {
 	public boolean deleteExpense(String hotelId , int expenseId, String section, String paymentType, BigDecimal amount) {
 
 		String sql = "DELETE FROM Expenses WHERE hotelId = '"+hotelId+"' AND id = "+ expenseId;
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override

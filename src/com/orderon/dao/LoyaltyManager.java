@@ -52,7 +52,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 					+ escapeString(validCollections) + "','" + status + "','" + this.formatDate(startDate, "yyyy-MM-dd", "yyyy/MM/dd") + "','"
 					+ this.formatDate(expiryDate, "yyyy-MM-dd", "yyyy/MM/dd") + "','" + escapeString(hotelId) + "','" + escapeString(chainId) + "');";
 
-			if (!db.executeUpdate(sql, true)) {
+			if (!db.executeUpdate(sql, hotelId, true)) {
 				outObj.put("message", "This offer could not be added. Internal Error");
 				return outObj;
 			}
@@ -122,7 +122,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 					+ validCollections + "', status = '" + status + "', startDate = '" + this.formatDate(startDate, "yyyy-MM-dd", "yyyy/MM/dd") + "', expiryDate = '"
 					+ this.formatDate(expiryDate, "yyyy-MM-dd", "yyyy/MM/dd") + "' WHERE hotelId = '" + hotelId + "' AND Id = " + id + ";";
 
-			if (!db.executeUpdate(sql, true)) {
+			if (!db.executeUpdate(sql, hotelId, true)) {
 				outObj.put("message", "Failed to edit this offer. Please try again or contact OrderOn support.");
 				return outObj;
 			}
@@ -140,7 +140,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 		String sql = "UPDATE LoyaltyOffers SET usageLimit = " + updatedCount + " WHERE id = " + loyaltyId
 				+ " AND hotelId = '" + hotelId + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -238,8 +238,8 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 							|| orderItem.getState() == SUBORDER_STATE_RETURNED || orderItem.getState() == SUBORDER_STATE_VOIDED)
 						continue;
 					if (loyalty.getOfferValue().equals(orderItem.getMenuId())) {
-						excessQty -= orderItem.getQty();
-						int qty = excessQty <= 0 ? loyalty.getOfferQuantity() : orderItem.getQty();
+						excessQty -= orderItem.getQuantity();
+						int qty = excessQty <= 0 ? loyalty.getOfferQuantity() : orderItem.getQuantity();
 						complimetaryAdded = orderDao.complimentaryItem(hotelId, order.getOrderId(), orderItem.getMenuId(), "",
 								orderItem.getSubOrderId(), orderItem.getRate(), qty, loyalty.getName());
 						if (!complimetaryAdded) {
@@ -257,11 +257,11 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 					IMenuItem menuDao = new MenuItemManager(false);
 					item = menuDao.getMenuById(hotelId, loyalty.getOfferValue());
 					Double rate = item.getDineInRate().doubleValue();
-					if(order.getInHouse() == HOME_DELIVERY || (order.getInHouse() == TAKE_AWAY && order.getTakeAwayType() == COUNTER_PARCEL_ORDER)) 
+					if(order.getOrderType() == HOME_DELIVERY || (order.getOrderType() == TAKE_AWAY && order.getTakeAwayType() == COUNTER_PARCEL_ORDER)) 
 						rate = item.getDeliveryRate().doubleValue();
-					else if(order.getInHouse() == TAKE_AWAY && order.getTakeAwayType() != COUNTER_PARCEL_ORDER)
+					else if(order.getOrderType() == TAKE_AWAY && order.getTakeAwayType() != COUNTER_PARCEL_ORDER)
 						rate = item.getOnlineRate().doubleValue();
-					else if(order.getInHouse() == DINE_IN && tableType.equals(TABLE_TYPE_AC))
+					else if(order.getOrderType() == DINE_IN && tableType.equals(TABLE_TYPE_AC))
 						rate = item.getDineInNonAcRate().doubleValue();
 					
 					String sql = "INSERT INTO OrderItemLog "
@@ -272,7 +272,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 							+ ORDER_STATE_COMPLIMENTARY + ", 'Loyalty:" + loyalty.getName() + "', '"
 							+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', " + excessQty + ", "
 							+ rate + ", " + 1 + ");";
-					if (!db.executeUpdate(sql, true)) {
+					if (!db.executeUpdate(sql, hotelId, true)) {
 						outObj.put("message", "Offer could not be applied. Please contact support. Code 50");
 						db.rollbackTransaction();
 						return outObj;
@@ -284,7 +284,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 			String sql = "UPDATE Customers SET points = " + balancePoints + " WHERE mobileNumber = '"
 					+ customer.getMobileNumber() + "' AND hotelId = '" + hotelId + "';";
 
-			if (!db.executeUpdate(sql, true)) {
+			if (!db.executeUpdate(sql, hotelId, true)) {
 				outObj.put("message", "Customer wallet could not be updated. Please contact support.");
 				db.rollbackTransaction();
 				return outObj;
@@ -293,7 +293,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 			sql = "UPDATE Orders SET loyaltyId = " + loyaltyId + ", loyaltyPaid = " + redeemablePoints
 					+ " WHERE orderId = '" + order.getOrderId() + "' AND hotelId = '" + hotelId + "';";
 
-			if (!db.executeUpdate(sql, true)) {
+			if (!db.executeUpdate(sql, hotelId, true)) {
 				outObj.put("message", "Loyalty could not be added to order. Please contact support.");
 				db.rollbackTransaction();
 				return outObj;
@@ -356,7 +356,7 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 				+ escapeString(customer.getMobileNumber()) + "' AND hotelId='" + escapeString(hotelId) + "';";
 		
 		sql += "UPDATE Orders SET loyaltyEarned = " +points+" WHERE orderId = '"+orderId+"' AND hotelId = '"+hotelId+"';";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	@Override
@@ -387,6 +387,6 @@ public class LoyaltyManager extends AccessManager implements ILoyalty, ILoyaltyS
 		String sql = "UPDATE LoyaltySettings SET requiredPoints = " + requiredPoints + ", pointToRupee = "
 				+ pointToRupee + " WHERE hotelId = '" + hotelId + "' AND userType = '" + userType + "';";
 
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 }

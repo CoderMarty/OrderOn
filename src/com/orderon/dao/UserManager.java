@@ -109,7 +109,7 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 					+ " WHERE userId='" + escapeString(userId) + "' AND hotelId='" + hotelId + "';";
 	
 			Connection conn;
-			conn = db.getConnection();
+			conn = db.getConnection(hotelId);
 			PreparedStatement pstmt = conn.prepareStatement(sql);
 			pstmt.setBytes(1, hash);
 			pstmt.setBytes(2, salt);
@@ -178,7 +178,7 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 				return outObj;
 			}
 			String sql = "DELETE FROM Users WHERE userId = '" + selectedUser.getUserId() + "' AND hotelId='" + hotelId + "';";
-			outObj.put("status", db.executeUpdate(sql, true));
+			outObj.put("status", db.executeUpdate(sql, hotelId, true));
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -297,7 +297,7 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 		
 		String sql = "UPDATE Users SET authToken = 0, timeStamp = NULL WHERE userId = '" + userId + "'AND hotelId = '"
 				+ hotelId + "';";
-		db.executeUpdate(sql, false);
+		db.executeUpdate(sql, hotelId, false);
 		return null;
 	}
 

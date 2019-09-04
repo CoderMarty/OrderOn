@@ -16,39 +16,42 @@ public class ScheduleManager extends AccessManager implements ISchedules {
 	}
 
 	@Override
-	public ArrayList<Schedule> getSchedules(String hotelId) {
-		String sql = "SELECT * FROM Schedules  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Schedule.class, hotelId);
+	public ArrayList<Schedule> getSchedules(String systemId, String outletId) {
+		String sql = "SELECT * FROM Schedules  WHERE outletId='" + outletId + "';";
+		return db.getRecords(sql, Schedule.class, systemId);
 	}
 
 	@Override
-	public boolean addSchedule(String hotelId, String name, String days, String timeSlots) {
+	public boolean addSchedule(String corporateID, String restaurantId, String systemId, 
+			String outletId, String name, String days, String timeSlots) {
 
-		String sql = "INSERT INTO Schedules (hotelId, name, days, timeSlots) VALUES('" + escapeString(hotelId) + "', '"
+		String sql = "INSERT INTO Schedules (corporateID, restaurantId, systemId, outletId, "
+				+ "name, days, timeSlots) VALUES('" + escapeString(corporateID) + "', '" + escapeString(restaurantId) 
+				+ "', '" + escapeString(systemId) + "', '" + escapeString(outletId) + "', '"
 				+ escapeString(name) + "', '" + days + "', '" + timeSlots + "');";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public Schedule getScheduleById(String hotelId, int scheduleId) {
-		String sql = "SELECT * FROM Schedules WHERE id=" + scheduleId + " AND hotelId='" + escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Schedule.class, hotelId);
+	public Schedule getScheduleById(String systemId, int scheduleId) {
+		String sql = "SELECT * FROM Schedules WHERE id=" + scheduleId + ";";
+		return db.getOneRecord(sql, Schedule.class, systemId);
 	}
 
 	@Override
-	public boolean deleteSchedule(String hotelId, int scheduleId) {
-		String sql = "DELETE FROM Schedules WHERE id = " + scheduleId + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
+	public boolean deleteSchedule(String systemId, int scheduleId) {
+		String sql = "DELETE FROM Schedules WHERE id = " + scheduleId + ";";
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	@Override
-	public JSONArray getSchedules(String hotelId, JSONArray scheduleIds){
+	public JSONArray getSchedules(String systemId, String outletId, JSONArray scheduleIds){
 		String sql = "";
 		JSONArray schedules = new JSONArray();
 		for(int i=0; i<scheduleIds.length(); i++) {
 			try {
-				sql = "SELECT * FROM Schedules WHERE id=" + scheduleIds.get(i) + " AND hotelId='" + escapeString(hotelId) + "';";
-				schedules.put(new JSONObject(db.getOneRecord(sql, Schedule.class, hotelId)));
+				sql = "SELECT * FROM Schedules WHERE id=" + scheduleIds.get(i) + " AND outletId='" + escapeString(outletId) + "';";
+				schedules.put(new JSONObject(db.getOneRecord(sql, Schedule.class, systemId)));
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

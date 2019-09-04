@@ -15,8 +15,8 @@ public class OutletManager extends AccessManager implements IOutlet {
 	}
 	
 	@Override
-	public JSONObject addOutlet(String corporateId, String outletId, String name, String address,
-			String contact, String gstNumber, String vatNumber, String outletCode, String fileName) {
+	public JSONObject addOutlet(String corporateId, String restaurantId, String outletId, String name, String companyName, String address,
+			String contact, String gstNumber, String vatNumber, String outletCode, String imgLocation, JSONObject location) {
 		
 		JSONObject outObj = new JSONObject();
 		try {
@@ -27,10 +27,12 @@ public class OutletManager extends AccessManager implements IOutlet {
 				return outObj;
 			}
 			
-			String sql = "INSERT INTO Hotel (corporateId, outletId, name, address, contact, gstNumber, vatNumber, outletCode, imageLocation)"
-					+ " VALUES ('" + corporateId + "', '"+escapeString(outletId)+"', '" + escapeString(name)+ "', '" + escapeString(address)+ 
-					"', '" + escapeString(contact)+ "', '" + escapeString(gstNumber)+ "', '" + escapeString(vatNumber)+ "', '" + escapeString(outletCode)+ 
-					"', '" + escapeString(fileName) + "');";
+			String sql = "INSERT INTO Outlets (corporateId, restaurantId, outletId, name, address, contact, gstNumber, vatNumber, outletCode, "
+					+ "imageLocation, location, companyName)"
+					+ " VALUES ('" + corporateId + "', '" + restaurantId + "', '" +escapeString(outletId) + "', '" + escapeString(name)
+					+ "', '" + escapeString(address) + "', '" + escapeString(contact) + "', '" + escapeString(gstNumber) + "', '" 
+					+ escapeString(vatNumber) + "', '" + escapeString(outletCode) + "', '" + escapeString(imgLocation) 
+					+ "', '" + location.toString() + "', '" + escapeString(companyName) + "');";
 			
 			outObj.put("status", db.executeUpdate(sql, outletId, true));
 	
@@ -44,53 +46,61 @@ public class OutletManager extends AccessManager implements IOutlet {
 
 	@Override
 	public ArrayList<Outlet> getOutletsForCorporate(String corporateId) {
-		String sql = "SELECT * FROM Outlet WHERE corporateId = '"+ corporateId + "';";
+		String sql = "SELECT * FROM Outlets WHERE corporateId = '"+ corporateId + "';";
 		return db.getRecords(sql, Outlet.class, corporateId);
+	}
+
+	@Override
+	public ArrayList<Outlet> getOutletsForSystem(String systemId) {
+		String sql = "SELECT * FROM Outlets WHERE systemId = '"+ systemId + "';";
+		return db.getRecords(sql, Outlet.class, systemId);
 	}
 	
 	@Override
-	public ArrayList<Outlet> getOutlets(String outletId) {
-		String sql = "SELECT * FROM Outlet;";
-		return db.getRecords(sql, Outlet.class, outletId);
+	public ArrayList<Outlet> getOutlets(String systemId) {
+		String sql = "SELECT * FROM Outlets;";
+		return db.getRecords(sql, Outlet.class, systemId);
 	}
 
 	@Override
 	public Outlet getOutlet(String corporateId, String outletId) {
-		String sql = "SELECT * FROM Outlet WHERE corporateId = '"+ corporateId + "' AND outletId = '"+outletId+"';";
+		String sql = "SELECT * FROM Outlets WHERE corporateId = '"+ corporateId + "' AND outletId = '"+outletId+"';";
 		return db.getOneRecord(sql, Outlet.class, corporateId);
 	}
 
 	@Override
-	public Outlet getOutlet(String outletId) {
-		String sql = "SELECT * FROM Outlet WHERE outletId = '"+outletId+"';";
-		return db.getOneRecord(sql, Outlet.class, outletId);
+	public Outlet getOutletForSystem(String systemId, String outletId) {
+		String sql = "SELECT * FROM Outlets WHERE outletId = '"+outletId+"';";
+		return db.getOneRecord(sql, Outlet.class, systemId);
 	}
 
 	@Override
 	public boolean outletExists(String corporateId, String outletId) {
-		String sql = "SELECT * FROM Outlet WHERE corporateId = '"+ corporateId + "' AND outletId = '"+outletId+"';";
+		String sql = "SELECT * FROM Outlets WHERE corporateId = '"+ corporateId + "' AND outletId = '"+outletId+"';";
 		return db.hasRecords(sql, corporateId);
 	}
 
 	@Override
-	public Settings getSettings(String outletId) {
-		String sql = "SELECT * FROM Hotel WHERE hotelId = '"+outletId+"';";
-		return db.getOneRecord(sql, Settings.class, outletId);
+	public Settings getSettings(String systemId) {
+		String sql = "SELECT * FROM System;";
+		return db.getOneRecord(sql, Settings.class, systemId);
 	}
 
 	@Override
-	public boolean updatePromotionalBalance(String outletId, int sentSmsCount) {
-		Settings settings = this.getSettings(outletId);
-		int updatedCount = settings.getPromotionalSMSBalance() - sentSmsCount;
-		String sql = "UPDATE Hotel SET promotionalSMSBalance = " + updatedCount + " WHERE hotelId = '"+outletId+"';";
-		return db.executeUpdate(sql, outletId, true);
+	public Settings getHotelSettings(String systemId) {
+		String sql = "SELECT * FROM Hotel;";
+		return db.getOneRecord(sql, Settings.class, systemId);
 	}
 
 	@Override
-	public boolean updateTransactionalCount(String outletId, int sentSmsCount) {
-		Settings settings = this.getSettings(outletId);
-		int updatedCount = settings.getTransactionSMSCount() + sentSmsCount;
-		String sql = "UPDATE Hotel SET transactionSMSCount = " + updatedCount + " WHERE hotelId = '"+outletId+"';";
-		return db.executeUpdate(sql, outletId, true);
+	public boolean isOldVersion(String systemId) {
+		String sql = "SELECT name FROM sqlite_master WHERE type='table' AND name='Hotel';";
+		return db.hasRecords(sql, systemId);
+	}
+
+	@Override
+	public ArrayList<EntityString> getOutletsIds(String systemId) {
+		String sql = "SELECT outletId AS entityId FROM Outlets;";
+		return db.getRecords(sql, EntityString.class, systemId);
 	}
 }
