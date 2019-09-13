@@ -174,7 +174,6 @@ public class ReservationServices {
 		IOutlet outletDao = new OutletManager(false);
 		IService serviceDao = new ServiceManager(false);
 		try {
-			dao.beginTransaction();
 			outObj.put("status", -1);
 			outObj.put("message", "Unknown Error");
 			inObj = new JSONObject(jsonObject);
@@ -184,11 +183,12 @@ public class ReservationServices {
 			for (int i = 0; i < tableIds.length; i++) {
 				tableIds[i] = tablesArr.getString(i);
 			}
+			dao.beginTransaction(inObj.getString("systemId"));
 			Reservation reservation = dao.getReservation(inObj.getString("hotelId"), inObj.getInt("reservationId"));
 			ServiceLog service = serviceDao.getCurrentService(inObj.getString("hotelId"));
 			
 			Settings setting = outletDao.getSettings(inObj.getString("hotelId"));
-			outObj = orderDao.newOrder(inObj.getString("hotelId"), setting.getHotelType(), inObj.getString("userId"), tableIds,
+			outObj = orderDao.newOrder(inObj.getString("systemId"), inObj.getString("outletId"), setting.getHotelType(), inObj.getString("userId"), tableIds,
 					reservation.getCovers(), reservation.getCustomerName(), reservation.getMobileNumber(), reservation.getCustomerAddress(),
 					inObj.has("section")?inObj.getString("section"):"", "", service);
 			
