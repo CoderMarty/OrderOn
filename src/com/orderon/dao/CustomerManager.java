@@ -37,6 +37,8 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 	public Boolean addCustomer(String hotelId, String firstName, String surName, String phone, String address, String birthdate,
 			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust, String emailId, String sex, 
 			String referenceForReview) {
+		if(phone.isEmpty())
+			return false;
 		ILoyaltySettings loyalty = new LoyaltyManager(false);
 		String sql = "INSERT INTO Customers (hotelId, firstName, surName,address,mobileNumber, birthdate, anniversary, allergyInfo, "
 				+ "points, wantsPromotion, isPriority, userType, emailId, sex, reference, communicationMode, sendSMS, joiningDate) VALUES ('"

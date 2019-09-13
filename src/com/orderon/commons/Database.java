@@ -8,6 +8,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import org.json.JSONArray;
+
+import com.orderon.dao.AccessManager.DBTransaction;
 import com.orderon.dao.ServerManager;
 import com.orderon.interfaces.IServer;
 
@@ -181,6 +184,31 @@ public class Database {
 				T entity = ref.newInstance();
 				entity.readFromDB(rs);
 				items.add(entity);
+			}
+		} catch (NullPointerException e) {
+			System.out.println(sql);
+			System.out.println("No Record Found");
+		}catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
+			e.printStackTrace();
+		} finally {
+			closeDB();
+		}
+		return items;
+	}
+
+	public JSONArray getJsonDBRecords(String sql, String outletId) {
+		Statement stmt = null;
+		JSONArray items = new JSONArray();
+		try {
+			openDB(outletId);
+			stmt = mConn.createStatement();
+
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				DBTransaction entity = DBTransaction.class.newInstance();
+				entity.readFromDB(rs);
+				items.put(entity.getTransaction());
 			}
 		} catch (NullPointerException e) {
 			System.out.println(sql);

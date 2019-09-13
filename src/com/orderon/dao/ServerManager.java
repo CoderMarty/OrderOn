@@ -1,8 +1,8 @@
 package com.orderon.dao;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -22,6 +22,22 @@ public class ServerManager extends AccessManager implements IServer{
 			return false;
 		}
 		System.out.println("All Transaction logged Successfully at " + hotelId + ".");
+		return true;
+	}
+
+	@Override
+	public boolean syncOnServer(String hotelId, JSONArray sqlQueries) {
+		try {
+			for (int i = 0; i < sqlQueries.length(); i++) {
+				if (!db.executeUpdate(sqlQueries.getString(i), hotelId, false)) {
+					return false;
+				}	
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.println("All Transaction logged Successfully at " + hotelId + "." + " Time Stamp: " + LocalDateTime.now());
 		return true;
 	}
 
@@ -78,11 +94,11 @@ public class ServerManager extends AccessManager implements IServer{
 	}
 
 	@Override
-	public ArrayList<DBTransaction> getAllTransactions(String outletId) {
+	public JSONArray getAllTransactions(String outletId) {
 		
 		String sql = "SELECT * FROM DBTransactions;";
 		
-		return db.getRecords(sql, DBTransaction.class, outletId);
+		return db.getJsonDBRecords(sql, outletId);
 	}
 
 	@Override

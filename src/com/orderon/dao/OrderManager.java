@@ -56,7 +56,6 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		}
 		if(query.isEmpty()) {
 			sql += " AND Orders.orderDate='" + serviceDate + "' ORDER BY Orders.id DESC;";
-			System.out.println(sql);
 			return db.getRecords(sql, Order.class, systemId);
 		}
 		String sql2;
@@ -344,7 +343,6 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public JSONObject newOnlineOrder(String jsonObj, JSONObject orderObj, int portalId) {
 		JSONObject outObj = new JSONObject();
 		try {
-			//System.out.println(jsonObj);
 			outObj.put("status", "failed");
 			String sql = "SELECT * FROM OnlineOrders WHERE orderId = '" + orderObj.getInt("order_id") +
 					"' AND restaurantId = '" + orderObj.getInt("restaurant_id") + "';";

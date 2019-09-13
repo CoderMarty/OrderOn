@@ -245,8 +245,8 @@ public class EwardsServices {
 			}else if(!inObj.has("couponCode")) {
 				outObj.put("message", "Ewards: Coupon Code not found.");
 				return outObj.toString();
-			}else if(!inObj.has("billNumber")) {
-				outObj.put("message", "Ewards: Bill Number not found.");
+			}else if(!inObj.has("orderNumber")) {
+				outObj.put("message", "Ewards: Order Number not found.");
 				return outObj.toString();
 			}
 
@@ -256,7 +256,7 @@ public class EwardsServices {
 			JSONObject urlParameters = new JSONObject();
 			urlParameters.put("customer_mobile", inObj.getString("mobileNumber"));
 			urlParameters.put("coupon_code", inObj.getString("couponCode"));
-			urlParameters.put("bill_number", inObj.getString("billNumber"));
+			urlParameters.put("bill_number", inObj.getInt("orderNumber"));
 			JSONObject credentials = settings.getEWardsCredentials();
 			urlParameters.put("customer_key", credentials.getString("key"));
 			urlParameters.put("merchant_id", credentials.getInt("id"));
@@ -322,8 +322,8 @@ public class EwardsServices {
 			}else if(!inObj.has("points")) {
 				outObj.put("message", "Ewards: Redeemable Points not found.");
 				return outObj;
-			}else if(!inObj.has("billNumber")) {
-				outObj.put("message", "Ewards: Bill Number not found.");
+			}else if(!inObj.has("orderNumber")) {
+				outObj.put("message", "Ewards: Order Number not found.");
 				return outObj;
 			}else if(!inObj.has("grossAmount")) {
 				outObj.put("message", "Ewards: Gross Amount not found.");
@@ -365,11 +365,11 @@ public class EwardsServices {
 			}
 
 			JSONObject transactions = new JSONObject();
-			transactions.put("id", inObj.getString("billNumber"));
+			transactions.put("id", inObj.getInt("orderNumber"));
 			transactions.put("gross_amount", inObj.getDouble("grossAmount"));
 			transactions.put("amount", inObj.getDouble("grossAmount"));
 			transactions.put("net_amount", inObj.getDouble("netAmount"));
-			transactions.put("number", inObj.getString("billNumber"));
+			transactions.put("number", inObj.getInt("orderNumber"));
 			transactions.put("type", "DINE-IN");
 			transactions.put("items", items);
 			
@@ -437,8 +437,8 @@ public class EwardsServices {
 			}else if(!inObj.has("points")) {
 				outObj.put("message", "Ewards: Redeemable Points not found.");
 				return outObj.toString();
-			}else if(!inObj.has("billNumber")) {
-				outObj.put("message", "Ewards: Bill Number not found.");
+			}else if(!inObj.has("orderNumber")) {
+				outObj.put("message", "Ewards: Order Number not found.");
 				return outObj.toString();
 			}else if(!inObj.has("grossAmount")) {
 				outObj.put("message", "Ewards: Gross Amount not found.");
@@ -516,8 +516,8 @@ public class EwardsServices {
 				redemption.put("reward_id", "");
 			}
 			
-			transactions.put("id", inObj.getString("billNumber"));
-			transactions.put("number", inObj.getString("billNumber"));
+			transactions.put("id", inObj.getInt("orderNumber"));
+			transactions.put("number", inObj.getInt("orderNumber"));
 			transactions.put("type", "DINE-IN");
 			transactions.put("payment_type", "");
 			transactions.put("gross_amount", grossAmount);

@@ -4588,7 +4588,6 @@ public class Services {
 		JSONObject outObj = new JSONObject();
 
 		IOrder dao = new OrderManager(false);
-		//IUserAuthentication userDao = new UserManager(false);
 		IOutlet outletDao = new OutletManager(false);
 		IService serviceDao = new ServiceManager(false);
 		try {
@@ -4602,13 +4601,6 @@ public class Services {
 				outObj.put("message", "Service has not started");
 				return outObj.toString();
 			}
-			/*String decoded = Base64.decodeAsString(authString.getBytes());
-			String[] auth = decoded.split(":");
-			outObj = userDao.validateToken(inObj.getString("hotelId"), auth[0], auth[1]);
-			if(!outObj.getBoolean("status")) {
-				outObj.put("status", -2);
-				return outObj.toString();
-			}*/
 			
 			JSONArray tablesArr = inObj.getJSONArray("tableIds");
 			String[] tableIds = new String[tablesArr.length()];
@@ -5076,40 +5068,31 @@ public class Services {
 	public String editOrder3(String jsonObject) {
 		JSONObject inObj = null;
 		JSONObject outObj = new JSONObject();
+		JSONArray addOns = null;
 
 		IOrder dao = new OrderManager(false);
 		IOrderItem itemDao = new OrderManager(true);
 		IMenuItem menuDao = new MenuItemManager(false);
 		IOutlet outletDao = new OutletManager(false);
 		
-		boolean printKOT = false;
-		String systemId = "";
-		String outletId = "";
-		String orderId = "";
-		String userId = "";
-		String menuId = "";
-		String section = "";
-		Outlet outlet = null;
-		Settings settings = null;
-		Order order = null;
-		JSONArray addOns = null;
 		try {
 			outObj.put("status", -1);
 			outObj.put("message", "Unknown Error");
 
 			inObj = new JSONObject(jsonObject);
 			
-			outletId = inObj.getString("outletId");
-			systemId = inObj.getString("systemId");
-			orderId = inObj.getString("orderId");
-			userId = inObj.getString("userId");
-			section = inObj.has("section")?inObj.getString("section"):"";
+			String outletId = inObj.getString("outletId");
+			String systemId = inObj.getString("systemId");
+			String orderId = inObj.getString("orderId");
+			String section = inObj.has("section")?inObj.getString("section"):"";
+			String menuId = "";
+			boolean printKOT = false;
 			
-			outlet = outletDao.getOutletForSystem(systemId, outletId);
-			settings = outletDao.getSettings(systemId);
+			Outlet outlet = outletDao.getOutletForSystem(systemId, outletId);
+			Settings settings = outletDao.getSettings(systemId);
 			
 			//Get order details.
-			order = dao.getOrderById(systemId, orderId);
+			Order order = dao.getOrderById(systemId, orderId);
 			
 			if(order==null) {
 				outObj.put("message", "Order not found.");
@@ -5144,7 +5127,11 @@ public class Services {
 			Boolean addAddons = false;
 			JSONObject subOrder = null;
 			int offset = 0;
-			
+			String tableId = "";
+			MenuItem menu = null;
+			String commonSpecs = "";
+			Boolean addedSpec = false;
+			JSONArray specifications = null;
 			
 			for (int i = 0; i < newItems.length(); i++) {
 				orderedItem = newItems.getJSONObject(i);
@@ -5173,12 +5160,13 @@ public class Services {
 							addAddons = true;
 						}
 					}
-					String tableId = "";
 					if(order.getOrderType() == AccessManager.DINE_IN) {
 						tableId = order.getTableId().split(",")[0];
+					}else {
+						tableId = "";
 					}
 					menuId = orderedItem.getString("menuId");
-					MenuItem menu = menuDao.getMenuById(systemId, menuId);
+					menu = menuDao.getMenuById(systemId, menuId);
 					subOrder = itemDao.newSubOrder(systemId, outletId, settings, order, menu, itemQantity, "",
 							subOrderId, inObj.has("userId") ? inObj.getString("userId") : "",
 							orderedItem.has("rate") ? new BigDecimal(Double.toString(orderedItem.getDouble("rate"))) : new BigDecimal("0"), 
@@ -5192,9 +5180,9 @@ public class Services {
 						return outObj.toString();
 					} else
 						printKOT = true;
-					String commonSpecs = "";
-					Boolean addedSpec = false;
-					JSONArray specifications = orderedItem.getJSONArray("specArr");
+					commonSpecs = "";
+					addedSpec = false;
+					specifications = orderedItem.getJSONArray("specArr");
 					for (int k = 0; k < specifications.length(); k++) {
 						if (specifications.getJSONObject(k).getInt("itemId") == 101) {
 							commonSpecs += specifications.getJSONObject(k).getString("spec") + ", ";
@@ -5217,12 +5205,10 @@ public class Services {
 					if(addAddons) {
 						for (int k = 0; k < addOns.length(); k++) {
 							if(addOns.getJSONObject(k).getInt("itemId")==j) {
-								Boolean addedAddOn = itemDao.addOrderAddon(systemId, outletId, order, menu,
+								if (itemDao.addOrderAddon(systemId, outletId, order, menu,
 										addOns.getJSONObject(k).getInt("qty"), addOns.getJSONObject(k).getString("menuId"), subOrderId,
 										addOns.getJSONObject(k).getInt("itemId"), 
-										new BigDecimal(Double.toString(addOns.getJSONObject(k).getDouble("rate"))));
-			
-								if (!addedAddOn) {
+										new BigDecimal(Double.toString(addOns.getJSONObject(k).getDouble("rate"))))) {
 									itemDao.rollbackTransaction();
 									outObj.put("status", -1);
 									outObj.put("message", "Failed to add Addon");
@@ -5305,14 +5291,15 @@ public class Services {
 				}
 			}
 
+			if (printKOT && !Configurator.getIsServer() && settings.getHasKot())
+				if(!settings.getHasKds())
+					this.printKOT(outlet, settings, order, false, inObj.getString("userId"), section);
+
 		} catch (Exception e) {
 			itemDao.rollbackTransaction();
 			e.printStackTrace();
 		}
 		
-		if (printKOT && !Configurator.getIsServer() && settings.getHasKot())
-			if(!settings.getHasKds())
-				this.printKOT(outlet, settings, order, false, userId, section);
 		return outObj.toString();
 	}
 	
@@ -10040,27 +10027,58 @@ public class Services {
 		return outObj.toString();
 	}
 
+	@POST
+	@Path("/v3/syncOnSever")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String syncOnServerV3(String jsonObject) {
+		JSONObject outObj = new JSONObject();
+		JSONObject inObj = null;
+		
+		IServer dao = new ServerManager(true);
+		try {
+			outObj.put("status", false);
+			outObj.put("count", 0);
+			inObj = new JSONObject(jsonObject);
+			JSONArray content = new JSONArray(inObj.getString("content"));
+			System.out.println("Starting updates to server. Count :" + content.length() + ". OutletManager: "+ inObj.getString("hotelId") + ". TimeStamp: " + LocalDateTime.now());
+			
+			dao.beginTransaction(inObj.getString("hotelId"));
+			if(!dao.syncOnServer(inObj.getString("hotelId"), content)) {
+				System.out.println("Rolling back");
+				dao.rollbackTransaction();
+				return outObj.toString();
+			}
+			dao.commitTransaction(inObj.getString("hotelId"));
+			outObj.put("status", true);
+			outObj.put("count", content.length());
+
+		} catch (JSONException e) {
+			dao.rollbackTransaction();
+			e.printStackTrace();
+		}
+		
+		return outObj.toString();
+	}
+
 	@GET
 	@Path("/v3/updateServer")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public String updateServer(@QueryParam("outletId") String outletId) {
 		JSONObject outObj = new JSONObject();
-		StringBuilder transactionLog = new StringBuilder();
+		JSONArray transactionLog = new JSONArray();
 		IServer dao = new ServerManager(true);
 		try {
 			outObj.put("status", false);
 			dao.beginTransaction(outletId);
-			ArrayList<DBTransaction> transactions = dao.getAllTransactions(outletId);
-			for (DBTransaction dbTransaction : transactions) {
-				transactionLog.append(dbTransaction.getTransaction());
-			}
-			if(transactionLog.length() == 0) {
+			JSONArray transactions = dao.getAllTransactions(outletId);
+			if(transactions.length() == 0) {
 				outObj.put("status", true);
 				dao.rollbackTransaction();
 				return outObj.toString();
 			}
-			String targetUrl = "http://api.orderon.co.in:8080/OrderOn/Services/v1/syncOnSever";
+			String targetUrl = "http://api.orderon.co.in:8080/OrderOn/Services/v3/syncOnSever";
 			JSONObject inObj = new JSONObject();
 			inObj.put("content", transactionLog.toString());
 			inObj.put("hotelId", outletId);
