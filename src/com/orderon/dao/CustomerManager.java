@@ -40,12 +40,12 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 		if(phone.isEmpty())
 			return false;
 		ILoyaltySettings loyalty = new LoyaltyManager(false);
-		String sql = "INSERT INTO Customers (hotelId, firstName, surName,address,mobileNumber, birthdate, anniversary, allergyInfo, "
+		String sql = "INSERT INTO Customers (hotelId, firstName, surName, address, mobileNumber, birthdate, anniversary, allergyInfo, "
 				+ "points, wantsPromotion, isPriority, userType, emailId, sex, reference, communicationMode, sendSMS, joiningDate) VALUES ('"
 				+ escapeString(hotelId) + "', '" + escapeString(firstName) + "', '" + escapeString(surName) + "', '" + escapeString(address) + "', '"
 				+ escapeString(phone) + "', '" + escapeString(birthdate) + "', '" + escapeString(anniversary) + "', '"
 				+ escapeString(allergyInfo) + "', 0, '" + wantsPromotion + "', '"+ isPriorityCust + "', '"+loyalty.getBaseLoyaltySetting(hotelId).getUserType()
-				+ "', '"+escapeString(sex)+ "', '"+escapeString(emailId)+"', '"+escapeString(referenceForReview)+"', '[]', 'true', '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"');";
+				+ "', '"+escapeString(emailId)+ "', '"+escapeString(sex)+"', '"+escapeString(referenceForReview)+"', '[]', 'true', '"+(new SimpleDateFormat("yyyy/MM/dd")).format(new Date())+"');";
 		return db.executeUpdate(sql, hotelId, true);
 	}
 	
@@ -215,7 +215,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 				this.addCustomer(hotelId, firstName, surName, number, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE, emailId, sex, "");
 			} else {
 				this.updateCustomer(hotelId, null, firstName, surName, number, "", "", "", allergyInfo, address,
-						customer.getWantsPromotion() == null ? false : customer.getWantsPromotion(), "", "");
+						customer.getWantsPromotion() == null ? false : customer.getWantsPromotion(), emailId, "");
 			}
 			return true;
 		}
@@ -357,7 +357,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 
 	@Override
 	public ArrayList<Customer> getAllCustomerDetailsForOrdering(String hotelId) {
-		String sql = "SELECT id, mobileNumber, firstName, surName, address, sex FROM Customers;";
+		String sql = "SELECT id, mobileNumber, firstName, surName, address, sex, emailId FROM Customers;";
 		return db.getRecords(sql, Customer.class, hotelId);
 	}
 
