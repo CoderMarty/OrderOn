@@ -16,7 +16,7 @@ import com.orderon.dao.AccessManager.Settings;
 
 public interface IOrder extends IAccess{
 	
-	public ArrayList<Order> getAllOrders(String systemId, String outletId, String date, int orderTypeFilter, String query);
+	public ArrayList<Order> getAllOrders(String systemId, String outletId, String date, int orderTypeFilter, String query, JSONObject orderBy);
 	
 	public ArrayList<Order> getCompletedOrders(String systemId);
 	
@@ -37,7 +37,7 @@ public interface IOrder extends IAccess{
 	public boolean markOnlineOrderComplete(String systemId, int orderNumber);
 	
 	public JSONObject newOrder(String systemId, String outletId, String hotelType, String userId, String[] tableIds, int peopleCount, String customer,
-			String customerNumber, String address, String section, String remarks, ServiceLog currentService);
+			String customerNumber, String address, String section, String remarks, ServiceLog currentService, String waiter);
 	
 	public JSONObject deleteOrdersMonthWise(String systemId, String month, double foodSalePercent, double barSalePercent);
 

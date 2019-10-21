@@ -23,14 +23,18 @@ import com.orderon.dao.AccessManager.Settings;
 import com.orderon.dao.DiscountManager;
 import com.orderon.dao.OrderManager;
 import com.orderon.dao.OutletManager;
+import com.orderon.dao.ReportBufferManager;
 import com.orderon.interfaces.IDiscount;
 import com.orderon.interfaces.IOrderItem;
 import com.orderon.interfaces.IOutlet;
+import com.orderon.interfaces.IReportBuffer;
 
 @Path("/Ewards/Services")
 public class EwardsServices {
 
-	private String url = "http://www.myewards.com";
+	public static String url = "http://www.myewards.com";
+	//public static String url = "http://13.127.190.250";
+	//public static String url = "http://internal.myewards.com";
 	
 	@GET
 	@Path("/v1/heartbeat")
@@ -57,6 +61,10 @@ public class EwardsServices {
 		
 		try {
 			outObj.put("status", false);
+			
+			if(!Services.netIsAvailable())
+				return outObj.toString();
+			
 			inObj = new JSONObject(jsonObject);
 			
 			if(!inObj.has("mobileNumber")) {
@@ -108,6 +116,10 @@ public class EwardsServices {
 		
 		try {
 			outObj.put("status", false);
+
+			if(!Services.netIsAvailable())
+				return outObj.toString();
+			
 			inObj = new JSONObject(jsonObject);
 			
 			if(!inObj.has("mobileNumber")) {
@@ -187,11 +199,11 @@ public class EwardsServices {
 			Settings settings = outletDao.getSettings(inObj.getString("systemId"));
 			
 			JSONObject urlParameters = new JSONObject();
-			urlParameters.put("customer_mobile", inObj.getString("mobileNumber"));
-			urlParameters.put("coupon_code", inObj.getString("couponCode"));
 			JSONObject credentials = settings.getEWardsCredentials();
 			urlParameters.put("customer_key", credentials.getString("key"));
 			urlParameters.put("merchant_id", credentials.getInt("id"));
+			urlParameters.put("customer_mobile", inObj.getString("mobileNumber"));
+			urlParameters.put("coupon_code", inObj.getString("couponCode"));
 			
 			JSONObject response = new JSONObject(Services.executePost(url+"/api/v1/merchant/posCouponDetails",
 						urlParameters));
@@ -323,7 +335,7 @@ public class EwardsServices {
 				outObj.put("message", "Ewards: Redeemable Points not found.");
 				return outObj;
 			}else if(!inObj.has("orderNumber")) {
-				outObj.put("message", "Ewards: Order Number not found.");
+				outObj.put("message", "Ewards: Bill Number not found.");
 				return outObj;
 			}else if(!inObj.has("grossAmount")) {
 				outObj.put("message", "Ewards: Gross Amount not found.");
@@ -438,7 +450,7 @@ public class EwardsServices {
 				outObj.put("message", "Ewards: Redeemable Points not found.");
 				return outObj.toString();
 			}else if(!inObj.has("orderNumber")) {
-				outObj.put("message", "Ewards: Order Number not found.");
+				outObj.put("message", "Ewards: Bill Number not found.");
 				return outObj.toString();
 			}else if(!inObj.has("grossAmount")) {
 				outObj.put("message", "Ewards: Gross Amount not found.");
@@ -540,8 +552,17 @@ public class EwardsServices {
 			
 			System.out.println(urlParameters);
 
-			JSONObject response = new JSONObject(Services.executePost(url+"/api/v1/merchant/posAddPoint", urlParameters));
+			JSONObject response = new JSONObject();
 			
+			if(Services.netIsAvailable()) {
+				response = new JSONObject(Services.executePost(url+"/api/v1/merchant/posAddPoint", urlParameters));
+			}else {
+				IReportBuffer bufferDao = new ReportBufferManager(false);
+				bufferDao.addEWardsToBuffer(inObj.getString("outletId"), urlParameters.toString());
+				outObj.put("status", true);
+				return outObj.toString();
+			}
+
 			System.out.println(response);
 			
 			JSONObject internalResponse = null;

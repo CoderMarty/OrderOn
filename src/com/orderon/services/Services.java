@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -87,7 +88,6 @@ import com.orderon.dao.AccessManager.ConsumptionReport;
 import com.orderon.dao.AccessManager.Customer;
 import com.orderon.dao.AccessManager.CustomerForOrdering;
 import com.orderon.dao.AccessManager.CustomerReport;
-import com.orderon.dao.AccessManager.DBTransaction;
 import com.orderon.dao.AccessManager.DailyDiscountReport;
 import com.orderon.dao.AccessManager.DailyOperationReport;
 import com.orderon.dao.AccessManager.DeliveryReport;
@@ -214,8 +214,8 @@ import com.orderon.interfaces.IUserAuthentication;
 public class Services {
 
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.4.22";
-	private static final String stable_api_version = "3.3.3.26";
+	private static final String api_version = "3.4.22.2";
+	private static final String stable_api_version = "3.4.22.2";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -359,6 +359,8 @@ public class Services {
 			outObj.put("smsApiKey", settings.getSmsAPIKey());
 			outObj.put("downloadReports", settings.getDownloadReports());
 			outObj.put("isLiteApp", settings.getIsLiteApp());
+			outObj.put("billSize", settings.getBillSize());
+			outObj.put("billFont", settings.getBillFont());
 			
 			ArrayList<OnlineOrderingPortal> portals = portalDao.getOnlineOrderingPortalsForIntegration(systemId);
 			for(int i=0; i<portals.size(); i++) {
@@ -377,8 +379,17 @@ public class Services {
 				outObj.put("updateStatus", server.getStatus());
 				outObj.put("lastUpdateTime", server.getUpdateTime());
 			}
+			
+			IUser userDao = new UserManager(false);
+			JSONArray captains = new JSONArray();
+			ArrayList<User> users = userDao.getAllCaptains(systemId);
+			for (User user : users) {
+				captains.put(user.getUserId());
+			}
+			
+			outObj.put("captains", captains);
 			outObj.put("hasCashDrawer", settings.getHasCashDrawer());
-			outObj.put("imgLocation", "http://"+Configurator.getIp()+":8080/Images");
+			outObj.put("imgLocation", "http://"+Configurator.getIp()+"/Images");
 			
 			outObj.put("status", true);
 		} catch (Exception e) {
@@ -406,7 +417,7 @@ public class Services {
 		}
 		return new JSONObject(outlet).toString();
 	}
-
+	
 	@GET
 	@Path("/v1/getOutletsForCorporate")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -564,6 +575,8 @@ public class Services {
 						System.out.println("Updating database.");
 						if(!managerDao.updateDatabase(systemId, settings.getVersion(), api_version)) {
 							System.out.println("Error updating database.");
+							outObj.put("status", false);
+							outObj.put("message", "Error updating database.");
 							break;
 						}
 						if(outletDao.isOldVersion(systemId)) {
@@ -608,7 +621,7 @@ public class Services {
 			
 			outletId = inObj.getString("hotelId");
 			
-			if(!outletId.equals("h0002")) {
+			if(!outletId.equals("ft0001")) {
 				outObj.put("message", "ACCESS DENIED. 1");
 				return outObj.toString();
 			}
@@ -617,7 +630,7 @@ public class Services {
 				return outObj.toString();
 			}
 			dao.initDatabase(inObj.getString("id"));
-			dao.restaurantSetup(inObj.getString("hotelName"), inObj.getString("hotelCode"), inObj.getString("id"), stable_api_version);
+			dao.restaurantSetup(inObj.getString("corporateId"), inObj.getString("hotelName"), inObj.getString("hotelCode"), inObj.getString("id"), stable_api_version);
 			outObj.put("message", "Database created for "+ inObj.getString("id"));
 		} catch (Exception e) {
 			dao.rollbackTransaction();
@@ -2739,10 +2752,7 @@ public class Services {
 						false, false, userId);
 		}
 		if (outDoorItems.size() > 0) {
-			if (!hotelId.equals("sa0001"))
-				defineKOT(outDoorItems, orderItemDao, "OUTDOOR", section.getOutDoorPrinter(), outlet, settings, order, 2, false, false, userId);
-			else
-				defineKOT(outDoorItems, orderItemDao, "OUTDOOR", section.getOutDoorPrinter(), outlet, settings, order, 1, false, false, userId);
+			defineKOT(outDoorItems, orderItemDao, "OUTDOOR", section.getOutDoorPrinter(), outlet, settings, order, copies, false, false, userId);
 		}
 
 		if (settings.getKOTCountSummary() == 1) {
@@ -2757,16 +2767,36 @@ public class Services {
 		//System.out.println("Sending print to : " + printerStation);
 		StringBuilder out = new StringBuilder();
 		
+		String head = "<html><head><style>.table-condensed>thead>tr>th, .table-condensed>tbody>tr>th,"
+				+ ".table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
+				+ ".table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {"
+				+ "padding: 1px;} .pull-right{text-align: right} .pull-left{text-align: left} .table {width: 100%;}"
+				+ ".table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>td,.table>tbody>tr>td, "
+				+ ".table>tfoot>tr>td {padding: 0px;} .table>thead>tr>th {vertical-align: bottom} th {text-align: left;}"
+				+ " h3, .h3 {font-size: 18px;}"
+				+ "</style></head>"
+				+"<body style='width: 377px; font-family:" + settings.getKotFontFamily() + ";'>";
+		String foot = "</body></html>";
+		String html = "";
+		StringBuilder body = new StringBuilder();
+		
 		int marginTop = 0;
 		
-		if(outlet.getOutletId().equals("jp0001") || outlet.getOutletId().equals("kvd0001") || outlet.getOutletId().equals("kvd0002")) {
+		if(outlet.getSystemId().equals("jp0001") || outlet.getSystemId().equals("kvd0001") || outlet.getSystemId().equals("kvd0002")
+				|| outlet.getSystemId().equals("su0001") || outlet.getSystemId().equals("fu0001")) {
 			marginTop = 35;
 		}
 		if (title.equals("SUMMARY")) {
 			marginTop = 0;
 		}
 		
-		out.append("<h3 style='font-size:16px; margin-top:"+marginTop+"px; margin-bottom:5px; text-align: center'>");
+		if (isCanceled)
+			body.append("<h3 style='font-size:16px; padding-top:3px; padding-bottom:3px; margin-top:"+marginTop
+					+"px; margin-bottom:5px; text-align: center; background:black; color:white;'>");
+		else if(isCheckKOT)
+			body.append("<h3 style='font-size:16px; margin-bottom:5px; text-align: center;'>");
+		else 
+			body.append("<h3 style='font-size:16px; margin-top:"+marginTop+"px; margin-bottom:5px; text-align: center;'>");
 		
 		ITable tableDao = new TableManager(false);
 		Table table = tableDao.getTableById(outlet.getSystemId(), outlet.getOutletId(), order.getTableId().split(",")[0]);
@@ -2782,7 +2812,7 @@ public class Services {
 		if (title.equals("SUMMARY"))
 			kotTitle.append("SUMMARY | ");
 		else if (isCanceled)
-			kotTitle.append("CANCELED KOT | ");
+			kotTitle.append("CANCELLED KOT | ");
 		else if(isCheckKOT)
 			kotTitle.append("REPRINT KOT | ");
 		else if(kotNumber>0)
@@ -2820,27 +2850,33 @@ public class Services {
 		if (title.equals("OUTDOOR") && outlet.getSystemId().equals("sa0001"))
 			kotTitle.append(" SANNIDHI KOT");
 		
-		out.append(kotTitle.toString());
+		body.append(kotTitle.toString());
 		
 		String name = "";
-
+		
+		body.append("</h3><table style='width: 90%; padding: 0px; margin-left:25px; margin-bottom:0px; margin-top:0px;'><thead>");
+		body.append("<tr style='padding: 0px; margin-top:3px; margin-bottom:0px;'>");
+		body.append("<th style='padding:0px;'>Date</th><th style='padding:0px;'>Time</th>");
+		if(outlet.getSystemId().equals("am0001") || outlet.getSystemId().equals("bh0001")) {
+			body.append("<th style='padding:0px;'>Table No.</th>");
+		}
+		
 		if(settings.getIsCaptainBasedOrdering()){
-			out.append("</h3><table style='width: 90%; padding: 0px; margin-left:25px; margin-bottom:0px; margin-top:0px;'><thead>");
-			out.append("<tr style='padding: 0px; margin-top:3px; margin-bottom:0px;'>");
-			out.append("<th style='padding:0px;'>Date</th><th style='padding:0px;'>Time</th>");
-			out.append("<th style='padding:0px;'>User</th><th style='padding:0px;'>Pax</th></tr>");
-			out.append("</thead><tbody>");
-			name = userId;
+			body.append("<th style='padding:0px;'>User</th><th style='padding:0px;'>Pax</th></tr>");
+			IUser userDao = new UserManager(false);
+			User user = userDao.getUser(outlet.getSystemId(), userId);
+			if(user.getUserType() != com.orderon.commons.Designation.CAPTAIN.getValue()) {
+				name = order.getWaiterId();
+			}else {
+				name = userId;
+			}
 		}else {
-			out.append("</h3><table style='width: 90%; padding: 0px; margin-left:25px; margin-bottom:0px; margin-top:0px;'><thead>");
-			out.append("<tr style='padding: 0px; margin-top:3px; margin-bottom:0px;'>");
-			out.append("<th style='padding:0px;'>Date</th><th style='padding:0px;'>Time</th>");
-			out.append("<th style='padding:0px;'>Waiter</th><th style='padding:0px;'>Pax</th></tr>");
-			out.append("</thead><tbody>");
-
+			body.append("<th style='padding:0px;'>Waiter</th><th style='padding:0px;'>Pax</th></tr>");
 			if (table != null)
 				name = table.getWaiterId();
 		}
+		body.append("</thead><tbody>");
+		
 		String orderDate = "";
 		
 		try {
@@ -2850,24 +2886,20 @@ public class Services {
 			e.printStackTrace();
 		}
 		String time = LocalTime.parse(items.get(0).getSubOrderDate().substring(11, 16), DateTimeFormatter.ofPattern("HH:mm")).format(DateTimeFormatter.ofPattern("hh:mm a"));
-		out.append("<tr><td style='padding:0px;'>" + orderDate + "</td><td style='padding:0px;'>" + time
-				+ "<td style='padding:0px; font-size:15px;'>" + name + "</td>"
-				+ "<td style='padding:0px;'>" + order.getNumberOfGuests() 
-				+ "</td></tr>"
-				+ "</tbody></table>"
-				+ "<p style='margin:0px;'>------------------------------------------------------------------------------------------</p>"
-				+ "<table class='table-condensed' style='width: 90%; padding: 0px; margin-left: 20px; margin-bottom:0px;>");
-		
-/*
-  		if (isCanceled)
-			out += "<thead style='font-size:12px;'><tr style='padding:0px; margin:0px;'><th style='padding:0px;'><u>QTY</u></th><th class='pull-left' style='width:75%; padding:0px;'>"
-					+ "<u>DESCRIPTION</u></th></tr></thead><tbody>";
-		else
-			out += "<thead style='font-size:12px;'><tr style='padding:0px; margin:0px;'><th style='padding:0px;'><u>QTY</u></th><th class='pull-left' style='width:50%; padding:0px;'>"
-					+ "<u>DESCRIPTION</u></th><th class='pull-right' style='padding:0px;'><u>SPECS</u></th></tr>"
-					+ "</thead><tbody>";
-*/
-		out.append("<tbody>");
+		body.append("<tr><td style='padding:0px;'>" + orderDate + "</td><td style='padding:0px;'>" + time + "</td>");
+		if(outlet.getSystemId().equals("am0001") || outlet.getSystemId().equals("bh0001")) {
+			if (order.getOrderType() == AccessManager.DINE_IN) {
+				body.append("<td style='padding:0px;'>" + table.getTableId() + "</td>");
+			}
+		}
+		body.append("<td style='padding:0px; font-size:15px;'>" + name + "</td>");
+		body.append("<td style='padding:0px;'>" + order.getNumberOfGuests());
+		body.append("</td></tr>");
+		body.append("</tbody></table>");
+		body.append("<p style='margin:0px;'>------------------------------------------------------------------------------------------</p>");
+		body.append("<table class='table-condensed' style='width: 90%; padding: 0px; margin-left: 20px; margin-bottom:0px;>");
+
+		body.append("<tbody>");
 
 		ArrayList<OrderSpecification> specifications = new ArrayList<OrderSpecification>();
 		ArrayList<OrderAddOn> addOns = new ArrayList<OrderAddOn>();
@@ -2881,6 +2913,7 @@ public class Services {
 		String kotFontWeight = settings.getKotFontWeight();
 		IOrderItem specDao = new OrderManager(false);
 		IOrderAddOn addOnDao = new OrderAddOnManager(false);
+		int kotItemCount = 0;
 
 		for (int i = 0; i < items.size(); i++) {
 			String spec = "";
@@ -2888,18 +2921,14 @@ public class Services {
 			isComplete = true;
 			currentQuantity = 0;
 			for (int j = 1; j <= newQuantity; j++) {
-				/*if(isCheckKOT)
-					specifications = dao.getOrderedSpecification(hotelId, items.get(i).getOrderId(), items.get(i).getMenuId());
-				else*/
-				specifications = specDao.getOrderedSpecification(outlet.getSystemId(), items.get(i).getOrderId(),
-							items.get(i).getMenuId(), items.get(i).getSubOrderId(), j);
+				if(!isCheckKOT) {
+					specifications = specDao.getOrderedSpecification(outlet.getSystemId(), items.get(i).getOrderId(),
+								items.get(i).getMenuId(), items.get(i).getSubOrderId(), j);
+				}
 				if (isCanceled)
 					addOns = addOnDao.getCanceledOrderedAddOns(outlet.getSystemId(), items.get(i).getOrderId(),
 							items.get(i).getSubOrderId(), items.get(i).getMenuId(), j);
 				else {
-					/*if(isCheckKOT)
-						addOns = dao.getOrderedAddOns(hotelId, items.get(i).getOrderId(), items.get(i).getMenuId());
-					else*/
 					addOns = addOnDao.getOrderedAddOns(outlet.getSystemId(), items.get(i).getOrderId(), items.get(i).getSubOrderId(),
 								items.get(i).getMenuId(), false);
 				}
@@ -2922,7 +2951,7 @@ public class Services {
 						out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+kotFontSize+";" + fontWeight + "'>" + currentQuantity);
 						out.append("</td><td class='pull-left' style='padding:0px; width:60%; font-size:"+kotFontSize+"; font-weight:"+kotFontWeight+"; margin:0px;'>" + items.get(i).getTitle()
 							+ "</td><td class='pull-right' style='padding:0px; padding-right:2px; font-size:"+kotFontSize+"; font-weight: "
-							+ kotFontWeight+"; border-bottom:1px dashed black; margin:0px;'>"+items.get(i).getSpecifications()+"</td></tr>");	
+							+ kotFontWeight+"; border-bottom:1px dashed black; margin:0px; padding-right:5px;'>"+items.get(i).getSpecifications()+"</td></tr>");	
 					}else {
 						out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+fontsize2+";" + fontWeight + "'>" + currentQuantity);
 						out.append("</td><td colspan='2' class='pull-left' style='padding:0px; width:60%; font-size:"+fontsize2+"; font-weight:"+kotFontWeight+"; margin:0px;'>" + items.get(i).getTitle()
@@ -2943,17 +2972,17 @@ public class Services {
 						out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+kotFontSize+";" + fontWeight + "'>" + currentQuantity);
 						out.append("</td><td class='pull-left' style='padding:0px; width:60%; font-size:"+kotFontSize+"; font-weight:"+kotFontWeight+"; margin:0px;'>" + items.get(i).getTitle()
 							+ "</td><td class='pull-right' style='padding:0px; margin-right:2px; font-size:"+kotFontSize+"; font-weight: "
-							+ kotFontWeight+"; border-bottom:1px dashed black; width:40%;'>" + spec + "</td></tr>");
+							+ kotFontWeight+"; border-bottom:1px dashed black; width:40%; padding-right:5px;'>" + spec + "</td></tr>");
 					}else {
-						String reason = items.get(i).getReason();
 						out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+fontsize2+";" + fontWeight + "'>" + currentQuantity);
-						out.append("</td><td class='pull-left' style='padding:0px; width:60%; font-size:"+kotFontSize+"; font-weight:"+kotFontWeight+"; margin:0px;'>" + items.get(i).getTitle()
-							+ "</td><td class='pull-right' style='padding:0px; margin-right:2px; font-size:"+kotFontSize+"; font-weight: "
-							+ kotFontWeight+"; border-bottom:1px dashed black; width:40%;'>" + reason + "</td></tr>");
+						out.append("</td><td colspan='2' class='pull-left' style='padding:0px; width:60%; font-size:"+kotFontSize+"; font-weight:"+kotFontWeight+"; margin:0px;'>" + items.get(i).getTitle()
+							+ "</td></tr>");
 					}
 				}else {
+					String reason = items.get(i).getReason();
 					out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+fontsize2+";" + fontWeight + "'>" + currentQuantity);
-					out.append("</td><td colspan='2' class='pull-left' style='padding:0px; margin:0px; font-size:"+fontsize2+"; font-weight:"+kotFontWeight+";'>" + items.get(i).getTitle() +"</td></tr>");
+					out.append("</td><td class='pull-left' style='padding:0px; margin:0px; font-size:"+fontsize2+"; font-weight:"+kotFontWeight+";'>" + items.get(i).getTitle());
+					out.append("</td><td class='pull-right' style='padding:0px; margin-right:2px; font-size:"+kotFontSize+"; font-weight:"+kotFontWeight+"; border-bottom:1px dashed black; width:40%; padding-right:5px;'>" + reason +"</td></tr>");
 				}
 
 				for (int k = 0; k < addOns.size(); k++) {
@@ -2971,23 +3000,22 @@ public class Services {
 				}
 				spec = "";
 				currentQuantity = 0;
+				kotItemCount++;
+			}
+			if(kotItemCount ==15 && i<items.size()-1) {
+				out.append("</tbody></table><p style='margin-left:0px; margin-right:0px; margin-top:0px'>------------------------------------------------------------------------------------------</p>");
+				html = head + body + out + foot;
+				print(html, printerStation, copies, settings);
+				out = new StringBuilder();
+				kotItemCount = 0;
 			}
 		}
 
-		out.append("</tbody></table>"
-				+ "<p style='margin-left:0px; margin-right:0px; margin-top:0px'>------------------------------------------------------------------------------------------</p>");
+		out.append("</tbody></table><p style='margin-left:0px; margin-right:0px; margin-top:0px'>------------------------------------------------------------------------------------------</p>");
 
-		String html = "<html><head><style>.table-condensed>thead>tr>th, .table-condensed>tbody>tr>th,"
-				+ ".table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
-				+ ".table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {"
-				+ "padding: 1px;} .pull-right{text-align: right} .pull-left{text-align: left} .table {width: 100%;}"
-				+ ".table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>td,.table>tbody>tr>td, "
-				+ ".table>tfoot>tr>td {padding: 0px;} .table>thead>tr>th {vertical-align: bottom} th {text-align: left;}"
-				+ " h3, .h3 {font-size: 18px;}"
-				+ "</style></head><body style='width: 377px; font-family:" + settings.getKotFontFamily() + ";'>" + out
-				+ "</body></html>";
+		html = head + body + out + foot;
 
-		print(html, printerStation, copies, settings);
+		print(html, printerStation, copies, settings);	
 	}
 
 	@GET
@@ -3040,21 +3068,6 @@ public class Services {
 		Double rate = 0.0;
 		Double subTotal = 0.0;
 		try {
-			if (order.getState() == AccessManager.ORDER_STATE_OFFKDS
-					|| order.getState() == AccessManager.ORDER_STATE_SERVICE) {
-				if (!orderDao.isBarOrder(systemId, orderId)) {
-					if (!orderDao.isTakeAwayOrder(systemId, orderId)) {
-						if (!orderDao.isHomeDeliveryOrder(systemId, orderId)) {
-							ITable tableDao = new TableManager(false);
-							if (!tableDao.isTableOrder(systemId, orderId)) {
-								outObj.put("status", -1);
-								outObj.put("message", "Order not available for this table");
-								return outObj.toString();
-							}
-						}
-					}
-				}
-			}
 
 			for (int i = 0; i < orderItems.size(); i++) {
 				itemDetails = new JSONObject();
@@ -3153,6 +3166,242 @@ public class Services {
 							specArr.put(specDetails);
 						}
 					}
+				}
+				specs = specs.length() == 0 ? orderItems.get(i).getSpecifications()
+						: specs + ", " + orderItems.get(i).getSpecifications();
+				itemDetails.put("specs", specs.replace(", , ", ", "));
+				itemDetails.put("allSpecs", orderItems.get(i).getSpecifications());
+				itemDetails.put("specArr", specArr);
+				itemDetails.put("addOns", addOnArr);
+				itemsArr.put(itemDetails);
+			}
+			if (!order.getTableId().equals(null)) {
+				String tableId = order.getTableId();
+				String[] joinedTables = tableId.split(",");
+				for (int i = 0; i < joinedTables.length; i++) {
+					tableDetails = new JSONObject();
+					tableDetails.put("tableId", joinedTables[i]);
+					tablesArr.put(tableDetails);
+				}
+			}
+			orderObj.put("items", itemsArr);
+			orderObj.put("tableId", tablesArr);
+			Customer customer = custDao.getCustomerDetails(systemId, order.getCustomerNumber());
+			if (customer != null) {
+				orderObj.put("hasCustomer", true);
+				orderObj.put("allergyInfo", customer.getAllergyInfo());
+				orderObj.put("birthDate", customer.getBirthdate());
+				orderObj.put("anniversary", customer.getAnniversary());
+				orderObj.put("points", customer.getPoints());
+				orderObj.put("userType", customer.getUserType());
+				orderObj.put("pointToRupee", loyaltyDao.getLoyaltySettingByUserType(systemId, customer.getUserType()).getPointToRupee());
+				orderObj.put("loyaltyId", order.getLoyaltyId());
+				orderObj.put("pointsUsed", order.getLoyaltyPaid());
+				orderObj.put("customerEmailId", customer.getEmailId());
+				orderObj.put("referenceForReview", customer.getReference());
+				orderObj.put("sendSMS", customer.getSendSMS());
+			} else
+				orderObj.put("hasCustomer", false);
+			orderObj.put("noOfGuests", order.getNumberOfGuests());
+			orderObj.put("orderNumber", order.getOrderNumber());
+			orderObj.put("outletId", order.getOutletId());
+			orderObj.put("orderDateTime", order.getOrderDateTime());
+			orderObj.put("waiterId", order.getWaiterId());
+			orderObj.put("customerName", order.getCustomerName());
+			orderObj.put("customerAddress", order.getCustomerAddress());
+			orderObj.put("customerNumber", order.getCustomerNumber());
+			orderObj.put("customerGst", order.getCustomerGst());
+			orderObj.put("ambianceRating", order.getRatingAmbiance());
+			orderObj.put("hygieneRating", order.getRatingHygiene());
+			orderObj.put("serviceRating", order.getRatingService());
+			orderObj.put("foodRating", order.getRatingQof());
+			orderObj.put("reviewSuggestions", order.getReviewSuggestions());
+			orderObj.put("inhouse", order.getOrderType());
+			orderObj.put("orderType", orderDao.getOrderType(order.getOrderType()));
+			orderObj.put("takeAwayType", order.getTakeAwayType());
+			orderObj.put("hasTakenReview", order.hasTakenReview());
+			orderObj.put("orderId", order.getOrderId());
+			orderObj.put("orderDate", order.getOrderDate());
+			orderObj.put("billNo", order.getBillNo());
+			orderObj.put("state", order.getState());
+			orderObj.put("reason", order.getReason());
+			orderObj.put("reference", order.getReference());
+			orderObj.put("authId", order.getAuthId());
+			OnlineOrderingPortal portal = portalDao.getOnlineOrderingPortalById(systemId, order.getTakeAwayType());
+			if(portal != null) {
+				JSONObject portalObj = new JSONObject();
+				portalObj.put("name", portal.getName());
+				portalObj.put("portal", portal.getPortal());
+				portalObj.put("hasIntegration", portal.getHasIntegration());
+				portalObj.put("requiresLogistics", portal.getRequiresLogistics());
+				orderObj.put("portalDetails", portalObj);
+			}
+			orderObj.put("portal", portal.getPortal());
+			JSONArray discountCode = order.getDiscountCodes();
+			String appliedDiscounts = "";
+			ArrayList<Discount> discounts = new ArrayList<Discount>();
+			Discount discount = null;
+			for(int i =0; i< discountCode.length(); i++) {
+				discount = discountDao.getDiscountByName(systemId, outletId, discountCode.getString(i));
+				if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_ZOMATO_VOUCHER)) {
+					discount.setFoodValue(order.getZomatoVoucherAmount().intValue());
+				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_PIGGYBANK)) {
+					discount.setFoodValue(order.getPiggyBankAmount().intValue());
+				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_FIXED_RUPEE_DISCOUNT)) {
+					discount.setFoodValue(order.getFixedRupeeDiscount().intValue());
+				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_EWARDS)) {
+					discount.setFoodValue(order.getFixedRupeeDiscount().intValue());
+				}
+				discounts.add(discount);
+				appliedDiscounts += discountCode.getString(i) + ", ";
+			}
+			LoyaltyOffer loyalty = null;
+			if(order.getLoyaltyId() != 0) {
+				ILoyalty loyaltyOfferDao = new LoyaltyManager(false);
+				loyalty = loyaltyOfferDao.getLoyaltyOfferById(systemId, order.getLoyaltyId());
+				orderObj.put("loyalty", new JSONObject(loyalty));
+			}else {
+				orderObj.put("loyalty", "{}");
+			}
+			orderObj.put("discountCode", appliedDiscounts.length()>3?appliedDiscounts.substring(0,appliedDiscounts.length()-2):appliedDiscounts);
+			orderObj.put("discounts", discounts);
+			orderObj.put("excludedCharges", order.getExcludedCharges());
+			orderObj.put("excludedTaxes", order.getExcludedTaxes());
+			orderObj.put("remarks", order.getRemarks());
+			orderObj.put("externalOrderId", order.getExternalOrderId());
+			orderObj.put("isIntegrationOrder", order.getIsIntegrationOrder());
+			orderObj.put("cashToBeCollected", order.getCashToBeCollected());
+			orderObj.put("zomatoVoucherAmount", order.getZomatoVoucherAmount());
+			orderObj.put("promotionalCash", order.getPromotionalCash());
+			orderObj.put("tableNumber", order.getTableId().length() == 3 || order.getTableId().length() == 2
+							? order.getTableId().replace(",", "")
+							: order.getTableId());
+			orderObj.put("printCount", order.getPrintCount());
+			orderObj.put("compTotal", complimentaryTotal);
+			
+			//rider details
+			orderObj.put("riderName", order.getRiderName());
+			orderObj.put("riderNumber", order.getRiderNumber());
+			orderObj.put("riderStatus", order.getRiderStatus());
+			orderObj.put("ewards", order.getEWards());
+			orderObj.put("onlineOrderData", order.getOnlineOrderData());
+			orderObj.put("orderPreparationTime", order.getOrderPreparationTime());
+			
+			long unixSeconds = order.getOrderDateTime();
+			// convert seconds to milliseconds
+			Date date = new java.util.Date(unixSeconds*1000L); 
+			// the format of your date
+			SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm"); 
+			// give a timezone reference for formatting (see comment at the bottom)
+			sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT-4"));
+			orderObj.put("orderTime", sdf.format(date));
+			
+			if(orderItems.size()>0)
+				orderObj.put("logTime", orderItems.get(0).getLogTime());
+			outObj.put("order", orderObj);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+
+	@GET
+	@Path("/v3/getOrderApp")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getOrderApp(@QueryParam("systemId") String systemId, 
+			@QueryParam("orderId") String orderId) {
+		JSONArray itemsArr = new JSONArray();
+		JSONArray addOnArr = new JSONArray();
+		JSONArray specArr = new JSONArray();
+		JSONObject outObj = new JSONObject();
+		JSONObject orderObj = new JSONObject();
+		JSONArray tablesArr = new JSONArray();
+		JSONObject tableDetails = null;
+		JSONObject itemDetails = null;
+		JSONObject addOnDetails = null;
+		JSONObject specDetails = null;
+		
+		IOrder orderDao = new OrderManager(false);
+		IOrderItem itemDao = new OrderManager(false);
+		IOrderAddOn addOnDao = new OrderAddOnManager(false);
+		ICustomer custDao = new CustomerManager(false);
+		ILoyaltySettings loyaltyDao = new LoyaltyManager(false);
+		IOnlineOrderingPortal portalDao = new OnlineOrderingPortalManager(false);
+		IDiscount discountDao = new DiscountManager(false);
+		ArrayList<OrderItem> orderItems = null;
+		ArrayList<OrderAddOn> addOns = null;
+		ArrayList<OrderSpecification> specifications = new ArrayList<OrderSpecification>();
+		Order order = orderDao.getOrderById(systemId, orderId);
+		String outletId = order.getOutletId();
+
+		orderItems = itemDao.getOrderedItemForBill(systemId, orderId, false);
+		orderItems.addAll(itemDao.getOrderedItemForBillCI(systemId, orderId));
+		orderItems.addAll(itemDao.getComplimentaryOrderedItemForBill(systemId, orderId));
+
+		Double complimentaryTotal = 0.0;
+		Double rate = 0.0;
+		Double subTotal = 0.0;
+		try {
+
+			for (int i = 0; i < orderItems.size(); i++) {
+				itemDetails = new JSONObject();
+				addOnArr = new JSONArray();
+				specArr = new JSONArray();
+				rate = orderItems.get(i).getRate().doubleValue();
+				subTotal = orderItems.get(i).getSubTotal().doubleValue();
+				
+				if (orderItems.get(i).getState() == 50) {
+					rate = 0.0;
+					subTotal = 0.0;
+					complimentaryTotal += orderItems.get(i).getRate().doubleValue();
+				}
+				if(orderItems.get(i).getState() == 100) 
+					itemDetails.put("reason", orderItems.get(i).getReason());
+				else
+					itemDetails.put("reason", "");
+				itemDetails.put("subOrderId", orderItems.get(i).getSubOrderId());
+				itemDetails.put("id", orderItems.get(i).getId());
+				itemDetails.put("subOrderDate", orderItems.get(i).getSubOrderDate());
+				itemDetails.put("menuId", orderItems.get(i).getMenuId());
+				itemDetails.put("title", orderItems.get(i).getTitle());
+				itemDetails.put("collection", orderItems.get(i).getCollection());
+				itemDetails.put("qty", orderItems.get(i).getQuantity());
+				itemDetails.put("rate", rate);
+				itemDetails.put("subTotal", subTotal);
+				itemDetails.put("state", orderItems.get(i).getState());
+				itemDetails.put("station", orderItems.get(i).getStation());
+				itemDetails.put("waiterId", orderItems.get(i).getWaiterId());
+				itemDetails.put("taxes", orderItems.get(i).getTaxes());
+				itemDetails.put("charges", orderItems.get(i).getCharges());
+				itemDetails.put("finalAmount", orderItems.get(i).getFinalAmount());
+				itemDetails.put("discountType", orderItems.get(i).getDiscountType());
+				itemDetails.put("discountValue", orderItems.get(i).getDiscountValue());
+				String specs = "";
+				addOns = addOnDao.getOrderedAddOns(systemId, orderId, orderItems.get(i).getMenuId(), false);
+				for (int k = 0; k < addOns.size(); k++) {
+					addOnDetails = new JSONObject();
+					rate = addOns.get(k).getRate().doubleValue();
+					if (addOns.get(k).getState() == 50) {
+						rate = 0.0;
+					}
+					addOnDetails.put("addOnId", addOns.get(k).getAddOnId());
+					addOnDetails.put("name", addOns.get(k).getName());
+					addOnDetails.put("itemId", addOns.get(k).getItemId());
+					addOnDetails.put("quantity", addOns.get(k).getQuantity());
+					addOnDetails.put("state", addOns.get(k).getState());
+					addOnDetails.put("taxes", addOns.get(k).getTaxes());
+					addOnDetails.put("charges", addOns.get(k).getCharges());
+					addOnDetails.put("station", addOns.get(k).getStation());
+					addOnDetails.put("rate", rate);
+					addOnArr.put(addOnDetails);
+				}
+				specifications = itemDao.getOrderedSpecification(systemId, orderId, orderItems.get(i).getMenuId());
+				for (int k = 0; k < specifications.size(); k++) {
+					specDetails = new JSONObject();
+					specs += specifications.get(k).getSpecification() + ", ";
+					specDetails.put("spec", specifications.get(k).getSpecification());
+					specDetails.put("itemId", specifications.get(k).getItemId());
+					specArr.put(specDetails);
 				}
 				specs = specs.length() == 0 ? orderItems.get(i).getSpecifications()
 						: specs + ", " + orderItems.get(i).getSpecifications();
@@ -3384,24 +3633,28 @@ public class Services {
 	@Produces(MediaType.APPLICATION_JSON)
 	public String getAllOrders(@QueryParam("systemId") String systemId, @QueryParam("dateFilter") String dateFilter, 
 			@QueryParam("orderTypeFilter") int orderTypeFilter,
-			@QueryParam("query") String query, @QueryParam("mobileNo") String mobileNo, @QueryParam("userId") String userId, 
+			@QueryParam("orderBy") String orderBy,
+			@QueryParam("query") String query, 
+			@QueryParam("mobileNo") String mobileNo, 
+			@QueryParam("userId") String userId, 
 			@QueryParam("serviceDate") String serviceDate) {
 		JSONArray itemsArr = new JSONArray();
 		JSONObject orderObj = new JSONObject();
 		JSONObject itemDetails = null;
 
 		IOrder dao = new OrderManager(false);
-		ArrayList<Order> order;
+		ArrayList<Order> order = null;
 		int orderState = 0;
-		if (dateFilter != null && dateFilter.length() > 0) {
-			dateFilter = dateFilter.substring(6, 10) + "/" + dateFilter.substring(3, 6) + dateFilter.substring(0, 2);
-			order = dao.getAllOrders(systemId, "", dateFilter, orderTypeFilter, query);
-		}else if(mobileNo != null && mobileNo.length() > 0){
-			order = dao.getOrdersOfOneCustomer(systemId, mobileNo);
-		} else {
-			order = dao.getAllOrders(systemId, "", serviceDate, orderTypeFilter, query);
-		}
+		
 		try {
+			if (dateFilter != null && dateFilter.length() > 0) {
+				dateFilter = dateFilter.substring(6, 10) + "/" + dateFilter.substring(3, 6) + dateFilter.substring(0, 2);
+				order = dao.getAllOrders(systemId, "", dateFilter, orderTypeFilter, query, new JSONObject(orderBy));
+			}else if(mobileNo != null && mobileNo.length() > 0){
+				order = dao.getOrdersOfOneCustomer(systemId, mobileNo);
+			} else {
+				order = dao.getAllOrders(systemId, "", serviceDate, orderTypeFilter, query, new JSONObject(orderBy));
+			}
 			for (int i = 0; i < order.size(); i++) {
 
 				orderState = order.get(i).getState();
@@ -3431,6 +3684,16 @@ public class Services {
 				itemDetails.put("discount", orderState == 99 ? 0 : order.get(i).getFoodDiscount().doubleValue() + order.get(i).getBarDiscount().doubleValue());
 				itemDetails.put("billNo", order.get(i).getBillNo());
 					
+				long unixSeconds = order.get(i).getOrderDateTime();
+				// convert seconds to milliseconds
+				Date date = new java.util.Date(unixSeconds*1000L); 
+				// the format of your date
+				SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm"); 
+				// give a timezone reference for formatting (see comment at the bottom)
+				sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT-4")); 
+				
+				itemDetails.put("orderTime", sdf.format(date));
+				
 				itemsArr.put(itemDetails);
 			}
 			orderObj.put("orders", itemsArr);
@@ -3587,6 +3850,7 @@ public class Services {
 				boolean isRemoved = itemDao.removeSubOrder(systemId, orderId,
 						orderedItems.getString("subOrderId"),
 						orderedItems.getString("menuId"), newQuantity);
+				item.setReason(orderedItems.getString("reason"));
 				if (item.getStation().equals("Beverage")) {
 					beverageItems.add(item);
 				} else if (item.getStation().equals("Kitchen")) {
@@ -3739,24 +4003,25 @@ public class Services {
 					inventoryDao.revertInventoryForReturn(systemId, orderId, orderedAddOns.getString("menuId"), orderedAddOns.getInt("returnQty"));
 				}
 			}
+			String emailer = "";
 			if(!inObj.getString("hotelId").equals("am0001")) {
-				String emailer = "";
-				if(!inObj.getString("hotelId").equals("am0001")) {
-					emailer = "<div style='width:350px; ' class='alert alert-warning'><h3>Items have been cancelled from Order No. "
-							+ order.getOrderNumber() + " at "+outlet.getName()+".</h3><p> Details as follows:</p>"
-							+ "<div>Total Amount: " + totalRate + "</div>";
-					
-					if(order.getOrderType() == AccessManager.DINE_IN) {
-						emailer += "<div>Table Number: " + order.getTableId() + "</div>";
-					}
-							
-					emailer += "<div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>"
-							+ "<div>Order punched by: " + orderId.split(":")[0] + "</div>"
-							+ "<div>Item Cancelled by : " + inObj.getString("userId") + "</div>"
-							+ text
-							+ "</div>";
-					SendEmailAndSMS(systemId, subject, emailer, "", "", "OWNER", true, false);
+				emailer = "<div style='width:350px; ' class='alert alert-warning'><h3>Items have been cancelled from Order No. "
+						+ order.getOrderNumber() +".</h3><p> Details as follows:</p>"
+						+ "<div>Total Amount: " + totalRate + "</div>";
+				
+				if(order.getOrderType() == AccessManager.DINE_IN) {
+					emailer += "<div>Table Number: " + order.getTableId() + "</div>";
 				}
+						
+				emailer += "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location " + outlet.getLocation().getString("place")
+						+ "</div><div>Service Date: " + order.getOrderDate() + "</div>"
+						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>"
+						+ "<div>Order punched by: " + orderId.split(":")[0] + "</div>"
+						+ "<div>Item Cancelled by : " + inObj.getString("userId") + "</div>"
+						+ text
+						+ "</div>";
+				SendEmailAndSMS(systemId, subject, emailer, "", "", "OWNER", true, false);
 			}
 		} catch (Exception e) {
 			itemDao.rollbackTransaction();
@@ -3792,8 +4057,6 @@ public class Services {
 			Settings settings = outletDao.getSettings(systemId);
 			if(order.getState()==AccessManager.ORDER_STATE_BILLING || order.getState()==AccessManager.ORDER_STATE_COMPLETE || order.getState()==AccessManager.ORDER_STATE_VOIDED) {
 				outObj.put("status", orderDao.updateOrderPrintCount(systemId, orderId));
-				outObj.put("billSize", Configurator.getBillSize());
-				outObj.put("billFont", Configurator.getBillFont());
 				if(!billFormat.equals("")){
 					billFormat = billStyle + billFormat + "</body></html>";
 					this.print(billFormat, "Cashier", 1, settings);
@@ -3874,24 +4137,31 @@ public class Services {
 
 				BigDecimal foodBill = new BigDecimal(0.0);
 				BigDecimal barBill = new BigDecimal(0.0);
-				if(payment == null) {
-					for (OrderItem orderItem : orderedItems) {
-						if(orderItem.getStation().equals("Bar")) {
-							barBill.add(orderItem.getRate());
-						}else {
-							foodBill.add(orderItem.getRate());
-						}
+				
+				String text = "<div><table style='color:#797979;'><thead>"
+						+ "<tr><th style='text-align:left;'>PARTICULAR</th><th>REASON</th><th style='text-center;'>QTY</th><th style='text-align:right;'>RATE</th></tr>"
+						+ "</thead><tbody>";
+				
+				for (OrderItem orderItem : orderedItems) {
+					if(orderItem.getStation().equals("Bar")) {
+						barBill = barBill.add(orderItem.getRate());
+					}else {
+						foodBill = foodBill.add(orderItem.getRate());
 					}
-				}else {
-					foodBill = payment.getFoodBill();
-					barBill = payment.getBarBill();
+					//Adding item details to the emailer.
+					text += "<tr><td>" + orderItem.getTitle() + "</td><td>Void</td><td style='text-center;'>" 
+							+ orderItem.getQuantity() + "</td><td style='text-align:right;'>" + orderItem.getRate() + "</td></tr>";
 				}
-				paymentDao.addPaymentForVoidOrder(systemId, outletId, orderId, foodBill, barBill, billNo, sectionName, order.getOrderDate());
+				BigDecimal totalRate = foodBill.add(barBill);
 
-				ISection sectionDao = new SectionManager(false);
+				text += "<tr style='border-bottom: 1px dashed black; border-top: 1px dashed black;'><th colspan='3' style='text-align:left;'><h3>Total</h3></th><th><h3>"+totalRate+"</h3></th></tr>"
+						+ "</tbody></table></div></div>";
+				paymentDao.addPaymentForVoidOrder(systemId, outletId, orderId, foodBill, barBill, billNo, sectionName, order.getOrderDate());
 
 				Outlet outlet = outletDao.getOutletForSystem(systemId, outletId);
 				Settings settings = outletDao.getSettings(systemId);
+				
+				ISection sectionDao = new SectionManager(false);
 				
 				ArrayList<Section> sections = sectionDao.getSections(outlet.getSystemId());
 				Section section = null;
@@ -3958,30 +4228,40 @@ public class Services {
 					}
 				}
 				
+				//Emailer
 				String subject = "Order No. " + order.getOrderNumber() + " marked void!";
-				String text = "<div style='width:300px; '><div class='alert alert-warning'>"
+				String emailer = "<div style='width:300px; '><div class='alert alert-warning'>"
 						+ "<b>Order No. " + order.getOrderNumber() + " </b>has been marked void.</h3>"
-						+ "<p> Details as follows:</p>" + "<div>Time: "
-						+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>"
-						+ "<div>Bill No. : " + billNo + "</div>"
-						+ "<div>Order punched by: " + orderId.split(":")[0] + "</div>"
+						+ "<p> Details as follows:</p>" 
+						+ "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location " + outlet.getLocation().getString("place")
+						+ "</div><div>Service Date: " + order.getOrderDate() + "</div>"
+						+ "<div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>"
+						+ "<div>Bill No. : " + billNo + "</div>";
+				
+				if(order.getOrderType() == AccessManager.DINE_IN) {
+					emailer += "<div>Table Number: " + order.getTableId() + "</div>";
+				}
+				
+				emailer += "<div>Order punched by: " + orderId.split(":")[0] + "</div>"
 						+ "<div>Authorizer: " + inObj.getString("authId") + "</div>"
 						+ "<div>Reason: " + inObj.getString("reason") + "</div>";
 				
 				if(foodBill.compareTo(new BigDecimal("0")) == 1) {
-					text += "<div>Food Bill Amount: " + foodBill.toString() + "</div>";
+					emailer += "<div>Food Bill Amount: " + foodBill.toString() + "</div>";
 				}
 				if(barBill.compareTo(new BigDecimal("0")) == 1) {
-					text += "<div>Bar Bill Amount: " + barBill.toString() + "</div>";
+					emailer += "<div>Bar Bill Amount: " + barBill.toString() + "</div>";
 				}
-				text += "</div>";
+				emailer += text;
+				emailer += "</div>";
 				
 				String smsText = "Order Marked Void. BillNo: "+billNo+", UserName: "+orderId.split(":")[0]
 						+" , Reason: "+inObj.getString("reason")+" , Authorizer: " +inObj.getString("authId") + ".";
 			
 				if(inObj.getString("hotelId").equals("am0001"))
 					return outObj.toString();
-				SendEmailAndSMS(inObj.getString("hotelId"), subject, text, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
+				SendEmailAndSMS(inObj.getString("hotelId"), subject, emailer, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
 
 				outObj.put("hasWalletPayment", false);
 				if(payment != null) {
@@ -3995,37 +4275,6 @@ public class Services {
 			}
 		} catch (Exception e) {
 			dao.rollbackTransaction();
-			e.printStackTrace();
-		}
-		return outObj.toString();
-	}
-
-	@POST
-	@Path("/v1/complimentaryOrder")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public String complimentaryOrder(String jsonObject) {
-		JSONObject inObj = null;
-		JSONObject outObj = new JSONObject();
-		
-		IOrder dao = new OrderManager(false);
-		try {
-			outObj.put("status", false);
-			inObj = new JSONObject(jsonObject);
-			String orderId = inObj.getString("orderId");
-			String billNo = inObj.getString("billNo");
-
-			if (dao.complimentaryOrder(inObj.getString("systemId"), inObj.getString("outletId"), orderId, inObj.getString("authId"))) {
-				outObj.put("status", true);
-				String subject = "Bill No. " + billNo + " marked complimentary!";
-				String text = "<div style='width:300px; '><div class='alert alert-warning'><b>Bill No. " + billNo
-						+ " </b>has been marked complimentary.</h3><p> Details as follows:</p>" + "<div>Time: "
-						+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div><div>Order punched by: "
-						+ orderId.split(":")[0] + "</div><div>Authorizer: " + inObj.getString("authId")
-						+ "</div></div>";
-				SendEmailAndSMS(inObj.getString("hotelId"), subject, text, "", "", AccessManager.DESIGNATION_OWNER, true, false);
-			}
-		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return outObj.toString();
@@ -4525,7 +4774,6 @@ public class Services {
 		JSONObject outObj = new JSONObject();
 		
 		IOrder dao = new OrderManager(true);
-		IUserAuthentication userDao = new UserManager(false);
 		IOutlet outletDao = new OutletManager(false);
 		IService serviceDao = new ServiceManager(false);
 		try {
@@ -4534,12 +4782,6 @@ public class Services {
 			Settings settings = outletDao.getSettings(outletId);
 			ServiceLog currentService = serviceDao.getCurrentService(outletId);
 			outObj.put("message", "Unknown Error");
-			outObj = userDao.validateToken(outletId, inObj.getString("userId"), inObj.getString("authToken"));
-			if(!outObj.getBoolean("status")) {
-				outObj.put("message", "Could not validate User.");
-				outObj.put("status", -2);
-				return outObj.toString();
-			}
 			if(currentService== null) {
 				outObj.put("message", "Please start service before placing order.");
 				outObj.put("status", -2);
@@ -4556,7 +4798,7 @@ public class Services {
 
 			dao.beginTransaction(inObj.getString("hotelId"));
 			outObj = dao.newOrder(inObj.getString("hotelId"), inObj.getString("hotelId"), settings.getHotelType(), inObj.getString("userId"), tableIds,
-					inObj.getInt("peopleCount"), customerName, mobileNumber, address, "DEFAULT", "", currentService);
+					inObj.getInt("peopleCount"), customerName, mobileNumber, address, "DEFAULT", "", currentService, inObj.getString("userId"));
 			dao.commitTransaction(outletId);
 
 			String[] name = customerName.split(" ");
@@ -4614,7 +4856,8 @@ public class Services {
 			outObj = dao.newOrder(inObj.getString("systemId"), inObj.getString("outletId"), settings.getHotelType(), inObj.getString("userId"), tableIds,
 					inObj.getInt("peopleCount"), customerName, mobileNumber, address,
 					inObj.has("section")?inObj.getString("section"):"", inObj.has("orderRemarks")?inObj.getString("orderRemarks"):""
-					, currentService);
+					, currentService,
+					inObj.has("captain")?inObj.getString("captain"):inObj.getString("userId"));
 
 			String[] name = customerName.split(" ");
 			String surName = "";
@@ -5616,7 +5859,12 @@ public class Services {
 				String subject = "Alert| Low Rating Received";
 				String emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>Low Rating received at "+outlet.getName()+" for order. Bill No. "
 						+ order.getBillNo() + ".</h3><p> Details as follows:</p>"
-						+ "<div>Customer Name: " + inObj.getString("customerName")
+						+ "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location " + outlet.getLocation().getString("place")
+						+ "</div><div>Service Date: " + order.getOrderDate()
+						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+						+ "</div><div>Customer Name: " + inObj.getString("customerName")
+						+ "</div><div>Customer Name: " + inObj.getString("customerName")
 						+ "</div><div>Customer Number : " + inObj.getString("customerNumber")
 						+ "</div><div>Bill No.: " + order.getBillNo()
 						+ "</div><div>Table No.: " + order.getTableId()
@@ -5625,7 +5873,7 @@ public class Services {
 						+ "</div><div>Food: " + ratings.getInt("qualityOfFoodRating")
 						+ "</div><div>Service: " + ratings.getInt("serviceRating")
 						+ "</div><div>review: " + inObj.getString("reviewSuggestions")
-						+ "</div><div>Order service by: " + inObj.getString("orderId").split(":")[0] 
+						+ "</div><div>Order serviced by: " + order.getWaiterId() 
 						+ "</div></div>"; 
 				this.SendEmailAndSMS(outletId, subject, emailText, smsText, "", AccessManager.DESIGNATION_MANAGER, true, false);
 			}
@@ -6174,6 +6422,7 @@ public class Services {
 				itemDetails.put("firstName", customer.getFirstName());
 				itemDetails.put("surName", customer.getSurName());
 				itemDetails.put("address", customer.getAddress());
+				itemDetails.put("emailId", customer.getEmailId());
 				itemDetails.put("mobileNo", customer.getMobileNumber());
 			}else 
 				itemDetails.put("message", "Customer Does not exist");
@@ -6341,14 +6590,15 @@ public class Services {
 					total += orderedItems.get(i).getQuantity()+orderedItems.get(i).getRate().doubleValue();
 				}
 				Order order = orderDao.getOrderById(systemId, orderId);
-				String subject = "Order Cancelled. Bill No. " + order.getBillNo();
-				String text = "<div style='width:300px; '><div class='alert alert-warning'><b>Bill No. " + order.getBillNo()
-						+ " </b>has been cancelled.</h3><p> Details as follows:</p>" + "<div>Time: "
-						+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div><div>Order punched by: "
-						+ orderId.split(":")[0] + "</div><div>Number of items returned: " + orderedItems.size()
-						+ "</div><div>Total amount (without tax): " + total
-						+ "</div></div>";
-			
+				String subject = "Order Cancelled. Bill No. " + order.getOrderNumber();
+				String text = "<div style='width:300px; '><div class='alert alert-warning'><b>Order No. " + order.getOrderNumber()
+				+ " </b>has been cancelled.</h3><p> Details as follows:</p>" 
+				+ "<div>Service Date: " + order.getOrderDate() + "</div>" 
+				+ "<div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>" 
+				+ "<div>Order punched by: " + orderId.split(":")[0] + "</div>"
+				+ "<div>Number of items returned: " + orderedItems.size() + "</div>"
+				+ "<div>Total amount (without tax): " + total + "</div></div>";
+	
 				SendEmail(systemId, subject, text, "", true, false);
 			}else if(!orderDao.deleteOrder(systemId, orderId)) {
 				outObj.put("message", "Failed to cancel the order");
@@ -6895,7 +7145,7 @@ public class Services {
 				
 				outObj.put("foodBill", reportItems.getFoodBill());
 				outObj.put("barBill", reportItems.getBarBill());
-				BigDecimal temp = (reportItems.getGst().add(reportItems.getVat()).multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				BigDecimal temp = (reportItems.getGst().add(reportItems.getVat()).multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("totalTax", temp.divide(new BigDecimal("100")));
 				outObj.put("totalBill", reportItems.getFoodBill().add(reportItems.getBarBill()).add(temp.divide(new BigDecimal("100"))));
 				
@@ -6908,22 +7158,22 @@ public class Services {
 				outObj.put("grossSale", reportItems.getGrossSale());
 				outObj.put("complimentary", reportItems.getComplimentary());
 				outObj.put("loyalty", reportItems.getLoyaltyAmount());
-				temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("total", temp.divide(new BigDecimal("100")));
 				outObj.put("pendingSale", reportDao.getPendingSale(systemId));
-				temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("cash", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getCardPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getCardPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("card", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getAppPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getAppPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("app", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getWalletPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getWalletPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("wallet", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getCreditAmount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getCreditAmount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("credit", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getFoodDiscount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);;
+				temp = (reportItems.getFoodDiscount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);;
 				outObj.put("foodDiscount", temp.divide(new BigDecimal("100")));
-				temp = (reportItems.getBarDiscount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);;
+				temp = (reportItems.getBarDiscount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);;
 				outObj.put("barDiscount", temp.divide(new BigDecimal("100")));
 				outObj.put("zomato", reportDao.getAppPaymentByType(systemId, "", serviceDate, null, serviceType, OnlinePaymentType.ZOMATO.toString()));
 				outObj.put("zomatoPickup", reportDao.getAppPaymentByType(systemId, "", serviceDate, null, serviceType, OnlinePaymentType.ZOMATO_PICKUP.toString()));
@@ -6938,10 +7188,10 @@ public class Services {
 						.add(new BigDecimal(service.getCashInHand()))
 						.add(expenseDao.getTotalCashPayIns(systemId, service))
 						.subtract(expenseDao.getTotalCashExpenses(systemId, service))
-						.multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+						.multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("cashBalance", temp.divide(new BigDecimal("100")));
 				outObj.put("cashInHand", service.getCashInHand());
-				temp = (reportItems.getTip().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+				temp = (reportItems.getTip().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 				outObj.put("tip", temp.divide(new BigDecimal("100")));
 
 			}
@@ -6989,7 +7239,7 @@ public class Services {
 			
 			outObj.put("foodBill", reportItems.getFoodBill());
 			outObj.put("barBill", reportItems.getBarBill());
-			BigDecimal temp = (reportItems.getGst().add(reportItems.getVat()).multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			BigDecimal temp = (reportItems.getGst().add(reportItems.getVat()).multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("totalTax", temp.divide(new BigDecimal("100")));
 			outObj.put("totalBill", reportItems.getFoodBill().add(reportItems.getBarBill()).add(temp.divide(new BigDecimal("100"))));
 			
@@ -7002,22 +7252,22 @@ public class Services {
 			outObj.put("grossSale", reportItems.getGrossSale());
 			outObj.put("complimentary", reportItems.getComplimentary());
 			outObj.put("loyalty", reportItems.getLoyaltyAmount());
-			temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("total", temp.divide(new BigDecimal("100")));
 			outObj.put("pendingSale", reportDao.getPendingSale(systemId));
-			temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("cash", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getCardPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getCardPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("card", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getAppPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getAppPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("app", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getWalletPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getWalletPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("wallet", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getCreditAmount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getCreditAmount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("credit", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getFoodDiscount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);;
+			temp = (reportItems.getFoodDiscount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);;
 			outObj.put("foodDiscount", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getBarDiscount().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);;
+			temp = (reportItems.getBarDiscount().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);;
 			outObj.put("barDiscount", temp.divide(new BigDecimal("100")));
 			outObj.put("zomato", reportItems.getZomatoSale());
 			outObj.put("swiggy", reportItems.getSwiggySale());
@@ -7056,13 +7306,13 @@ public class Services {
 			else if(settings.getDeductionType() == AccessManager.DEDUCTION_DELETE_DAILY)
 				reportItems = reportDao.getTotalSalesForDay(systemId, serviceDate, serviceType);
 			
-			BigDecimal temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			BigDecimal temp = (reportItems.getTotal().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("total", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getCashPayment().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("cash", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getFoodBill().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getFoodBill().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("foodSale", temp.divide(new BigDecimal("100")));
-			temp = (reportItems.getBarBill().multiply(new BigDecimal("100"))).setScale(2, BigDecimal.ROUND_HALF_UP);
+			temp = (reportItems.getBarBill().multiply(new BigDecimal("100"))).setScale(2, RoundingMode.HALF_UP);
 			outObj.put("barSale", temp.divide(new BigDecimal("100")));
 			outObj.put("card", reportItems.getCardPayment());
 			outObj.put("app", reportItems.getAppPayment());
@@ -7259,6 +7509,11 @@ public class Services {
 			double loyaltyPaid = inObj.getDouble("loyalty");
 			String paymentType = inObj.getString("cardType");
 			Order order = orderDao.getOrderById(systemId, orderId);
+			//Assign billnumber only when not nc
+			if(order.getBillNo().equals("") && !inObj.getString("cardType").equals("NON CHARGEABLE")) {
+				orderDao.assignBillNumberToOrder(systemId, outletId, orderId);
+			}
+			System.out.println("Payment called for Bill no. "+ order.getOrderNumber());
 			
 			for(int i=0; i<5; i++) {
 				status = dao.addPayment(systemId, outletId, orderId, new BigDecimal(Double.toString(inObj.getDouble("foodBill"))),
@@ -7358,14 +7613,14 @@ public class Services {
 						}
 						System.out.println(message);
 						String output = "";
-						if(mobileNo.length()==10)
+						if(mobileNo.length()==10 && settings.getHasSms())
 							output = sms.sendSms(message, mobileNo);
 						System.out.println(output);
 						orderDao.updateOrderSMSStatusDone(systemId, orderId);
 					}
 				}
 			}else if (!mobileNo.equals("") && customer != null && inObj.getDouble("creditAmount")==0) {
-				if(settings.getHasSms() && netIsAvailable() && !settings.getIsWalletOnline() && customer.getSendSMS()) {
+				if(!(settings.getHasDirectCheckout() && order.getOrderType() == AccessManager.HOME_DELIVERY)) {
 					SendSMS sms = new SendSMS();
 					String message = "";
 					
@@ -7380,7 +7635,7 @@ public class Services {
 					}
 					System.out.println(message);
 					String output = "";
-					if(mobileNo.length()==10)
+					if(mobileNo.length()==10 && settings.getHasSms())
 						output = sms.sendSms(message, mobileNo);
 					System.out.println(output);
 					orderDao.updateOrderSMSStatusDone(systemId, orderId);
@@ -7389,6 +7644,8 @@ public class Services {
 			int totalFoodDiscountValue = 0;
 			int totalBarDiscountValue = 0;
 			String discountCodes = "";
+			ArrayList<String> discountEmailText = new ArrayList<String>();
+			String emailText = "";
 			order = orderDao.getOrderById(systemId, orderId);
 			if (order.getDiscountCodes().length()>0) {
 				for(int x=0; x<order.getDiscountCodes().length(); x++) {
@@ -7401,6 +7658,23 @@ public class Services {
 							return outObj.toString();
 						}
 					}
+					//formatting the email.
+					emailText = "<hr><div>DISCOUNT CODE : "+ discount.getName();
+					String type = discount.getType()==AccessManager.DISCOUNT_TYPE_PERCENTAGE?"%":" Rupees";
+					if(discount.getFoodValue()>0) {
+						emailText += "</div><div>Total Food Discount Value: " + discount.getFoodValue() + type
+								+	"</div><div>Total Food Discount Amount: " + inObj.getDouble("foodDiscount");
+					}
+					if(discount.getBarValue()>0) {
+						emailText += "</div><div>Total Bar Discount Value: " + discount.getBarValue() + type
+								+	"</div><div>Total Bar Discount Amount: " + inObj.getDouble("barDiscount");
+					}
+					emailText += "</div>";
+					//adding the emailtext one by one for each discount
+					discountEmailText.add(emailText);
+					
+					//variables used for the emailer
+
 					totalFoodDiscountValue += discount.getFoodValue();
 					totalBarDiscountValue += discount.getBarValue();
 					discountCodes += discount.getName() + ", ";
@@ -7419,13 +7693,15 @@ public class Services {
 			Report payment = dao.getPayment(systemId, outletId, orderId);
 			if(inObj.getString("cardType").equals("NON CHARGEABLE")) {
 				Double total = (double) Math.round((payment.getFoodBill().doubleValue() + payment.getBarBill().doubleValue())*100)/100;
-				String subject = "Non-chargeable Order placed for "+order.getReference()+". Bill No. " + order.getBillNo();
-				String emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>A Non-Chargeable Order has been placed"
+				String subject = "Non-chargeable Order placed for "+order.getReference()+". Order No. " + order.getOrderNumber();
+				emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>A Non-Chargeable Order has been placed"
 						+ ".</h3><p> Details as follows:</p>"
 						+ "<div>Outlet Name: " + outlet.getName()
-						+ "</div><div>Bill No: " + order.getBillNo()
+						+ "</div><div>Location " + outlet.getLocation().getString("place")
+						+ "</div><div>Order No: " + order.getOrderNumber()
 						+ "</div><div>Ordered For : " + order.getReference()
 						+ "</div><div>Ordered By: " + order.getWaiterId()
+						+ "</div><div>Service Date: " + order.getOrderDate()
 						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
 						+ "</div><div>Total bill amount: <b>" + total+ "</b></div>"
 						+ "<div>Items Ordered are as follows: </div>"
@@ -7443,7 +7719,7 @@ public class Services {
 						+ "<tr><th colspan='2' style='text-align:left;'>Total</th><th>"+total+"</th></tr>"
 						+ "</tbody></table></div></div>";
 				
-				String smsText = "Non Chargeable Order Placed. BillNo: "+order.getBillNo()
+				String smsText = "Non Chargeable Order Placed. BillNo: "+order.getOrderNumber()
 						+", Placed For: "+ order.getReference()
 						+ ", User: "+ order.getWaiterId()
 						+ ", Total Bill Amt: "+total+".";
@@ -7453,23 +7729,22 @@ public class Services {
 			if(totalFoodDiscountValue >=30 || totalBarDiscountValue >=30) {
 				discountCodes.substring(0, discountCodes.length()-3);
 				String subject = "Discount Code/s "+discountCodes+" used. Bill No. " + order.getBillNo();
-				String emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>Discount Codes "+discountCodes+" used."
-						+ ".</h3><p> Details as follows:</p>"
-						+ "<div>OutletManager Name: " + outlet.getName()
-						+ "<div>Bill No: " + order.getBillNo()
+				emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>Discount Codes "+discountCodes+" used."
+						+ "</h3><p> Details as follows:</p>"
+						+ "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location: " + outlet.getLocation().getString("place")
+						+ "</div><div>Order No: " + order.getOrderNumber()
+						+ "</div><div>Bill No: " + order.getBillNo()
 						+ "</div><div>Ordered For : " + order.getCustomerName()
 						+ "</div><div>Ordered By: " + order.getWaiterId()
-						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-				if(totalFoodDiscountValue>0) {
-					emailText = "</div><div>Total Food Discount Value: " + totalFoodDiscountValue
-							+	"</div><div>Total Food Discount Amount: " + inObj.getDouble("foodDiscount");
+						+ "</div><div>Service Date: " + order.getOrderDate()
+						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>";
+				
+				for(int x=0; x<discountEmailText.size(); x++) {
+					emailText += discountEmailText.get(x);
 				}
-				if(totalBarDiscountValue>0) {
-					emailText += "</div><div>Total Bar Discount Value: " + totalBarDiscountValue
-							+	"</div><div>Total Bar Discount Amount: " + inObj.getDouble("barDiscount");
-				}
-				emailText += "</div><div>Total bill amount: " + inObj.getDouble("total") + "</div></div>";
-				this.SendEmail(systemId, subject, emailText, "", false, true);
+				emailText += "<hr><div>Total bill amount: " + inObj.getDouble("total") + "</div></div>";
+				this.SendEmail(outletId, subject, emailText, "", false, true);
 			}
 				
 		} catch (Exception e) {
@@ -7565,33 +7840,40 @@ public class Services {
 				}
 			}
 			Order order = orderDao.getOrderById(systemId, orderId);
-			if(inObj.getString("cardType").equals("NON_CHARGEABLE")) {
+			if(inObj.getString("cardType").equals("NON CHARGEABLE")) {
 				Double total = (double) Math.round((payment.getFoodBill().doubleValue() + payment.getBarBill().doubleValue())*100)/100;
-				String subject = "Non-chargeable Order placed for "+order.getReference()+". Bill No. " + order.getBillNo();
+				String subject = "Non-chargeable Order placed for "+order.getReference()+". Order No. " + order.getOrderNumber();
 				String emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>A Non-Chargeable Order has been placed"
 						+ ".</h3><p> Details as follows:</p>"
 						+ "<div>Outlet Name: " + outlet.getName()
-						+ "<div>Bill No: " + order.getBillNo()
+						+ "</div><div>Location: " + outlet.getLocation().getString("place")
+						+ "</div><div>Order No: " + order.getOrderNumber()
 						+ "</div><div>Ordered For : " + order.getReference()
 						+ "</div><div>Ordered By: " + order.getWaiterId()
+						+ "</div><div>Service Date: " + order.getOrderDate()
 						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-						+ "</div><div>Total bill amount: " + total+ "</div>"
+						+ "</div><div>Total bill amount: <b>" + total+ "</b></div>"
 						+ "<div>Items Ordered are as follows: </div>"
-						+ "<div><ol>";
+						+ "<div><table style='color:#797979;'><thead>"
+						+ "<tr><th style='text-align:left;'>PARTICULAR</th><th>QTY</th><th style='text-align:right;'>RATE</th></tr>"
+						+ "</thead><tbody>";
 				
 				ArrayList<OrderItem> orderedItems = orderItemsDao.getOrderedItemForBill(systemId, orderId, false);
 				
 				for (OrderItem orderItem : orderedItems) {
-					emailText += "<li>" + orderItem.getTitle() + " : Qty = " + orderItem.getQuantity() + " : Rate = " + orderItem.getRate() + "</li>";
+					emailText += "<tr><td>" + orderItem.getTitle() + "</td><td>" + orderItem.getQuantity() + "</td><td style='text-align:right;'>" + orderItem.getRate() + "</td></tr>";
 				}
+
+				emailText += "<tr><th colspan='3' style='border: 1px solid #ffa300;'></th></tr>"
+						+ "<tr><th colspan='2' style='text-align:left;'>Total</th><th>"+total+"</th></tr>"
+						+ "</tbody></table></div></div>";
 				
-				emailText += "</ol></div>"
-						+ "</div>";
-				String smsText = "Non Chargeable Order Placed. BillNo: "+order.getBillNo()
+				String smsText = "Non Chargeable Order Placed. BillNo: "+order.getOrderNumber()
 						+", Placed For: "+ order.getReference()
 						+ ", User: "+ order.getWaiterId()
 						+ ", Total Bill Amt: "+total+".";
-				this.SendEmailAndSMS(systemId, subject, emailText, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
+				this.SendEmailAndSMS(outletId, subject, emailText, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
+
 			}
 
 			outObj.put("status", status);
@@ -7618,7 +7900,7 @@ public class Services {
 			String systemId = inObj.getString("systemId");
 			String orderId = inObj.getString("orderId");
 			Report payment = dao.getPayment(systemId, outletId, orderId);
-			BigDecimal rectifiedTotal = new BigDecimal(inObj.getDouble("rectifiedTotal")).setScale(2, BigDecimal.ROUND_HALF_UP);
+			BigDecimal rectifiedTotal = new BigDecimal(inObj.getDouble("rectifiedTotal")).setScale(2, RoundingMode.HALF_UP);
 
 			if(rectifiedTotal.compareTo(payment.getTotal())==0) {
 				outObj.put("message", "Both totals are the same");
@@ -7626,7 +7908,7 @@ public class Services {
 			}
 			
 			double divisor = 0.95238095;
-			BigDecimal totalAfterDiscount = rectifiedTotal.multiply(new BigDecimal(divisor)).round(new MathContext(6)).setScale(2, BigDecimal.ROUND_HALF_UP);
+			BigDecimal totalAfterDiscount = rectifiedTotal.multiply(new BigDecimal(divisor)).round(new MathContext(6)).setScale(2, RoundingMode.HALF_UP);
 			BigDecimal rectifiedGST = rectifiedTotal.subtract(totalAfterDiscount);
 			BigDecimal discountAmount = payment.getFoodBill().add(payment.getBarBill()).subtract(totalAfterDiscount);
 			String discountName = "["+ inObj.getString("discountName") + "]";
@@ -7923,27 +8205,27 @@ public class Services {
 			outObj.put("barComplimentary", barComplimentary);
 			outObj.put("loyalty", reportItems.getLoyaltyAmount());
 			outObj.put("nc", reportItems.getNC());
-			outObj.put("total", reportItems.getTotal().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("netSale", reportItems.getNetSale().setScale(2, BigDecimal.ROUND_HALF_UP));
+			outObj.put("total", reportItems.getTotal().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("netSale", reportItems.getNetSale().setScale(2, RoundingMode.HALF_UP));
 			BigDecimal zomatoCash = dao.getCardPaymentByType(systemId, outletId, serviceDate, serviceType, "ZOMATO_CASH");
 			outObj.put("zomatoCash", zomatoCash);
 			BigDecimal swiggyCash = dao.getCardPaymentByType(systemId, outletId, serviceDate, serviceType, "SWIGGY_CASH");
 			outObj.put("swiggyCash", swiggyCash);
-			outObj.put("cash", reportItems.getCashPayment().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("totalCash", (reportItems.getCashPayment().add(swiggyCash).add(zomatoCash)).setScale(2, BigDecimal.ROUND_HALF_UP));
+			outObj.put("cash", reportItems.getCashPayment().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("totalCash", (reportItems.getCashPayment().add(swiggyCash).add(zomatoCash)).setScale(2, RoundingMode.HALF_UP));
 			outObj.put("card", reportItems.getCardPayment());
 			outObj.put("app", reportItems.getAppPayment());
 			outObj.put("wallet", reportItems.getWalletPayment());
 			outObj.put("promotionalCash", reportItems.getPromotionalCash());
 			outObj.put("credit", reportItems.getCreditAmount());
-			outObj.put("foodDiscount", reportItems.getFoodDiscount().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("barDiscount", reportItems.getBarDiscount().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("totalTax", reportItems.getGst().add(reportItems.getVat()).setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("gst", reportItems.getGst().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("vatBar", reportItems.getVat().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("serviceCharge", reportItems.getServiceCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("packagingCharge", reportItems.getPackagingCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-			outObj.put("deliveryCharge", reportItems.getDeliveryCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+			outObj.put("foodDiscount", reportItems.getFoodDiscount().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("barDiscount", reportItems.getBarDiscount().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("totalTax", reportItems.getGst().add(reportItems.getVat()).setScale(2, RoundingMode.HALF_UP));
+			outObj.put("gst", reportItems.getGst().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("vatBar", reportItems.getVat().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("serviceCharge", reportItems.getServiceCharge().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("packagingCharge", reportItems.getPackagingCharge().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("deliveryCharge", reportItems.getDeliveryCharge().setScale(2, RoundingMode.HALF_UP));
 			arrObj = new JSONObject();
 			arrObj.put("name", CardType.VISA.toString());
 			arrObj.put("amount", dao.getCardPaymentByType(systemId, outletId, serviceDate, serviceType, CardType.VISA.toString()));
@@ -8867,7 +9149,7 @@ public class Services {
 
 		IAccount dao = new AccountManager(false);
 		ArrayList<Account> bank = dao.getBankAccounts(systemId);
-		try {
+ 		try {
 			for (int i = 0; i < bank.size(); i++) {
 				itemDetails = new JSONObject();
 				itemDetails.put("account", bank.get(i).getAccountName());
@@ -9170,9 +9452,7 @@ public class Services {
 			String serviceType = inObj.getString("serviceType");
 			String compiledReport = inObj.getString("report");
 			boolean updateServer = inObj.getBoolean("updateServer");
-			if(!updateServer) {
-				serviceDao.updateEndTime(systemId, serviceDate, serviceType);
-			}
+			serviceDao.updateEndTime(systemId, serviceDate, serviceType);
 			outObj.put("status", false);
 			if(!netIsAvailable()) {
 				serviceDao.updateReportStatusToNotSent(systemId, serviceDate, serviceType, compiledReport);
@@ -9401,7 +9681,7 @@ public class Services {
 	public String getMPNotification(@QueryParam("hotelId") String hotelId) {
 		JSONObject outObj = new JSONObject();
 		INotification dao = new NotificationManager(false);
-		IReportBuffer bufferDao = new ReportBufferManager(false);
+		IReportBuffer bufferDao = new ReportBufferManager(true);
 		try {
 			outObj.put("status", false);
 			outObj.put("message", "Unknown Error");
@@ -9418,8 +9698,10 @@ public class Services {
 					}
 				}
 				
+				bufferDao.beginTransaction(hotelId);
 				ArrayList<ReportBuffer> bufferLog = bufferDao.getBuffer(hotelId);
 				bufferDao.deleteBuffer(hotelId);
+				bufferDao.commitTransaction(hotelId);
 				ReportBuffer buffer = null;
 				SendEmail email = new SendEmail();
 				SendSMS sms = new SendSMS();
@@ -9437,10 +9719,14 @@ public class Services {
 						for (int j =0; j< buffer.getMobileNumbers().length(); j++) {
 							sms.sendSms(buffer.getSmsText(), buffer.getMobileNumbers().getString(j));
 						}
+					}else if(buffer.getEWardsSettleBill().length() > 0) {
+						System.out.print("Syncing with Ewards");
+						Services.executePost(EwardsServices.url + "/api/v1/merchant/posAddPoint", new JSONObject(buffer.getEWardsSettleBill()));
 					}
 				}
 			}
 		} catch (Exception e) {
+			bufferDao.rollbackTransaction();
 			e.printStackTrace();
 		}
 		return outObj.toString();
@@ -10228,7 +10514,7 @@ public class Services {
 				recipentArr.put(recipent);
 			}
 			IReportBuffer bufferDao = new ReportBufferManager(false);
-			bufferDao.addToBuffer(hotelId, subject, builder.toString(), "", recipentArr, new JSONArray());
+			bufferDao.addEmailToBuffer(hotelId, subject, builder.toString(), recipentArr);
 		}
 		
 		return true;
@@ -10275,7 +10561,7 @@ public class Services {
 			}
 		}
 		if(!netAvailable && recepients.length()>0) {
-			bufferDao.addToBuffer(hotelId, "", "", smsText, new JSONArray(), recepients);
+			bufferDao.addSmsToBuffer(hotelId, smsText, recepients);
 		}
 	}
 	
@@ -10525,7 +10811,7 @@ public class Services {
 			inObj = new JSONObject(jsonObject);
 			
 			outObj.put("status", dao.redeemPromotionalCash(inObj.getString("systemId"), inObj.getString("orderId"), 
-						new BigDecimal(inObj.getDouble("promotionalCash"))));
+						new BigDecimal(inObj.getDouble("promotionalCash")).setScale(2, RoundingMode.HALF_UP)));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

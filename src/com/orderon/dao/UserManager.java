@@ -140,6 +140,12 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 	}
 
 	@Override
+	public ArrayList<User> getAllCaptains(String hotelId) {
+		String sql = "SELECT userId FROM Users WHERE userType == 9 ORDER BY userId;";
+		return db.getRecords(sql, User.class, hotelId);
+	}
+
+	@Override
 	public User getUserById(String hotelId, String userId) {
 		String sql = "SELECT Users.*, (Employee.firstName || ' ' || Employee.surName) AS name "
 				+ "FROM Users, Employee WHERE userId='" + escapeString(userId) + "' AND Users.hotelId='"

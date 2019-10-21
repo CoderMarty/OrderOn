@@ -296,8 +296,20 @@ public class TableManager extends AccessManager implements ITable {
 	@Override
 	public Boolean assignWaiterToTable(String systemId, String outletId, String waiterId, int tableId) {
 
-		String sql = "UPDATE Tables SET waiterId = '" + waiterId + "' WHERE outletId = '" + outletId + "' AND tableId LIKE '"
-				+ tableId + "%';";
+		String sql = "UPDATE Tables SET waiterId = '" + waiterId + "' WHERE outletId = '" + outletId + "' AND tableId = '"
+				+ tableId + "';";
+		
+		JSONArray tables = this.getTableById(systemId, outletId, Integer.toString(tableId)).getSubTables();
+
+		try {
+			for (int i = 0; i < tables.length(); i++) {
+				sql += "UPDATE Tables SET waiterId = '" + waiterId + "' WHERE outletId = '" + outletId + "' AND tableId = '"
+					+ tables.getString(i) + "';";
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		return db.executeUpdate(sql, systemId, true);
 	}

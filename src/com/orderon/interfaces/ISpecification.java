@@ -19,5 +19,7 @@ public interface ISpecification extends IAccess{
 
 	public ArrayList<OrderSpecification> getOrderedSpecification(String systemId, String orderId, String menuId);
 
+	public ArrayList<Specifications> getSpecifications(String hotelId);
+
 	public Specifications getSpecification(String hotelId, String spec);
 }

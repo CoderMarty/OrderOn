@@ -14,14 +14,31 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 	}
 
 	@Override
-	public boolean addToBuffer(String outletId, String subject, String emailText, String smsText, JSONArray emailIds,
-			JSONArray mobileNumbers) {
+	public boolean addEmailToBuffer(String outletId, String subject, String emailText, JSONArray emailIds) {
 		
-		String sql = "INSERT INTO ReportBuffer (outletId, subject, emailText, smsText, mobileNumbers, emailIds) "
+		String sql = "INSERT INTO ReportBuffer (outletId, subject, emailText, emailIds) "
 			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(subject) + "', '" + escapeString(emailText) + "', '" 
-			+ escapeString(smsText) + "', '" + (mobileNumbers.toString()) + "', '" +escapeString(emailIds.toString())+"');";
+			+ escapeString(emailIds.toString())+"');";
 		
-		return db.executeUpdate(sql, outletId, false);
+		return db.executeUpdate(sql, outletId, true);
+	}
+
+	@Override
+	public boolean addSmsToBuffer(String outletId, String smsText, JSONArray mobileNumbers) {
+		
+		String sql = "INSERT INTO ReportBuffer (outletId, smsText, mobileNumbers) "
+			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(smsText) + "', '" + (mobileNumbers.toString()) +"');";
+		
+		return db.executeUpdate(sql, outletId, true);
+	}
+
+	@Override
+	public boolean addEWardsToBuffer(String outletId, String eWardsSettleBill) {
+		
+		String sql = "INSERT INTO ReportBuffer (outletId, eWardsSettleBill) "
+			+ "VALUES('" + escapeString(outletId) + "', '" + eWardsSettleBill+"');";
+		
+		return db.executeUpdate(sql, outletId, true);
 	}
 
 	@Override

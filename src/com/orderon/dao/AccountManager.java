@@ -15,15 +15,15 @@ public class AccountManager extends AccessManager implements IAccount{
 	}
 	
 	@Override
-	public ArrayList<Account> getBankAccounts(String outletId) {
-		String sql = "SELECT * FROM Bank WHERE outletId='" + outletId + "';";
-		return db.getRecords(sql, Account.class, outletId);
+	public ArrayList<Account> getBankAccounts(String systemId) {
+		String sql = "SELECT * FROM Bank WHERE systemId='" + systemId + "';";
+		return db.getRecords(sql, Account.class, systemId);
 	}
 	
 	@Override
-	public Account getBankAccount(String outletId, int accountNumber) {
-		String sql = "SELECT * FROM Bank WHERE outletId='" + outletId + "' AND accountNumber = "+accountNumber+";";
-		return db.getOneRecord(sql, Account.class, outletId);
+	public Account getBankAccount(String systemId, int accountNumber) {
+		String sql = "SELECT * FROM Bank WHERE systemId='" + systemId + "' AND accountNumber = "+accountNumber+";";
+		return db.getOneRecord(sql, Account.class, systemId);
 	}
 
 	@Override
