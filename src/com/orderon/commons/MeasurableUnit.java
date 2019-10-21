@@ -1,6 +1,7 @@
 package com.orderon.commons;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public enum MeasurableUnit {
 	
@@ -35,19 +36,19 @@ public enum MeasurableUnit {
 	}
 	
 	public BigDecimal convertToDisplayableUnit(BigDecimal value){
-		return value.multiply(this.conversion).setScale(2, BigDecimal.ROUND_HALF_UP);
+		return value.multiply(this.conversion).setScale(6, RoundingMode.HALF_UP);
 	}
 	
 	public BigDecimal convertToBaseUnit(BigDecimal value){
-		return value.divide(this.conversion).setScale(2, BigDecimal.ROUND_HALF_UP);
+		return value.divide(this.conversion).setScale(6, RoundingMode.HALF_UP);
 	}
 	
 	public BigDecimal convertToBaseRate(BigDecimal rate){
-		return rate.multiply(this.conversion).setScale(2, BigDecimal.ROUND_HALF_UP);
+		return rate.multiply(this.conversion).setScale(6, RoundingMode.HALF_UP);
 	}
 	
 	public BigDecimal convertToDisplayableRate(BigDecimal rate){
-		return rate.divide(this.conversion).setScale(2, BigDecimal.ROUND_HALF_UP);
+		return rate.divide(this.conversion).setScale(6, RoundingMode.HALF_UP);
 	}
 	
 	private MeasurableUnit(BigDecimal conversion, String association){
