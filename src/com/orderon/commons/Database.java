@@ -321,6 +321,15 @@ public class Database {
 			return 0;
 		}
 	}
+
+	public static long readRsLong(ResultSet rs, String fieldName) {
+		try {
+			return rs.getLong(fieldName);
+		} catch (Exception e) {
+			return 0;
+		}
+		
+	}
 	
 	public static BigDecimal readRsBigDecimal(ResultSet rs, String fieldName) {
 		try {
