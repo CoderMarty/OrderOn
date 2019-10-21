@@ -1,6 +1,7 @@
 package com.orderon.dao;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
@@ -319,11 +320,23 @@ public class AccessManager implements IAccess{
 	public boolean updateDatabase(String systemId, String oldVersion, String version) {
 		String sql = "";
 		
-		if(oldVersion.equals("3.4.21")) {
-			sql = "ALTER TABLE System ADD COLUMN isLiteApp TEXT DEFAULT 'true';"
+		if(oldVersion.equals("3.3.4.2")) {
+			sql = "Update System SET version = '3.3.3.27';";
+			
+		}else if(oldVersion.equals("3.4.22.1")) {
+			sql = "Update System SET version = '3.4.22.2';";
+			sql += "ALTER TABLE ReportBuffer ADD COLUMN eWardsSettleBill TEXT;";
+			
+		}else if(oldVersion.equals("3.4.22")) {
+			sql = "Update System SET version = '3.4.22.1';";
+			sql += "ALTER TABLE Collections ADD COLUMN kotOrder INTEGER DEFAULT 0;"
+				+ "UPDATE Collections SET kotOrder = 0;";
+			
+		}else if(oldVersion.equals("3.4.21")) {
+			sql = "Update System SET version = '3.4.22';";
+			sql += "ALTER TABLE System ADD COLUMN isLiteApp TEXT DEFAULT 'true';"
 				+ "UPDATE System SET isLiteApp = 'true';";
 			
-			sql += "Update System SET version = '3.4.22';";
 		}else if(oldVersion.equals("3.4.20")) {
 
 			//Upgrading Tables.
@@ -366,7 +379,7 @@ public class AccessManager implements IAccess{
 			+	"INSERT INTO Outlets (id, name, address, contact, GSTNumber, VATNumber, code, imageLocation, schedule, location, links, "
 			+	"companyName, carouselImages, menuBanner, featuredItemId, closedDates, outletId, systemId, corporateId) "
 			+	"SELECT id, name, address, contact, GSTNumber, VATNumber, code, imageLocation, schedule, location, links, companyName, "
-			+	"carouselImages, menuBanner, featuredItemId, closedDates, outletId, outletId, corporateId FROM Outlet;"
+			+	"carouselImages, menuBanner, featuredItemId, closeDates, outletId, outletId, corporateId FROM Outlet;"
 			+	"DROP TABLE Outlet;";
 				
 			sql += "Update System SET version = '3.4.19';";
@@ -498,14 +511,12 @@ public class AccessManager implements IAccess{
 		} else if(oldVersion.equals("3.4.9")) {
 
 			//Upgrading Tables.
-			sql = "CREATE TABLE Tables2 ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId TEXT NOT NULL UNIQUE, orderId TEXT, isVacant TEXT DEFAULT 'true', "
+			sql = "CREATE TABLE Tables2 ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId TEXT NOT NULL UNIQUE, orderId TEXT, isInBilling TEXT DEFAULT 'true', "
 			+	"section TEXT, type TEXT, showTableView TEXT DEFAULT 'true', waiterId TEXT, subTables TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
-			+	"INSERT INTO Tables2 (id, tableId, isInBilling, section, type, showTableView, waiterId, subTables, outletId, systemId) "
-			+	"SELECT id, tableId, state, section, type, showTableView, waiterId, subTables, hotelId, hotelId FROM Tables;"
+			+	"INSERT INTO Tables2 (id, tableId, section, type, showTableView, waiterId, subTables, outletId, systemId) "
+			+	"SELECT id, tableId, section, type, showTableView, waiterId, subTables, hotelId, hotelId FROM Tables;"
 			+	"DROP TABLE Tables;"
-			+	"ALTER TABLE Tables2 RENAME TO Tables;"
-			+	"UPDATE Tables SET isInBilling = 'true' WHERE isVacant = '0';"
-			+	"UPDATE Tables SET isInBilling = 'false' WHERE isVacant = '1';";
+			+	"ALTER TABLE Tables2 RENAME TO Tables;";
 				
 			sql += "Update System SET version = '3.4.10';";
 			
@@ -577,7 +588,7 @@ public class AccessManager implements IAccess{
 
 
 			//Updating Hotel Table. Renamed to System, removed unused entires.
-			sql += "CREATE TABLE 'System' ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
+			sql += "CREATE TABLE System ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
 			+	"hotelType TEXT DEFAULT 'POSTPAID' , theme TEXT DEFAULT '0' , smsEnabled TEXT DEFAULT 'true' , deliverySmsEnabled TEXT DEFAULT 'false' , "
 			+	"serverEnabled TEXT DEFAULT 'false' , hasCashDrawer TEXT DEFAULT 'false' , hasLoyalty INTEGER DEFAULT 0 , hasIncentiveScheme TEXT DEFAULT 'false' , "
 			+	"hasKot TEXT DEFAULT 'true' , kotIHTBNSZSUF TEXT DEFAULT '1:1:1:1:1:0:1:1:1' , kotSettings TEXT DEFAULT '600:455:2' , kotFontFamily TEXT DEFAULT 'Arial' , "
@@ -732,7 +743,7 @@ public class AccessManager implements IAccess{
 			sql += "Update Customers SET sendSMS = 'true' WHERE sendSMS IS NULL;";
 					
 		}else if(oldVersion.equals("3.3.3.20")) {
-			sql = "ALTER TABLE Hotel ADD COLUMN senderId;";
+			sql = "ALTER TABLE Hotel ADD COLUMN senderId TEXT;";
 			
 			if(systemId.equals("h0002") || systemId.equals("h0003")) {
 				sql += "UPDATE Hotel SET senderId = 'DEMOOO';";
@@ -743,7 +754,7 @@ public class AccessManager implements IAccess{
 			sql += "Update Hotel SET version = '3.3.3.21';";
 					
 		}else if(oldVersion.equals("3.3.3.19")) {
-			sql = "ALTER TABLE Hotel ADD COLUMN smsId;";
+			sql = "ALTER TABLE Hotel ADD COLUMN smsId TEXT;";
 			
 			if(systemId.equals("wc0001")) {
 				sql += "UPDATE Hotel SET smsId = 'wc00010', smsAPIKey = '3!6j_NIm';";
@@ -1824,18 +1835,18 @@ public class AccessManager implements IAccess{
 		+ "employeeId TEXT NOT NULL, hotelId TEXT, paymentType TEXT, trAccountName TEXT, serviceDate TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS SubCollections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, "
-		+ "subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, hotelId INTEGER NOT NULL, isActive TEXT , "
-		+ "description TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS SubCollections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+		+	"subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, isActive TEXT, isActiveOnline TEXT, outletId TEXT NOT NULL,"
+		+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Schedules ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, days TEXT NOT NULL, " +
-		"timeSlots INTEGER NOT NULL, hotelId TEXT NOT NULL );";
+		sql = "CREATE TABLE IF NOT EXISTS Schedules ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, days TEXT NOT NULL, "
+		+	"timeSlots INTEGER NOT NULL, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";		
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Groups ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds TEXT NOT NULL, name TEXT NOT NULL, "
-		+ "description TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, hotelId TEXT, isActive TEXT NOT NULL DEFAULT 'true', "
-		+ "title TEXT, subTitle TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Groups ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds INTEGER NOT NULL, name INTEGER NOT NULL, "
+		+	"description TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', "
+		+	"isActiveOnline TEXT DEFAULT 'false', title TEXT, subTitle TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS TotalRevenue ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, "
@@ -1847,12 +1858,12 @@ public class AccessManager implements IAccess{
 		+ "zomatoPickup DOUBLE, wallet DOUBLE);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Tables ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId text NOT NULL, state integer, "
-		+ "hotelId TEXT NOT NULL, section TEXT, type TEXT, showTableView TEXT, waiterId TEXT, subTables TEXT );";
+		sql = "CREATE TABLE IF NOT EXISTS Tables ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId TEXT NOT NULL UNIQUE, orderId TEXT, isInBilling TEXT DEFAULT 'true', "
+		+	"section TEXT, type TEXT, showTableView TEXT DEFAULT 'true', waiterId TEXT, subTables TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Taxes ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value DOUBLE NOT NULL, "
-		+ "type TEXT NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT NOT NULL DEFAULT 'FOOD', hotelId TEXT NOT NULL );";
+		sql = "CREATE TABLE IF NOT EXISTS Taxes ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
+		+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Flags ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, "
@@ -1860,12 +1871,13 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Tiers ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, "
-		+ "chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, hotelId TEXT NOT NULL );";
+		+	"chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, outletId TEXT NOT NULL,"
+		+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Charges ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
-		+ "isActive TEXT NOT NULL DEFAULT 'false', applicableOn TEXT, isAlwaysApplicable INTEGER DEFAULT 'false', minBillAmount DOUBLE, "
-		+ "hasTierWiseValues TEXT, taxesOnCharge TEXT, hotelId TEXT NOT NULL, orderType TEXT, isApplicableOn TEXT DEFAULT '[]', isApplicableOnline TEXT );";
+		+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
+		+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS InventoryLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, sku INTEGER NOT NULL, type TEXT NOT NULL, "
@@ -1878,7 +1890,7 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Specifications ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, specification TEXT NOT NULL, station TEXT, "
-		+ "type INTEGER NOT NULL, isDisplayable TEXT DEFAULT 'true');";
+		+ "type INTEGER NOT NULL, isDisplayable TEXT DEFAULT 'true', outletId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS ServiceLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, serviceDate TEXT NOT NULL, "
@@ -1896,59 +1908,60 @@ public class AccessManager implements IAccess{
 		+ "write INTEGER, deleteAccess INTEGER, hotelId INTEGER);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE Recipe ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku INTEGER NOT NULL, menuId TEXT NOT NULL, "
+		sql = "CREATE TABLE IF NOT EXISTS Recipe ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku INTEGER NOT NULL, menuId TEXT NOT NULL, "
 		+ "quantity INTEGER NOT NULL, hotelId TEXT NOT NULL, unit TEXT NOT NULL DEFAULT GRAM, processedMaterialSku INTEGER, "
 		+ "FOREIGN KEY(menuId) REFERENCES MenuItems(menuId), FOREIGN KEY(sku) REFERENCES Stock(sku))";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Payment ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, billNo TEXT NOT NULL DEFAULT (null), "
-		+ "orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL DEFAULT (null), foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, foodDiscount DOUBLE DEFAULT (0), "
-		+ "barDiscount DOUBLE, total DOUBLE NOT NULL, serviceCharge DOUBLE DEFAULT (0), serviceTax DOUBLE DEFAULT (0), VATFOOD DOUBLE DEFAULT (0), VATBAR DOUBLE DEFAULT (0), "
-		+ "sbCess DOUBLE DEFAULT (0), kkCess DOUBLE DEFAULT (0), tip DOUBLE DEFAULT (0), cashPayment DOUBLE DEFAULT (0), cardPayment DOUBLE DEFAULT (0), "
-		+ "appPayment DOUBLE DEFAULT (0), discountName text, cardType TEXT, gst DOUBLE, loyaltyAmount DOUBLE, complimentary DOUBLE, section TEXT, billNo2 TEXT , "
-		+ "packagingCharge DOUBLE DEFAULT 0.0, deliveryCharge DOUBLE DEFAULT 0.0, walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, "
-		+ "roundOff DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0);";
+		sql = "CREATE TABLE IF NOT EXISTS Payments ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, billNo TEXT NOT NULL, orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL, "
+		+	"foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, discountCodes TEXT, foodDiscount DOUBLE DEFAULT 0.0, barDiscount DOUBLE DEFAULT 0.0, "
+		+	"total DOUBLE DEFAULT 0.0, gst DOUBLE DEFAULT 0.0, vat DOUBLE DEFAULT 0.0, serviceCharge DOUBLE DEFAULT 0.0, packagingCharge DOUBLE DEFAULT 0.0, "
+		+	"deliveryCharge DOUBLE DEFAULT 0.0, paymentType TEXT, cashPayment DOUBLE DEFAULT 0.0, cardPayment DOUBLE DEFAULT 0.0, appPayment DOUBLE DEFAULT 0.0, "
+		+	"walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0, loyaltyAmount DOUBLE DEFAULT 0.0, "
+		+	"complimentary DOUBLE DEFAULT 0.0, roundOff DOUBLE DEFAULT 0.0, tip DOUBLE DEFAULT 0.0, billNo2 TEXT, section TEXT, outletId TEXT NOT NULL, "
+		+	"systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Orders ( Id  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId  text NOT NULL, orderId  text NOT NULL UNIQUE, "
-		+ "orderDate text NOT NULL, orderDateTime TEXT, customerName  text, customerAddress  text, customerNumber  text, rating_ambiance  integer, rating_qof  "
-		+ "integer, rating_service  integer, rating_hygiene  integer, waiterId  text, numberOfGuests  integer, state  integer NOT NULL, "
-		+ "inhouse  integer NOT NULL, tableId  text, reviewSuggestions  TEXT, serviceType  TEXT NOT NULL, foodBill  DOUBLE DEFAULT (null), "
-		+ "barBill  DOUBLE DEFAULT (null), billNo  INTEGER, billNo2  TEXT, reason  TEXT, authId  TEXT, printCount  INTEGER DEFAULT (0), "
-		+ "discountCode  TEXT, isSmsSent  INTEGER, completeTimestamp  TEXT, loyaltyId  INTEGER, loyaltyPaid  INTEGER, section  TEXT, "
-		+ "reference  TEXT, remarks  TEXT, deliveryBoy  TEXT, deliveryTimeStamp  TEXT, customerGST  TEXT, takeAwaytype integer, "
-		+ "excludedCharges TEXT DEFAULT '[]', excludedTaxes TEXT DEFAULT '[]', externalOrderId TEXT, riderName TEXT, riderNumber TEXT, cashToBeCollected TEXT, "
-		+ "zomatoVoucherAmount DOUBLE, goldDiscount DOUBLE, piggyBank DOUBLE, loyaltyEarned DOUBLE, fixedRupeeDiscount DOUBLE, amountReceivable DOUBLE, isFoodReady TEXT, "
-		+ "walletTransactionId INTEGER, eWards TEXT, promotionalCash DOUBLE, riderStatus TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Orders (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL UNIQUE, orderDate TEXT NOT NULL, orderDateTime TEXT, "
+		+	"serviceType TEXT NOT NULL, state INTEGER NOT NULL, orderType INTEGER NOT NULL, takeAwaytype INTEGER, tableId TEXT, billNo INTEGER, "
+		+	"billNo2 INTEGER, printCount INTEGER DEFAULT 0, completeTimestamp TEXT, section TEXT, reference TEXT, remarks TEXT, loyaltyId INTEGER, "
+		+	"loyaltyPaid INTEGER DEFAULT 0, loyaltyEarned DOUBLE DEFAULT 0.0, eWards TEXT DEFAULT '{}', waiterId TEXT, deliveryBoy TEXT, deliveryTimeStamp TEXT, externalOrderId TEXT, "
+		+	"isFoodReady TEXT DEFAULT 'false', riderName TEXT, riderNumber TEXT, riderStatus TEXT, amountReceivable DOUBLE DEFAULT 0.0, cashToBeCollected TEXT,"
+		+ 	" orderPreparationTime INTEGER DEFAULT 0, onlineOrderData TEXT DEFAULT '{}', discountCodes TEXT DEFAULT '[]', "
+		+	"fixedRupeeDiscount DOUBLE DEFAULT 0.0, zomatoVoucherAmount DOUBLE DEFAULT 0.0, piggyBank DOUBLE DEFAULT 0.0, goldDiscount DOUBLE DEFAULT 0.0, "
+		+   "walletTransactionId INTEGER DEFAULT 0, promotionalCash DOUBLE DEFAULT 0.0, "
+		+	"excludedCharges TEXT DEFAULT '[]', excludedTaxes TEXT DEFAULT '[]', customerName TEXT, customerAddress TEXT, customerNumber TEXT, "
+		+	"customerGST TEXT, numberOfGuests INTEGER DEFAULT 1, isSmsSent TEXT DEFAULT 'false', reason TEXT, authId TEXT, ratingAmbiance INTEGER, ratingQof INTEGER, "
+		+	"ratingService INTEGER, ratingHygiene INTEGER, reviewSuggestions TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS OrderTables ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, orderId text NOT NULL, "
 		+ "tableId text NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderSpecifications ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, specification TEXT NOT NULL, hotelId TEXT NOT NULL);";
+		sql = "CREATE TABLE IF NOT EXISTS OrderSpecifications ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, subOrderId TEXT NOT NULL, "
+		+	"menuId TEXT NOT NULL, itemId INTEGER, specification TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderItems ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, subOrderId text NOT NULL, "
-		+ "subOrderDate text NOT NULL, orderId text NOT NULL, menuId text NOT NULL, qty int NOT NULL, rate real NOT NULL, specs text, state integer, "
-		+ "billNo TEXT, isKotPrinted INTEGER, waiterId TEXT, billNo2 TEXT, kotNumber INTEGER, botNumber INTEGER, itemIsMoved TEXT DEFAULT 'false');";
+		sql = "CREATE TABLE IF NOT EXISTS OrderItems ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId text NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, rate DOUBLE NOT NULL, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+		+	"subOrderDate TEXT NOT NULL, specs TEXT, billNo TEXT, billNo2 TEXT, isKotPrinted INTEGER, kotNumber INTEGER, botNumber INTEGER, "
+		+	"waiterId TEXT, itemIsMoved TEXT DEFAULT 'false', outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderItemLog ( Id INTEGER NOT NULL, hotelId TEXT NOT NULL, orderId TEXT NOT NULL DEFAULT (null), "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, state INTEGER NOT NULL, reason TEXT, dateTime TEXT, quantity INTEGER, rate INTEGER, "
-		+ "itemId INTEGER, subOrderDate TEXT,"
-	 	+ "PRIMARY KEY(Id));";
+		sql = "CREATE TABLE IF NOT EXISTS OrderItemLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, itemId INTEGER, rate DOUBLE, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+		+	"subOrderDate TEXT NOT NULL, reason TEXT, dateTime TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderAddOns ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
-		+ "subOrderId INTEGER NOT NULL, qty INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT NOT NULL, rate INTEGER NOT NULL, itemId INTEGER, "
-		+ "state TEXT, subOrderDate TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS OrderAddOns ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT, itemId INTEGER, rate DOUBLE NOT NULL,"
+		+	"quantity INTEGER NOT NULL, state INTEGER NOT NULL, subOrderDate TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderAddOnLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, quantity INTEGER NOT NULL, rate INTEGER NOT NULL, state TEXT, "
-		+ "addOnId TEXT NOT NULL, subOrderDate TEXT);";
+		sql = "CREATE TABLE OrderAddOnLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
+		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, quantity INTEGER NOT NULL, rate INTEGER NOT NULL, "
+		+ "state TEXT, addOnId TEXT, subOrderDate TEXT );";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS OnlineOrders ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT, restaurantId INTEGER, "
@@ -1959,15 +1972,15 @@ public class AccessManager implements IAccess{
 		+ "notId int NOT NULL, msg text NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS MenuItems ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, station TEXT NOT NULL, "
-		+ "menuId text NOT NULL UNIQUE, title text NOT NULL, description text, collection text NOT NULL, subCollection TEXT, flags text, "
-		+ "preparationTime integer, deliveryRate DOUBLE NOT NULL, dineInRate DOUBLE NOT NULL DEFAULT 0, dineInNonAcRate DOUBLE NOT NULL DEFAULT 0, onlineRate DOUBLE, "
-		+ "costPrice DOUBLE DEFAULT Null, vegType int NOT NULL, method TEXT, state INTEGER NOT NULL, code TEXT, addOns TEXT, "
-		+ "img text, hasIncentive INTEGER, incentive INTEGER, isTaxable INTEGER NOT NULL, groups TEXT, taxes TEXT, charges TEXT, "
-		+ "isRecomended INTEGER, isTreats INTEGER, isDefault INTEGER, isBogo INTEGER, comboReducedPrice DOUBLE, isAddOn TEXT NOT NULL, "
-		+ "syncOnZomato TEXT DEFAULT 'true', corporateId TEXT NOT NULL, gstInclusive TEXT DEFAULT 'false', discountType TEXT, discountValue DOUBLE,"
-		+ "onlineRate1 DOUBLE DEFAULT 0.0, onlineRate2 DOUBLE DEFAULT 0.0, onlineRate3 DOUBLE DEFAULT 0.0, onlineRate4 DOUBLE DEFAULT 0.0,"
-		+ "onlineRate5 DOUBLE DEFAULT 0.0, comboPrice DOUBLE DEFAULT 0.0, isCombo TEXT DEFAULT 'false', coverImgUrl TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS MenuItems ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, menuId TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, "
+		+	"code TEXT, collection TEXT NOT NULL, subCollection TEXT, station TEXT NOT NULL, dineInRate DOUBLE DEFAULT 0.0, dineInNonAcRate DOUBLE DEFAULT 0.0,"
+		+	"deliveryRate DOUBLE DEFAULT 0.0, onlineRate DOUBLE DEFAULT 0.0, onlineRate1 DOUBLE DEFAULT 0.0, onlineRate2 DOUBLE DEFAULT 0.0, "
+		+	"onlineRate3 DOUBLE DEFAULT 0.0, onlineRate4 DOUBLE DEFAULT 0.0, onlineRate5 DOUBLE DEFAULT 0.0, isCombo TEXT DEFAULT 'false', "
+		+	"comboPrice DOUBLE DEFAULT 0.0, comboReducedPrice DOUBLE DEFAULT 0.0, costPrice DOUBLE DEFAULT 0.0, discountType TEXT, discountValue DOUBLE DEFAULT 0.0, "
+		+	"flags TEXT DEFAULT '[]', inStock TEXT DEFAULT 'true', imgUrl TEXT, coverImgUrl TEXT, incentiveQuantity INTEGER DEFAULT '0', incentiveAmount INTEGER DEFAULT 0, "
+		+	"groups TEXT DEFAULT '[]', taxes TEXT DEFAULT '[]', charges TEXT DEFAULT '[]', gstInclusive TEXT DEFAULT 'false', syncOnZomato TEXT DEFAULT 'true', "
+		+	"isRecomended TEXT DEFAULT 'false', isTreats TEXT DEFAULT 'false', isDefault TEXT DEFAULT 'false', isBogo TEXT DEFAULT 'false', "
+		+	"preparationTime INTEGER DEFAULT 0, method TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Materials ( sku INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, displayableUnit TEXT NOT NULL DEFAULT 'GRAM'," + 
@@ -1990,18 +2003,16 @@ public class AccessManager implements IAccess{
 		+ "employeeId TEXT NOT NULL, date TEXT NOT NULL, salaryMonth TEXT NOT NULL, bonus INTEGER, hotelId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Hotel ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, hotelCode text NOT NULL, "
-		+ "hotelName text NOT NULL, isEnabled int NOT NULL, hotelAddress TEXT, hotelContact TEXT, GSTNumber TEXT, "
-		+ "hotelType TEXT DEFAULT 'POSTPAID', description TEXT, website TEXT, smsEnabled INTEGER DEFAULT 1, serverEnabled INTEGER DEFAULT 0, "
-		+ "hasCashDrawer INTEGER DEFAULT 0, hasLoyalty INTEGER DEFAULT 0, hasIncentiveScheme INTEGER DEFAULT 0, billType TEXT DEFAULT '2:POST_ORDERING', "
-		+ "sections TEXT, integrations TEXT, onlinePlatforms TEXT, kotIHTBNSZSUF TEXT DEFAULT '1:1:1:1:1:0:1:1:1:1', kotSettings TEXT DEFAULT '600:455:2', "
-		+ "hasKds TEXT DEFAULT 'false', hasKot TEXT DEFAULT 'true', hasDirectCheckout TEXT DEFAULT 'false', hasNC TEXT DEFAULT 'true', hasBar TEXT DEFAULT 'true', "
-		+ "loadCustomerDb TEXT DEFAULT 'true', isMenuIdCategorySpecific TEXT DEFAULT 'false', allowItemCancellationOnPhone TEXT DEFAULT 'false', kotFontFamily TEXT DEFAULT 'Arial', "
-		+ "kotFontSize TEXT DEFAULT '15px', kotFontWeight TEXT DEFAULT 'bold', hasEod TEXT DEFAULT 'false', version TEXT, hasNewOrderScreen TEXT DEFAULT 'true', "
-		+ "isCaptainbasedOrdering TEXT DEFAULT 'true', deductionType INTEGER default (0), VATNumber TEXT, isWalletOnline TEXT DEFAULT 'false', isWalletOffline TEXT DEFAULT 'false', isCreditActive TEXT DEFAULT 'false',"
-		+ "printLogo TEXT DEFAULT 'false', showOccupiedTablesOnly TEXT DEFAULT 'false', apiKey TEXT, hasConciseBill TEXT DEFAULT 'true', theme TEXT DEFAULT '0', "
-		+ "hasFullRounding TEXT DEFAULT 'false', capturePayments TEXT DEFAULT 'false', promotionalSMSBalance INTEGER DEFAULT 0, transactionalSMSCount INTEGER DEFAULT 0,"
-		+ "smsAPIKey TEXT, downloadReports TEXT DEFAULT 'true', deliverySmsEnabled TEXT DEFAULT 'false', smsId TEXT, senderId TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS System ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
+		+	"hotelType TEXT DEFAULT 'POSTPAID' , theme TEXT DEFAULT '0' , smsEnabled TEXT DEFAULT 'true' , deliverySmsEnabled TEXT DEFAULT 'false' , "
+		+	"serverEnabled TEXT DEFAULT 'false' , hasCashDrawer TEXT DEFAULT 'false' , hasLoyalty INTEGER DEFAULT 0 , hasIncentiveScheme TEXT DEFAULT 'false' , "
+		+	"hasKot TEXT DEFAULT 'true' , kotIHTBNSZSUF TEXT DEFAULT '1:1:1:1:1:0:1:1:1' , kotSettings TEXT DEFAULT '600:455:2' , kotFontFamily TEXT DEFAULT 'Arial' , "
+		+	"kotFontSize TEXT DEFAULT '15px' , kotFontWeight TEXT DEFAULT 'bold' , hasKds TEXT DEFAULT 'false' , hasDirectCheckout TEXT DEFAULT 'false' , "
+		+	"hasNC TEXT DEFAULT 'true' , hasBar TEXT DEFAULT 'false' , loadCustomerDb TEXT DEFAULT 'true' , allowItemCancellationOnPhone TEXT DEFAULT 'false' , "
+		+	"hasEod TEXT DEFAULT 'false' , hasNewOrderScreen TEXT DEFAULT 'true' , isCaptainBasedOrdering TEXT DEFAULT 'true' , showOccupiedTablesOnly TEXT DEFAULT 'true' , "
+		+	"deductionType TEXT, isWalletOnline TEXT DEFAULT 'false' , isWalletOffline TEXT DEFAULT 'false' , isCreditActive TEXT DEFAULT 'false' , "
+		+	"billType TEXT DEFAULT 'YEARLY' , printLogo TEXT DEFAULT 'false' , hasConciseBill TEXT DEFAULT 'false' , zomatoApiKey TEXT , smsAPIKey TEXT , smsId TEXT, senderId TEXT , "
+		+	"eWardsCredentials TEXT DEFAULT '{}', hasFullRounding TEXT DEFAULT 'false' , capturePayments TEXT DEFAULT 'false' , downloadReports TEXT DEFAULT 'true', isLiteApp TEXT DEFAULT 'true');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Expenses ( id INTEGER NOT NULL DEFAULT (0) PRIMARY KEY AUTOINCREMENT UNIQUE, type TEXT NOT NULL, "
@@ -2016,11 +2027,12 @@ public class AccessManager implements IAccess{
 		+ "sendOperationalEmail TEXT DEFAULT false, sendEODEmail TEXT DEFAULT false, sendSMS TEXT DEFAULT 'false', sendEODSMS TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Discount ( name text NOT NULL UNIQUE, hotelId text NOT NULL, description text NOT NULL, type text NOT NULL, "
-		+ "foodValue integer NOT NULL, startDate text NOT NULL, expiryDate text, usageLimit text NOT NULL, validCollections TEXT, "
-		+ "barValue INTEGER, offerType TEXT, applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', "
-		+ "offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', startTime TEXT, endTime TEXT, firstorderOnly TEXT, "
-		+ "minOrderAmount INTEGER, maxFoodDiscountAmount DOUBLE, maxBarDiscountAmount DOUBLE, PRIMARY KEY(name) );";
+		sql = "CREATE TABLE IF NOT EXISTS Discounts ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, type TEXT NOT NULL, foodValue INTEGER DEFAULT 0, barValue INTEGER DEFAULT 0,"
+		+	"startDate TEXT NOT NULL, expiryDate TEXT, usageLimit TEXT NOT NULL, validCollections TEXT, offerType TEXT, "
+		+	"applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', "
+		+	"startTime TEXT, endTime TEXT, firstorderOnly TEXT DEFAULT 'false', minOrderAmount INTEGER DEFAULT 0, "
+		+	"maxFoodDiscountAmount DOUBLE DEFAULT 0.0, maxBarDiscountAmount DOUBLE DEFAULT 0.0, "
+		+	"outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Customers ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, mobileNumber text NOT NULL UNIQUE, "
@@ -2039,15 +2051,15 @@ public class AccessManager implements IAccess{
 		sql = "CREATE TABLE IF NOT EXISTS Corporation ( corporateId text NOT NULL UNIQUE, businessName text NOT NULL, referrerBonus INTEGER NOT NULL DEFAULT 0, refereeBonus INTEGER NOT NULL DEFAULT 0)";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Collections ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, "
-		+ "name text NOT NULL UNIQUE, image TEXT DEFAULT (null), collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, "
-		+ "isActive TEXT NOT NULL, scheduleIds TEXT , description TEXT, imgUrl TEXT, isSpecialCombo TEXT, isActiveOnZomato TEXT, tags TEXT DEFAULT '[]');";
+		sql = "CREATE TABLE Collections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+		+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
+		+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Bank (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, " + 
-			"balance INTEGER NOT NULL DEFAULT 0, section TEXT, hotelId TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Bank (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
+		+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));";
 		db.executeUpdate(sql, hotelId, false);
-
+				
 		sql = "CREATE TABLE IF NOT EXISTS Attendance ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, employeeId text NOT NULL, "
 		+ "checkInTime text NOT NULL, checkOutTime text, checkInDate text NOT NULL, checkOutDate text, reason text, authorisation INTEGER, isPresent INTEGER, shift INTEGER,"
 	 	+ "FOREIGN KEY(employeeId) REFERENCES Employee(employeeId));";
@@ -2084,10 +2096,10 @@ public class AccessManager implements IAccess{
 		+ " address TEXT, poc TEXT, emailId TEXT, GSTNumber TEXT, balance DOUBLE)";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Outlet ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId TEXT, restaurantId TEXT, outletId TEXT NOT NULL, "
-		+ "name TEXT NOT NULL, address TEXT, contact TEXT, GSTNumber TEXT, VATNumber TEXT, code TEXT NOT NULL, website TEXT, imageLocation TEXT, schedule TEXT DEFAULT '[]', "
-		+ "location TEXT DEFAULT '{\"place\":\"\"}', links TEXT DEFAULT '{}', companyName TEXT, carouselImages TEXT DEFAULT '[]', menuBanner TEXT, featuredItemId TEXT, "
-		+ "closeDates TEXT DEFAULT '[]');";
+		sql = "CREATE TABLE IF NOT EXISTS Outlets ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, address TEXT, contact TEXT, "
+		+	"GSTNumber TEXT, VATNumber TEXT, code TEXT NOT NULL, website TEXT, imageLocation TEXT, schedule TEXT DEFAULT '[]', "
+		+	"location TEXT DEFAULT '{\"place\":\"\"}', links TEXT DEFAULT '{}', companyName TEXT, carouselImages TEXT DEFAULT '[]', menuBanner TEXT, "
+		+	"featuredItemId TEXT, closedDates TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS PurchaseLog (purchaseId TEXT NOT NULL PRIMARY KEY UNIQUE, billNo TEXT, challanNo TEXT, "
@@ -2113,162 +2125,173 @@ public class AccessManager implements IAccess{
 		sql = "CREATE TABLE IF NOT EXISTS DBTransactions (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, transactions TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql += "CREATE TABLE IF NOT EXISTS ReportBuffer ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, smsText TEXT, "
-		+ "subject TEXT, emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', outletId TEXT)";
+		sql = "CREATE TABLE IF NOT EXISTS ReportBuffer ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, smsText TEXT, "
+		+ "subject TEXT, emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', eWardsSettleBill TEXT, outletId TEXT)";
 		db.executeUpdate(sql, hotelId, false);
 	}
 	
-	public JSONObject restaurantSetup(String hotelName, String hotelCode, String hotelId, String version) {
+	public JSONObject restaurantSetup(String corporateId, String hotelName, String systemCode, String systemId, String version) {
 		
-		hotelCode = escapeString(hotelCode);
-		hotelId = escapeString(hotelId);
+		systemCode = escapeString(systemCode);
+		systemId = escapeString(systemId);
 		hotelName = escapeString(hotelName);
 		
 		JSONObject outObj = new JSONObject();
 		try {
 			outObj.put("status", false);
-			String sql = "INSERT INTO Hotel (hotelId, hotelCode, hotelName, isEnabled, version) "
-					+ "VALUES ('" + hotelId + "', '" + hotelCode + "', '" + hotelName + "', 1, '"+ version + "');";
-			db.executeUpdate(sql, hotelId, false);
+			String sql = "INSERT INTO System (systemId, systemCode, version) "
+					+ "VALUES ('" + systemId + "', '" + systemCode + "', '" + version + "');";
+			db.executeUpdate(sql, systemId, false);
 			
-			sql = "INSERT INTO Outlet (outletId, code, name, corporateId) "
-					+ "VALUES ('" + hotelId + "', '" + hotelCode + "', '" + hotelName + "', '');";
-			db.executeUpdate(sql, hotelId, false);
+			sql = "INSERT INTO Outlets (outletId, systemId, code, name, restaurantId, corporateId) "
+					+ "VALUES ('', '" + systemId + "', '" + systemCode + "', '" + hotelName + "', '', '"+corporateId+"');";
+			db.executeUpdate(sql, systemId, false);
 			
-			sql = "INSERT INTO BANK (accountNumber, bankName, accountName, balance, hotelId, section) VALUES "
-				+ "(1, 'CASH', 'CASH_DRAWER', 0, '"+hotelId+"', 'DEFAULT'), "
-				+ "(2, 'BANK1', 'BANK1', 0, '"+hotelId+"', 'DEFAULT'), "
-				+ "(3, 'BANK2', 'BANK2', 0, '"+hotelId+"', 'DEFAULT');";
-			db.executeUpdate(sql, hotelId, false);
+			sql = "INSERT INTO BANK (accountNumber, bankName, accountName, balance, outletId, systemId, corporateId) VALUES "
+				+ "(1, 'CASH', 'CASH_DRAWER', 0, '', '"+systemId+"', '"+corporateId+"'), "
+				+ "(2, 'BANK1', 'BANK1', 0, '', '"+systemId+"', '"+corporateId+"'), "
+				+ "(3, 'BANK2', 'BANK2', 0, '', '"+systemId+"', '"+corporateId+"');";
+			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO Employee "
 				+ "(hotelId, employeeId, firstName, surName, address, contactNumber, dob, sex, hiringDate, designation"
 				+ ", salary, bonus, image, middleName, email) VALUES"
-				+ "('" + hotelId + "', '"+hotelCode+"001', 'Order', 'On', ' ', '', '01/01/1992', 'Male', '01/01/2018', 'ADMINISTRATOR', 0,0,'','',''),"
-				+ "('" + hotelId + "', '"+hotelCode+"002', 'Staff', ' ', ' ', '', '', '', '', 'CAPTAIN', 0,0,'','',''),"
-				+ "('" + hotelId + "', '"+hotelCode+"003', 'Delivery', ' ', ' ', '', '', '', '', 'DELIVERYBOY', 0,0,'','','');";
-			db.executeUpdate(sql, hotelId, false);
+				+ "('" + systemId + "', '"+systemCode+"001', 'Order', 'On', ' ', '', '01/01/1992', 'Male', '01/01/2018', 'ADMINISTRATOR', 0,0,'','',''),"
+				+ "('" + systemId + "', '"+systemCode+"002', 'Staff', ' ', ' ', '', '', '', '', 'CAPTAIN', 0,0,'','',''),"
+				+ "('" + systemId + "', '"+systemCode+"003', 'Delivery', ' ', ' ', '', '', '', '', 'DELIVERYBOY', 0,0,'','','');";
+			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO LoyaltySettings (hotelId, userType, requiredPoints, pointToRupee) VALUES ('" 
-				+ hotelId + "', 'Prime', 0, 10), ('" + hotelId + "', 'Premium', 20000, 10), ('" + hotelId + "', 'Elite', 40000, 10), ('"
-				+ hotelId + "', 'All', 0, 0);";
-			db.executeUpdate(sql, hotelId, false);
+				+ systemId + "', 'Prime', 0, 10), ('" + systemId + "', 'Premium', 20000, 10), ('" + systemId + "', 'Elite', 40000, 10), ('"
+				+ systemId + "', 'All', 0, 0);";
+			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO SERVERLOG (hotelId, status) VALUES "
-					+ "('"+hotelId+"', 0);";
-			db.executeUpdate(sql, hotelId, false);
+					+ "('"+systemId+"', 0);";
+			db.executeUpdate(sql, systemId, false);
 	
 			sql = "INSERT INTO STATIONS (hotelId, station) VALUES "
-					+ "('"+hotelId+"', 'Kitchen'), "
-					+ "('"+hotelId+"', 'Bar Non-Alcoholic'), "
-					+ "('"+hotelId+"', 'Beverage');";
-			db.executeUpdate(sql, hotelId, false);
+					+ "('"+systemId+"', 'Kitchen'), "
+					+ "('"+systemId+"', 'Beverage');";
+			db.executeUpdate(sql, systemId, false);
 	
 			sql = "INSERT INTO Designations (Id, hotelId, designation, hasIncentive) VALUES "
-					+ "(0, '"+hotelId+"', 'WAITER', 'false'), "
-					+ "(1, '"+hotelId+"', 'MANAGER', 'false'), "
-					+ "(2, '"+hotelId+"', 'ADMINISTRATOR', 'false'), "
-					+ "(3, '"+hotelId+"', 'CHEF', 'false'), "
-					+ "(4, '"+hotelId+"', 'RECEPTIONIST', 'false'), "
-					+ "(5, '"+hotelId+"', 'RETAILASSCOCIATE', 'false'), "
-					+ "(6, '"+hotelId+"', 'BACKOFFICE', 'false'), "
-					+ "(7, '"+hotelId+"', 'DELIVERYBOY', 'false'), "
-					+ "(8, '"+hotelId+"', 'OWNER', 'false'), "
-					+ "(9, '"+hotelId+"', 'CAPTAIN', 'false'), "
-					+ "(10, '"+hotelId+"', 'CASHIER', 'false'),"
-					+ "(11, '"+hotelId+"', 'HELPER', 'false'),"
-					+ "(12, '"+hotelId+"', 'CLEANER', 'false'),"
-					+ "(13, '"+hotelId+"', 'EXEC_CHEF', 'false'),"
-					+ "(14, '"+hotelId+"', 'COMMI_1', 'false'),"
-					+ "(15, '"+hotelId+"', 'COMMI_2', 'false'),"
-					+ "(16, '"+hotelId+"', 'COMMI_3', 'false');";
-			db.executeUpdate(sql, hotelId, false);
+					+ "(0, '"+systemId+"', 'WAITER', 'false'), "
+					+ "(1, '"+systemId+"', 'MANAGER', 'false'), "
+					+ "(2, '"+systemId+"', 'ADMINISTRATOR', 'false'), "
+					+ "(3, '"+systemId+"', 'CHEF', 'false'), "
+					+ "(4, '"+systemId+"', 'RECEPTIONIST', 'false'), "
+					+ "(5, '"+systemId+"', 'RETAILASSCOCIATE', 'false'), "
+					+ "(6, '"+systemId+"', 'BACKOFFICE', 'false'), "
+					+ "(7, '"+systemId+"', 'DELIVERYBOY', 'false'), "
+					+ "(8, '"+systemId+"', 'OWNER', 'false'), "
+					+ "(9, '"+systemId+"', 'CAPTAIN', 'false'), "
+					+ "(10, '"+systemId+"', 'CASHIER', 'false'),"
+					+ "(11, '"+systemId+"', 'HELPER', 'false'),"
+					+ "(12, '"+systemId+"', 'CLEANER', 'false'),"
+					+ "(13, '"+systemId+"', 'EXEC_CHEF', 'false'),"
+					+ "(14, '"+systemId+"', 'COMMI_1', 'false'),"
+					+ "(15, '"+systemId+"', 'COMMI_2', 'false'),"
+					+ "(16, '"+systemId+"', 'COMMI_3', 'false');";
+			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
-					+ "(1, '"+hotelId+"', 'Vegetarian', 1), "
-					+ "(2, '"+hotelId+"', 'Non-Vegetarian', 1), "
-					+ "(3, '"+hotelId+"', 'Beverage', 5), "
-					+ "(24, '"+hotelId+"', 'Egg', 1), "
-					+ "(5, '"+hotelId+"', 'Alcoholic Beverage', 5), "
-					+ "(4, '"+hotelId+"', 'Spicy', 2), "
-					+ "(7, '"+hotelId+"', 'Seasonal', 3), "
-					+ "(10, '"+hotelId+"', 'Chef Special', 4), "
-					+ "(11, '"+hotelId+"', 'Grilled', 5), "
-					+ "(12, '"+hotelId+"', 'Fried', 5), "
-					+ "(13, '"+hotelId+"', ' Platter', 6), "
-					+ "(14, '"+hotelId+"', 'Wheat Free', 7), "
-					+ "(15, '"+hotelId+"', 'Gluten Free', 8), "
-					+ "(16, '"+hotelId+"', 'Vegan', 9), "
-					+ "(17, '"+hotelId+"', 'Age Restriction', 10), "
-					+ "(20, '"+hotelId+"', 'Treat Available', 11), "
-					+ "(22, '"+hotelId+"', 'Meal', 12), "
-					+ "(23, '"+hotelId+"', 'Cake', 13), "
-					+ "(19, '"+hotelId+"', 'Choice Item', 14), "
-					+ "(40, '"+hotelId+"', 'BREAKFAST', 15), "
-					+ "(41, '"+hotelId+"', 'LUNCH', 16), "
-					+ "(42, '"+hotelId+"', 'DINNER', 17), "
-					+ "(43, '"+hotelId+"', 'PIZZA', 18), "
-					+ "(44, '"+hotelId+"', 'SNACKS', 19), "
-					+ "(45, '"+hotelId+"', 'NORTH_INDIAN', 20), "
-					+ "(46, '"+hotelId+"', 'DESSERT', 21), "
-					+ "(47, '"+hotelId+"', 'CHINESE', 22), "
-					+ "(48, '"+hotelId+"', 'SOUTH_INDIAN', 23), "
-					+ "(49, '"+hotelId+"', 'BURGER', 24), "
-					+ "(50, '"+hotelId+"', 'BIRYANI', 25), "
-					+ "(51, '"+hotelId+"', 'FAST_FOOD', 26), "
-					+ "(53, '"+hotelId+"', 'PARTY COMBOS', 27),"
-					+ "(54, '"+hotelId+"', 'BEVERAGES', 28), "
-					+ "(55, '"+hotelId+"', 'SNACKS', 29), "
-					+ "(56, '"+hotelId+"', 'BREADS', 30), "
-					+ "(57, '"+hotelId+"', 'DESSERTS', 31), "
-					+ "(58, '"+hotelId+"', 'RICE', 32), "
-					+ "(59, '"+hotelId+"', 'SIDES', 33), "
-					+ "(60, '"+hotelId+"', 'NEW', 34);";
-			db.executeUpdate(sql, hotelId, false);
+					+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+					+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+					+ "(3, '"+systemId+"', 'Beverage', 5), "
+					+ "(24, '"+systemId+"', 'Egg', 1), "
+					+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+					+ "(4, '"+systemId+"', 'Spicy', 2), "
+					+ "(7, '"+systemId+"', 'Seasonal', 3), "
+					+ "(10, '"+systemId+"', 'Chef Special', 4), "
+					+ "(11, '"+systemId+"', 'Grilled', 5), "
+					+ "(12, '"+systemId+"', 'Fried', 5), "
+					+ "(13, '"+systemId+"', ' Platter', 6), "
+					+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+					+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+					+ "(16, '"+systemId+"', 'Vegan', 9), "
+					+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+					+ "(20, '"+systemId+"', 'Treat Available', 11), "
+					+ "(22, '"+systemId+"', 'Meal', 12), "
+					+ "(23, '"+systemId+"', 'Cake', 13), "
+					+ "(19, '"+systemId+"', 'Choice Item', 14), "
+					+ "(40, '"+systemId+"', 'BREAKFAST', 15), "
+					+ "(41, '"+systemId+"', 'LUNCH', 16), "
+					+ "(42, '"+systemId+"', 'DINNER', 17), "
+					+ "(43, '"+systemId+"', 'PIZZA', 18), "
+					+ "(44, '"+systemId+"', 'SNACKS', 19), "
+					+ "(45, '"+systemId+"', 'NORTH_INDIAN', 20), "
+					+ "(46, '"+systemId+"', 'DESSERT', 21), "
+					+ "(47, '"+systemId+"', 'CHINESE', 22), "
+					+ "(48, '"+systemId+"', 'SOUTH_INDIAN', 23), "
+					+ "(49, '"+systemId+"', 'BURGER', 24), "
+					+ "(50, '"+systemId+"', 'BIRYANI', 25), "
+					+ "(51, '"+systemId+"', 'FAST_FOOD', 26), "
+					+ "(53, '"+systemId+"', 'PARTY COMBOS', 27),"
+					+ "(54, '"+systemId+"', 'BEVERAGES', 28), "
+					+ "(55, '"+systemId+"', 'SNACKS', 29), "
+					+ "(56, '"+systemId+"', 'BREADS', 30), "
+					+ "(57, '"+systemId+"', 'DESSERTS', 31), "
+					+ "(58, '"+systemId+"', 'RICE', 32), "
+					+ "(59, '"+systemId+"', 'SIDES', 33), "
+					+ "(60, '"+systemId+"', 'NEW', 34);";
+			db.executeUpdate(sql, systemId, false);
 			
-			sql = "INSERT INTO Taxes (Id, hotelId, name, value, type, isActive) VALUES "
-					+ "(1, '"+hotelId+"', 'CGST', 2.5, 'PERCENTAGE', 'true'), "
-					+ "(2, '"+hotelId+"', 'SGST', 2.5, 'PERCENTAGE', 'true'); ";
-			db.executeUpdate(sql, hotelId, false);
+			sql = "INSERT INTO Taxes (Id, systemId, name, value, type, isActive) VALUES "
+					+ "(1, '"+systemId+"', 'CGST', 2.5, 'PERCENTAGE', 'true'), "
+					+ "(2, '"+systemId+"', 'SGST', 2.5, 'PERCENTAGE', 'true'); ";
+			db.executeUpdate(sql, systemId, false);
 	
 			sql = "INSERT INTO OnlineOrderingPortals (id, portal, name, requiresLogistics, commisionValue, commisionType, hasIntegration,"
 					+ " hotelId, paymentCycleDay, discountsApplied) VALUES "
-					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]'), "
-					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+hotelId+"', '', '[]');";
-			db.executeUpdate(sql, hotelId, false);
+					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]');";
+			db.executeUpdate(sql, systemId, false);
 	
-			sql = "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
 					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
-					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+hotelId+"', 'ZOMATO_VOUCHER', '', '1', 0, 0, '01/02/2019', "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'ZOMATO_VOUCHER', '', '1', 0, 0, '01/02/2019', "
 					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
-			db.executeUpdate(sql, hotelId, false);
+			db.executeUpdate(sql, systemId, false);
 			
-			sql = "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
 					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
-					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+hotelId+"', 'FIXED_RUPEE_DISCOUNT', '', '1', 0, 0, '01/02/2019', "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'FIXED_RUPEE_DISCOUNT', '', '1', 0, 0, '01/02/2019', "
 					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
-			db.executeUpdate(sql, hotelId, false);
+			db.executeUpdate(sql, systemId, false);
 	
-			sql = "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
 					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
-					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+hotelId+"', 'PIGGYBANK', '', '1', 0, 0, '01/02/2019', "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'PIGGYBANK', '', '1', 0, 0, '01/02/2019', "
 					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
-			db.executeUpdate(sql, hotelId, false);
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'GOLD', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'DISH', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO Sections (id, name, kitchenPrinter, barPrinter, summaryPrinter, beveragePrinter, outdoorPrinter, cashierPrinter, hotelId) VALUES "
-					+ "(1 , 'DEFAULT', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', '"+hotelId+"');";
-			db.executeUpdate(sql, hotelId, false);
+					+ "(1 , 'DEFAULT', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', '"+systemId+"');";
+			db.executeUpdate(sql, systemId, false);
 			
 			IUser userDao = new UserManager(false);
-			userDao.addUser(hotelId, "OrderOn", hotelCode+"001", 2, "9867334");
-			userDao.addUser(hotelId, "staff", hotelCode+"002", 10, "1111");
-			userDao.addUser(hotelId, "Zomato", hotelCode+"001", 10, "zomato");
+			userDao.addUser(systemId, "OrderOn", systemCode+"001", 2, "9867334");
+			userDao.addUser(systemId, "staff", systemCode+"002", 10, "1111");
+			userDao.addUser(systemId, "Zomato", systemCode+"001", 10, "zomato");
 			outObj.put("status", false);
 
 		} catch (JSONException e) {
@@ -2393,14 +2416,14 @@ public class AccessManager implements IAccess{
 
 		public BigDecimal getRatePerUnit() {
 			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
-			return measurableUnit.convertToDisplayableRate(ratePerUnit);
+			return measurableUnit.convertToDisplayableRate(ratePerUnit).setScale(2, RoundingMode.HALF_UP);
 		}
 
 		public BigDecimal getCountableRatePerUnit() {
 			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
 			if(Boolean.valueOf(isCountable)) {
 				ratePerUnit = ratePerUnit.multiply(countableConversion);
-				return measurableUnit.convertToDisplayableRate(ratePerUnit);
+				return measurableUnit.convertToDisplayableRate(ratePerUnit).setScale(2, RoundingMode.HALF_UP);
 			}else
 				return new BigDecimal("0");
 		}
@@ -3235,7 +3258,6 @@ public class AccessManager implements IAccess{
 		public String getCorporateId() {
 			return corporateId;
 		}
-		
 		public JSONObject getEWardsCredentials() {
 			try {
 				if(!eWardsCredentials.isEmpty())
@@ -3246,10 +3268,16 @@ public class AccessManager implements IAccess{
 			}
 			return new JSONObject();
 		}
-
 		public Boolean getIsLiteApp() {
 			return Boolean.valueOf(isLiteApp);
 		}
+		public String getBillSize() {
+			return billSize;
+		}
+		public String getBillFont() {
+			return billFont;
+		}
+
 
 		private String corporateId;
 		private String systemId;
@@ -3297,6 +3325,8 @@ public class AccessManager implements IAccess{
 		private String downloadReports;
 		private String eWardsCredentials;
 		private String isLiteApp;
+		private String billSize;
+		private String billFont;
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -3346,6 +3376,8 @@ public class AccessManager implements IAccess{
 			this.senderId = Database.readRsString(rs, "senderId");
 			this.eWardsCredentials = Database.readRsString(rs, "eWardsCredentials");
 			this.isLiteApp = Database.readRsString(rs, "isLiteApp");
+			this.billSize = Database.readRsString(rs, "billSize");
+			this.billFont = Database.readRsString(rs, "billFont");
 		}
 	}
 
@@ -3465,7 +3497,8 @@ public class AccessManager implements IAccess{
 		
 		public JSONArray getCarouselImages() {
 			try {
-				return new JSONArray(carouselImages);
+				if(carouselImages.length()>0)
+					return new JSONArray(carouselImages);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -3531,11 +3564,23 @@ public class AccessManager implements IAccess{
 		public String getType() {
 			return type;
 		}
-
+		
+		public JSONArray getSubTables() {
+			try {
+				if(subTables.length()>0)
+					return new JSONArray(subTables);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		
 		private String tableId;
 		private String orderId;
 		private String waiterId;
 		private String type;
+		private String subTables;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -3543,6 +3588,7 @@ public class AccessManager implements IAccess{
 			this.orderId = Database.readRsString(rs, "orderId");
 			this.waiterId = Database.readRsString(rs, "waiterId");
 			this.type = Database.readRsString(rs, "type");
+			this.subTables = Database.readRsString(rs, "subTables");
 		}
 	}
 
@@ -3747,7 +3793,8 @@ public class AccessManager implements IAccess{
 		
 		public JSONArray getCommunicationModes() {
 			try {
-				return new JSONArray(communicationModes);
+				if(communicationModes.length()>0)
+					return new JSONArray(communicationModes);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -4376,7 +4423,8 @@ public class AccessManager implements IAccess{
 
 		public JSONArray getDiscountCodes() {
 			try {
-				return new JSONArray(discountCodes);
+				if(discountCodes.length()>0)
+					return new JSONArray(discountCodes);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -4386,7 +4434,8 @@ public class AccessManager implements IAccess{
 
 		public JSONArray getExcludedCharges() {
 			try {
-				return new JSONArray(excludedCharges);
+				if(excludedCharges.length()>0)
+					return new JSONArray(excludedCharges);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -4396,7 +4445,8 @@ public class AccessManager implements IAccess{
 
 		public JSONArray getExcludedTaxes() {
 			try {
-				return new JSONArray(excludedTaxes);
+				if(excludedTaxes.length()>0)
+					return new JSONArray(excludedTaxes);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -4565,7 +4615,7 @@ public class AccessManager implements IAccess{
 			return new JSONObject();
 		}
 		
-		public String getOrderDateTime() {
+		public long getOrderDateTime() {
 			return orderDateTime;
 		}
 
@@ -4678,7 +4728,7 @@ public class AccessManager implements IAccess{
 		private int walletTransactionId;
 		private BigDecimal promotionalCash;
 		private String eWards;
-		private String orderDateTime;
+		private long orderDateTime;
 		private int orderPreparationTime;
 		private String onlineOrderData;
 
@@ -4749,7 +4799,7 @@ public class AccessManager implements IAccess{
 			this.walletTransactionId = Database.readRsInt(rs, "walletTransactionId");
 			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
 			this.eWards = Database.readRsString(rs, "eWards");
-			this.orderDateTime = Database.readRsString(rs, "orderDateTime");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 			this.orderPreparationTime = Database.readRsInt(rs, "orderPreparationTime");
 			this.onlineOrderData = Database.readRsString(rs, "onlineOrderData");
 		}
@@ -4891,7 +4941,8 @@ public class AccessManager implements IAccess{
 
 		public JSONArray getFlags() {
 			try {
-				return new JSONArray(flags);
+				if(!flags.isEmpty())
+					return new JSONArray(flags);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -5162,6 +5213,10 @@ public class AccessManager implements IAccess{
 
 		public String getReason() {
 			return reason;
+		}
+
+		public void setReason(String reason) {
+			this.reason = reason;
 		}
 
 		public String getStation() {
@@ -8894,6 +8949,7 @@ public class AccessManager implements IAccess{
 		private int id;
 		private String name;
 		private int collectionOrder;
+		private int kotOrder;
 		private String hasSubCollection;
 		private String isActive;
 		private String scheduleIds;
@@ -8916,6 +8972,10 @@ public class AccessManager implements IAccess{
 
 		public int getCollectionOrder() {
 			return collectionOrder;
+		}
+		
+		public int getKotOrder() {
+			return kotOrder;
 		}
 
 		public Boolean getHasSubCollection() {
@@ -8979,6 +9039,7 @@ public class AccessManager implements IAccess{
 			this.name = Database.readRsString(rs, "name");
 			this.id = Database.readRsInt(rs, "id");
 			this.collectionOrder = Database.readRsInt(rs, "collectionOrder");
+			this.kotOrder = Database.readRsInt(rs, "kotOrder");
 			this.hasSubCollection = Database.readRsString(rs, "hasSubCollection");
 			this.isActive = Database.readRsString(rs, "isActive");
 			this.scheduleIds = Database.readRsString(rs, "scheduleIds");
@@ -9506,6 +9567,7 @@ public class AccessManager implements IAccess{
 		private String smsText;
 		private String subject;
 		private String emailText;
+		private String eWardsSettleBill;
 		private String mobileNumbers;
 		private String emailIds;
 		private String outletId;
@@ -9524,6 +9586,10 @@ public class AccessManager implements IAccess{
 
 		public String getEmailText() {
 			return emailText;
+		}
+
+		public String getEWardsSettleBill() {
+			return eWardsSettleBill;
 		}
 
 		public JSONArray getMobileNumbers() {
@@ -9561,6 +9627,7 @@ public class AccessManager implements IAccess{
 			this.smsText = Database.readRsString(rs, "smsText");
 			this.subject = Database.readRsString(rs, "subject");
 			this.emailText = Database.readRsString(rs, "emailText");
+			this.eWardsSettleBill = Database.readRsString(rs, "eWardsSettleBill");
 			this.mobileNumbers = Database.readRsString(rs, "mobileNumbers");
 			this.emailIds = Database.readRsString(rs, "emailIds");
 			this.outletId = Database.readRsString(rs, "outletId");

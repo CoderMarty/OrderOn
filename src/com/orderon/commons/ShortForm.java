@@ -1,11 +1,6 @@
 package com.orderon.commons;
 
 import java.text.ParseException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Random;
-
-import com.orderon.dao.AccessManager;
 
 public class ShortForm{
     public static void main(String args[]) throws ParseException {
@@ -18,9 +13,6 @@ public class ShortForm{
 			//generateShortForm(t);
 			//System.out.println(AccessManager.toTitleCase(t));
 		}
-		String x = "123456789";
-		
-		System.out.print(x.substring(0, x.length()-1));
 	}
     
     private static void generateShortForm(String title) {
