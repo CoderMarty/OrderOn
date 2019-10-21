@@ -31,7 +31,7 @@ public class Configurator {
 	}
 	
 	private static String getConfigFile() {
-		return System.getenv("ORDERON_CONFIG");
+		return System.getenv("ORDERON_CONFIG_V4");
 	}
 	
 	public static String getDBConnectionString() {
@@ -68,30 +68,6 @@ public class Configurator {
 			e.printStackTrace();
 		}
 		return "/";
-	}
-	
-	public static String getBillSize() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("billSize");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "100";
-	}
-	
-	public static String getBillFont() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("billFont");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "Default";
 	}
 	
 	public static String getIp() {
