@@ -88,7 +88,7 @@ public class OutletManager extends AccessManager implements IOutlet {
 
 	@Override
 	public Settings getHotelSettings(String systemId) {
-		String sql = "SELECT * FROM Hotel;";
+		String sql = "SELECT * FROM System;";
 		return db.getOneRecord(sql, Settings.class, systemId);
 	}
 
@@ -102,5 +102,11 @@ public class OutletManager extends AccessManager implements IOutlet {
 	public ArrayList<EntityString> getOutletsIds(String systemId) {
 		String sql = "SELECT outletId AS entityId FROM Outlets;";
 		return db.getRecords(sql, EntityString.class, systemId);
+	}
+
+	@Override
+	public boolean updateInternetFlag(String systemId, boolean isInternetAvailable) {
+		String sql = "UPDATE System SET isInternetAvailable = '"+isInternetAvailable+"';";
+		return db.executeUpdate(sql, systemId, false);
 	}
 }

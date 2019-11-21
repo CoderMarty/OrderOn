@@ -132,4 +132,12 @@ public class ServiceManager extends AccessManager implements IService{
 
 		return db.getOneRecord(sql, ServiceLog.class, hotelId);
 	}
+
+	@Override
+	public ServiceLog getLasttService(String hotelId) {
+
+		String sql = "SELECT * FROM ServiceLog WHERE hotelId = '" + hotelId + "' ORDER BY id DESC LIMIT 1;";
+
+		return db.getOneRecord(sql, ServiceLog.class, hotelId);
+	}
 }

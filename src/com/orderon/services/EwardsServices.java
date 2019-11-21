@@ -58,22 +58,28 @@ public class EwardsServices {
 	public String customerCheck(String jsonObject) {
 		JSONObject inObj = null;
 		JSONObject outObj = new JSONObject();
+		IOutlet dao = new OutletManager(false);
 		
 		try {
 			outObj.put("status", false);
-			
-			if(!Services.netIsAvailable())
-				return outObj.toString();
-			
 			inObj = new JSONObject(jsonObject);
 			
 			if(!inObj.has("mobileNumber")) {
 				outObj.put("message", "Ewards: Mobile Number not found.");
 				return outObj.toString();
+			}else if(!inObj.has("systemId")) {
+				outObj.put("message", "SystemId not found.");
+				return outObj.toString();
 			}
+			
+			Settings settings = dao.getSettings(inObj.getString("systemId"));
 
-			IOutlet outletDao = new OutletManager(false);
-			Settings settings = outletDao.getSettings(inObj.getString("systemId"));
+			if(!settings.getIsInternetAvailable()) {
+				outObj.put("isInternetAvailable", false);
+				outObj.put("message", "Internet is unavailable. Points from EWards cannot be fetched right now.");
+				return outObj.toString();
+			}
+			outObj.put("isInternetAvailable", true);
 			
 			JSONObject urlParameters = new JSONObject();
 			JSONObject credentials = settings.getEWardsCredentials();
@@ -113,13 +119,10 @@ public class EwardsServices {
 	public String addCustomer(String jsonObject) {
 		JSONObject inObj = null;
 		JSONObject outObj = new JSONObject();
+		IOutlet dao = new OutletManager(false);
 		
 		try {
 			outObj.put("status", false);
-
-			if(!Services.netIsAvailable())
-				return outObj.toString();
-			
 			inObj = new JSONObject(jsonObject);
 			
 			if(!inObj.has("mobileNumber")) {
@@ -128,12 +131,19 @@ public class EwardsServices {
 			}else if(!inObj.has("name")) {
 				outObj.put("message", "Ewards: Customer name not found.");
 				return outObj.toString();
+			}else if(!inObj.has("systemId")) {
+				outObj.put("message", "systemId not found.");
+				return outObj.toString();
 			}
 
-			IOutlet outletDao = new OutletManager(false);
-			Settings settings = outletDao.getSettings(inObj.getString("systemId"));
+			Settings settings = dao.getSettings(inObj.getString("systemId"));
 			
-			Outlet outlet = outletDao.getOutletForSystem(inObj.getString("systemId"), inObj.getString("outletId"));
+			if(!settings.getIsInternetAvailable()) {
+				outObj.put("message", "Internet is unavailable. Customer cannot be added.");
+				return outObj.toString();
+			}
+			
+			Outlet outlet = dao.getOutletForSystem(inObj.getString("systemId"), inObj.getString("outletId"));
 			JSONObject location = outlet.getLocation();
 			String city = location.has("city")?location.getString("city"):"";
 			String state = location.has("state")?location.getString("state"):"";
@@ -168,7 +178,6 @@ public class EwardsServices {
 			}else {
 				outObj.put("message", "No respone received from EWards.");
 			}
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -510,7 +519,6 @@ public class EwardsServices {
 			//String couponCode = inObj.has("couponCode")?inObj.getString("couponCode"):"";
 			int points = inObj.has("points")?inObj.getInt("points"):0;
 
-
 			LocalDateTime now = LocalDateTime.now();
 			DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -551,18 +559,18 @@ public class EwardsServices {
 			urlParameters.put("transaction", transactions);
 			
 			System.out.println(urlParameters);
-
+			
 			JSONObject response = new JSONObject();
 			
-			if(Services.netIsAvailable()) {
+			if(settings.getIsInternetAvailable()) {
 				response = new JSONObject(Services.executePost(url+"/api/v1/merchant/posAddPoint", urlParameters));
 			}else {
 				IReportBuffer bufferDao = new ReportBufferManager(false);
-				bufferDao.addEWardsToBuffer(inObj.getString("outletId"), urlParameters.toString());
+				bufferDao.addEWardsToBuffer(inObj.getString("systemId"), urlParameters.toString());
 				outObj.put("status", true);
 				return outObj.toString();
 			}
-
+			
 			System.out.println(response);
 			
 			JSONObject internalResponse = null;

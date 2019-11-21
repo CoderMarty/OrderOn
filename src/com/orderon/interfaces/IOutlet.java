@@ -32,4 +32,6 @@ public interface IOutlet {
 	public Settings getHotelSettings(String systemId);
 
 	public boolean isOldVersion(String systemId);
+	
+	public boolean updateInternetFlag(String systemId, boolean isInternetAvailable);
 }

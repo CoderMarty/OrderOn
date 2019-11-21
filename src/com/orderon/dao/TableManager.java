@@ -18,7 +18,7 @@ public class TableManager extends AccessManager implements ITable {
 
 	@Override
 	public ArrayList<TableUsage> getTableUsage(String systemId, Settings settings) {
-		String sql = "SELECT Tables.tableId, Tables.type, Tables.showTableView, Tables.section, Tables.orderId, Orders.waiterId, "
+		String sql = "SELECT Tables.tableId, Tables.type, Tables.showTableView, Tables.section, Tables.orderId, Orders.waiterId, Orders.orderDateTime "
 				+ "Orders.id, Orders.state FROM Tables "
 				+ "LEFT OUTER JOIN Orders ON Tables.orderId == Orders.orderId ";
 		
@@ -33,7 +33,7 @@ public class TableManager extends AccessManager implements ITable {
 	@Override
 	public ArrayList<TableUsage> getTableUsage(String systemId, String outletId, Settings settings) {
 		String sql = "SELECT Tables.tableId, Tables.type, Tables.showTableView, Tables.section, Tables.orderId, Orders.waiterId, "
-				+ "Tables.isInBilling, Orders.id, Orders.state FROM Tables "
+				+ "Tables.isInBilling, Orders.id, Orders.orderDateTime, Orders.state FROM Tables "
 				+ "LEFT OUTER JOIN Orders ON Tables.orderId == Orders.orderId "
 				+ "WHERE Tables.outletId = '" + outletId + "' " ;
 		

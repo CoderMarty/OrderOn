@@ -320,7 +320,76 @@ public class AccessManager implements IAccess{
 	public boolean updateDatabase(String systemId, String oldVersion, String version) {
 		String sql = "";
 		
-		if(oldVersion.equals("3.3.4.2")) {
+		if(oldVersion.equals("3.4.23.7")) {
+			sql = "ALTER TABLE System ADD COLUMN isInternetAvailable TEXT DEFAULT 'false';";
+			
+			sql += "Update System SET version = '3.4.23.8';";
+		}else if(oldVersion.equals("3.4.23.6")) {
+			sql = "ALTER TABLE OrderItemLog ADD COLUMN waiterId TEXT;"
+				+	"ALTER TABLE OrderItemLog ADD COLUMN userId TEXT;";
+			
+			sql += "Update System SET version = '3.4.23.7';";
+		}else if(oldVersion.equals("3.4.23.5")) {
+			sql = "DROP TABLE ServerLog;"
+				+ "CREATE TABLE ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, updateTime TEXT, systemId TEXT, "
+				+ "isActive TEXT DEFAULT 'true', isTransactionLogged TEXT DEFAULT 'false', isDataDeleted TEXT DEFAULT 'false');"
+				+ "ALTER TABLE DBTransactions ADD COLUMN batchId INTEGER;";
+			
+			sql += "Update System SET version = '3.4.23.6';";
+		}else if(oldVersion.equals("3.4.23.4")) {
+			sql = "ALTER TABLE Groups ADD COLUMN isProperty TEXT DEFAULT 'false';"
+					+ "UPDATE Groups SET isProperty = 'false';";
+			
+			sql += "Update System SET version = '3.4.23.5';";
+		}else if(oldVersion.equals("3.4.23.3")) {
+			sql = "ALTER TABLE Customers ADD COLUMN otpAuthRequired TEXT DEFAULT 'true';"
+					+ "UPDATE Customers SET otpAuthRequired = 'true';";
+			
+			sql += "Update System SET version = '3.4.23.4';";
+		}else if(oldVersion.equals("3.4.23.2")) {
+			sql = "DELETE FROM Flags WHERE id = 40;"
+				+ "DELETE FROM Flags WHERE id = 41;"
+				+ "DELETE FROM Flags WHERE id = 42;"
+				+ "DELETE FROM Flags WHERE id = 43;"
+				+ "DELETE FROM Flags WHERE id = 46;"
+				+ "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+				+ "(41, '"+systemId+"', 'Breakfast', 16), "
+				+ "(42, '"+systemId+"', 'Lunch', 17), "
+				+ "(43, '"+systemId+"', 'Dinner', 18), "
+				+ "(46, '"+systemId+"', 'Snack', 21), "
+				+ "(500, '"+systemId+"', 'Late Night', 35);";
+			
+			sql += "ALTER TABLE Orders ADD COLUMN eBillUrl TEXT;";
+			sql += "ALTER TABLE System ADD COLUMN isOnlineBilling TEXT DEFAULT 'false';";
+			
+			sql += "Update System SET version = '3.4.23.3';";
+		}else if(oldVersion.equals("3.4.23.1")) {
+			sql = "ALTER TABLE ReportBuffer ADD COLUMN serviceInfo TEXT DEFAULT '{}';"
+				+ "ALTER TABLE Orders ADD COLUMN billTaken TEXT DEFAULT 'false';";
+			
+			sql += "Update System SET version = '3.4.23.2';";
+		}else if(oldVersion.equals("3.4.22.2")) {
+			sql = "ALTER TABLE System ADD COLUMN appSettings TEXT;";
+			
+			JSONObject appSettings = new JSONObject();
+			try {
+				appSettings.put("canStartService", false);
+				appSettings.put("canStopService", false);
+				appSettings.put("canSettleBill", false);
+				appSettings.put("authorizeProcessOrder", true);
+				appSettings.put("authorizeMoveItem", true);
+				appSettings.put("authorizeTransferTable", true);
+				appSettings.put("hasTables", true);
+				appSettings.put("hasHomeDelivery", true);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			sql += "UPDATE System SET appSettings = '" + appSettings + "';";
+			
+			sql += "Update System SET version = '3.4.23.1';";
+		}else if(oldVersion.equals("3.3.4.2")) {
 			sql = "Update System SET version = '3.3.3.27';";
 			
 		}else if(oldVersion.equals("3.4.22.1")) {
@@ -1815,6 +1884,9 @@ public class AccessManager implements IAccess{
 				"update Orders set takeAwayType = 0 WHERE inHouse != 2;";
 		}
 		System.out.println(sql);
+		if(sql.isEmpty()) {
+			return false;
+		}
 		return db.executeUpdate(sql, systemId, true);
 	}
 
@@ -1846,7 +1918,7 @@ public class AccessManager implements IAccess{
 		
 		sql = "CREATE TABLE IF NOT EXISTS Groups ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds INTEGER NOT NULL, name INTEGER NOT NULL, "
 		+	"description TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', "
-		+	"isActiveOnline TEXT DEFAULT 'false', title TEXT, subTitle TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
+		+	"isActiveOnline TEXT DEFAULT 'false', title TEXT, subTitle TEXT, isProperty TEXT DEFAULT 'false', outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS TotalRevenue ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, "
@@ -1898,7 +1970,8 @@ public class AccessManager implements IAccess{
 		+ " deductionState INTEGER, reportForEmail TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, lastUpdateTime TEXT, hotelId TEXT, status INTEGER);";
+		sql =  "CREATE TABLE ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, updateTime TEXT, systemId TEXT, "
+		+ "isActive TEXT DEFAULT 'true', isTransactionLogged TEXT DEFAULT 'false', isDataDeleted TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Roles ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, role TEXT, clearanceLevel INTEGER, hotelId TEXT);";
@@ -1951,7 +2024,7 @@ public class AccessManager implements IAccess{
 
 		sql = "CREATE TABLE IF NOT EXISTS OrderItemLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
 		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, itemId INTEGER, rate DOUBLE, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
-		+	"subOrderDate TEXT NOT NULL, reason TEXT, dateTime TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
+		+	"subOrderDate TEXT NOT NULL, waiterId TEXT, userId TEXT, reason TEXT, dateTime TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS OrderAddOns ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
@@ -2012,7 +2085,8 @@ public class AccessManager implements IAccess{
 		+	"hasEod TEXT DEFAULT 'false' , hasNewOrderScreen TEXT DEFAULT 'true' , isCaptainBasedOrdering TEXT DEFAULT 'true' , showOccupiedTablesOnly TEXT DEFAULT 'true' , "
 		+	"deductionType TEXT, isWalletOnline TEXT DEFAULT 'false' , isWalletOffline TEXT DEFAULT 'false' , isCreditActive TEXT DEFAULT 'false' , "
 		+	"billType TEXT DEFAULT 'YEARLY' , printLogo TEXT DEFAULT 'false' , hasConciseBill TEXT DEFAULT 'false' , zomatoApiKey TEXT , smsAPIKey TEXT , smsId TEXT, senderId TEXT , "
-		+	"eWardsCredentials TEXT DEFAULT '{}', hasFullRounding TEXT DEFAULT 'false' , capturePayments TEXT DEFAULT 'false' , downloadReports TEXT DEFAULT 'true', isLiteApp TEXT DEFAULT 'true');";
+		+	"eWardsCredentials TEXT DEFAULT '{}', hasFullRounding TEXT DEFAULT 'false' , capturePayments TEXT DEFAULT 'false' , downloadReports TEXT DEFAULT 'true', "
+		+ 	"isLiteApp TEXT DEFAULT 'true', isOnlineBilling TEXT DEFAULT 'false', appSettings TEXT, isInternetAvailable TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Expenses ( id INTEGER NOT NULL DEFAULT (0) PRIMARY KEY AUTOINCREMENT UNIQUE, type TEXT NOT NULL, "
@@ -2040,7 +2114,7 @@ public class AccessManager implements IAccess{
 		+ "wantsPromotion TEXT, visitCount TEXT, dateOfLastVisit TEXT, isPriority TEXT, emailId TEXT, reference TEXT, password BLOB, salt BLOB, authToken TEXT, "
 		+ "timeStamp TEXT, isLoggedIn TEXT, corporateId TEXT, referalCode TEXT, wallet INTEGER, promotionalCash INTEGER, amountEarned DOUBLE, amountSpent DOUBLE, communicationMode TEXT DEFAULT '[]', "
 		+ "otp INTEGER, otpCount INTEGER, isVerified TEXT DEFAULT 'false', isBlocked TEXT DEFAULT 'false', pinGenTime TEXT, address2 TEXT, address3 TEXT, sex TEXT"
-		+ ", joiningDate TEXT, lastVisitDate TEXT, lastRechargeDate TEXT, sendSMS TEXT)";
+		+ ", joiningDate TEXT, lastVisitDate TEXT, lastRechargeDate TEXT, sendSMS TEXT, otpAuthRequired TEXT DEFAULT 'true')";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS PromoCode ( name text NOT NULL UNIQUE, corporateId text NOT NULL, "
@@ -2052,7 +2126,7 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE Collections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
-		+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
+		+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, kotOrder INTEGER DEFAULT 0, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
 		+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));";
 		db.executeUpdate(sql, hotelId, false);
 
@@ -2126,7 +2200,8 @@ public class AccessManager implements IAccess{
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS ReportBuffer ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, smsText TEXT, "
-		+ "subject TEXT, emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', eWardsSettleBill TEXT, outletId TEXT)";
+		+ "subject TEXT, emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', eWardsSettleBill TEXT, "
+		+ "outletId TEXT, serviceInfo TEXT DEFAULT '{}')";
 		db.executeUpdate(sql, hotelId, false);
 	}
 	
@@ -2138,9 +2213,20 @@ public class AccessManager implements IAccess{
 		
 		JSONObject outObj = new JSONObject();
 		try {
+			
+			JSONObject appSettings = new JSONObject();
+			appSettings.put("canStartService", false);
+			appSettings.put("canStopService", false);
+			appSettings.put("canSettleBill", false);
+			appSettings.put("authorizeProcessOrder", true);
+			appSettings.put("authorizeMoveItem", true);
+			appSettings.put("authorizeTransferTable", true);
+			appSettings.put("hasTables", true);
+			appSettings.put("hasHomeDelivery", true);
+
 			outObj.put("status", false);
-			String sql = "INSERT INTO System (systemId, systemCode, version) "
-					+ "VALUES ('" + systemId + "', '" + systemCode + "', '" + version + "');";
+			String sql = "INSERT INTO System (systemId, systemCode, version, appSettings) "
+					+ "VALUES ('" + systemId + "', '" + systemCode + "', '" + version + "', '"+appSettings+"');";
 			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO Outlets (outletId, systemId, code, name, restaurantId, corporateId) "
@@ -2215,13 +2301,12 @@ public class AccessManager implements IAccess{
 					+ "(22, '"+systemId+"', 'Meal', 12), "
 					+ "(23, '"+systemId+"', 'Cake', 13), "
 					+ "(19, '"+systemId+"', 'Choice Item', 14), "
-					+ "(40, '"+systemId+"', 'BREAKFAST', 15), "
-					+ "(41, '"+systemId+"', 'LUNCH', 16), "
-					+ "(42, '"+systemId+"', 'DINNER', 17), "
-					+ "(43, '"+systemId+"', 'PIZZA', 18), "
+					+ "(41, '"+systemId+"', 'Breakfast', 16), "
+					+ "(42, '"+systemId+"', 'Lunch', 17), "
+					+ "(43, '"+systemId+"', 'Dinner', 18), "
 					+ "(44, '"+systemId+"', 'SNACKS', 19), "
 					+ "(45, '"+systemId+"', 'NORTH_INDIAN', 20), "
-					+ "(46, '"+systemId+"', 'DESSERT', 21), "
+					+ "(46, '"+systemId+"', 'Snack', 21), "
 					+ "(47, '"+systemId+"', 'CHINESE', 22), "
 					+ "(48, '"+systemId+"', 'SOUTH_INDIAN', 23), "
 					+ "(49, '"+systemId+"', 'BURGER', 24), "
@@ -2234,7 +2319,8 @@ public class AccessManager implements IAccess{
 					+ "(57, '"+systemId+"', 'DESSERTS', 31), "
 					+ "(58, '"+systemId+"', 'RICE', 32), "
 					+ "(59, '"+systemId+"', 'SIDES', 33), "
-					+ "(60, '"+systemId+"', 'NEW', 34);";
+					+ "(60, '"+systemId+"', 'NEW', 34), "
+					+ "(500, '"+systemId+"', 'Late Night', 35);";
 			db.executeUpdate(sql, systemId, false);
 			
 			sql = "INSERT INTO Taxes (Id, systemId, name, value, type, isActive) VALUES "
@@ -3277,7 +3363,22 @@ public class AccessManager implements IAccess{
 		public String getBillFont() {
 			return billFont;
 		}
-
+		public JSONObject getAppSettings() {
+			try {
+				if(!appSettings.isEmpty())
+					return new JSONObject(appSettings);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		public Boolean getIsOnlineBilling() {
+			return Boolean.valueOf(isOnlineBilling);
+		}
+		public Boolean getIsInternetAvailable() {
+			return Boolean.valueOf(isInternetAvailable);
+		}
 
 		private String corporateId;
 		private String systemId;
@@ -3327,6 +3428,9 @@ public class AccessManager implements IAccess{
 		private String isLiteApp;
 		private String billSize;
 		private String billFont;
+		private String appSettings;
+		private String isOnlineBilling;
+		private String isInternetAvailable;
 		
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -3376,8 +3480,11 @@ public class AccessManager implements IAccess{
 			this.senderId = Database.readRsString(rs, "senderId");
 			this.eWardsCredentials = Database.readRsString(rs, "eWardsCredentials");
 			this.isLiteApp = Database.readRsString(rs, "isLiteApp");
+			this.appSettings = Database.readRsString(rs, "appSettings");
+			this.isOnlineBilling = Database.readRsString(rs, "isOnlineBilling");
 			this.billSize = Database.readRsString(rs, "billSize");
 			this.billFont = Database.readRsString(rs, "billFont");
+			this.isInternetAvailable = Database.readRsString(rs, "isInternetAvailable");
 		}
 	}
 
@@ -3567,8 +3674,9 @@ public class AccessManager implements IAccess{
 		
 		public JSONArray getSubTables() {
 			try {
-				if(subTables.length()>0)
+				if(!subTables.isEmpty()) {
 					return new JSONArray(subTables);
+				}
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -3650,6 +3758,7 @@ public class AccessManager implements IAccess{
 		private String lastRechargeDate;
 		private String joiningDate;
 		private String sendSMS;
+		private String otpAuthRequired;
 		
 		public int getId() {
 			return id;
@@ -3834,6 +3943,10 @@ public class AccessManager implements IAccess{
 			return Boolean.valueOf(sendSMS);
 		}
 
+		public boolean getOtpAuthRequired() {
+			return Boolean.valueOf(otpAuthRequired);
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.id = Database.readRsInt(rs, "id");
@@ -3880,6 +3993,7 @@ public class AccessManager implements IAccess{
 			this.lastRechargeDate = Database.readRsString(rs, "lastRechargeDate");
 			this.joiningDate = Database.readRsString(rs, "joiningDate");
 			this.sendSMS = Database.readRsString(rs, "sendSMS");
+			this.otpAuthRequired = Database.readRsString(rs, "otpAuthRequired");
 		}
 	}
 	
@@ -4663,6 +4777,23 @@ public class AccessManager implements IAccess{
 			return orderPreparationTime;
 		}
 
+		public String getEBillUrl() {
+			return eBillUrl;
+		}
+		
+		public String getOrderTypeStr() {
+			if(orderType.equals(AccessManager.DINE_IN)) {
+				return "DINEIN";
+			}else if(orderType.equals(AccessManager.HOME_DELIVERY)) {
+				return "DELIVERY";
+			}else if(orderType.equals(AccessManager.TAKE_AWAY)) {
+				return "TAKEAWAY";
+			}else if(orderType.equals(AccessManager.BAR)) {
+				return "BAR";
+			}
+			return "NONCHARGEABLE";
+		}
+		
 		private String outletId;
 		private String outletName;
 		private String orderId;
@@ -4731,6 +4862,7 @@ public class AccessManager implements IAccess{
 		private long orderDateTime;
 		private int orderPreparationTime;
 		private String onlineOrderData;
+		private String eBillUrl;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -4802,6 +4934,7 @@ public class AccessManager implements IAccess{
 			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 			this.orderPreparationTime = Database.readRsInt(rs, "orderPreparationTime");
 			this.onlineOrderData = Database.readRsString(rs, "onlineOrderData");
+			this.eBillUrl = Database.readRsString(rs, "eBillUrl");
 		}
 	}
 
@@ -4843,6 +4976,10 @@ public class AccessManager implements IAccess{
 			return outletId;
 		}
 
+		public long getOrderDateTime() {
+			return orderDateTime;
+		}
+
 		private String mTableId;
 		private String mUserId;
 		private String mOrderId;
@@ -4852,6 +4989,7 @@ public class AccessManager implements IAccess{
 		private String type;
 		private String showTableView;
 		private String outletId;
+		private long orderDateTime;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -4864,6 +5002,7 @@ public class AccessManager implements IAccess{
 			this.type = Database.readRsString(rs, "type");
 			this.showTableView = Database.readRsString(rs, "showTableView");
 			this.outletId = Database.readRsString(rs, "outletId");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 		}
 	}
 
@@ -5195,6 +5334,10 @@ public class AccessManager implements IAccess{
 			return rate;
 		}
 
+		public void setRate(BigDecimal rate) {
+			this.rate = rate;
+		}
+
 		public BigDecimal getSubTotal() {
 			return subTotal;
 		}
@@ -5263,6 +5406,10 @@ public class AccessManager implements IAccess{
 			return finalAmount;
 		}
 		
+		public void setFinalAmount(BigDecimal finalAmount) {
+			this.finalAmount = finalAmount;
+		}
+		
 		public Boolean getItemIsMoved() {
 			return Boolean.valueOf(itemIsMoved);
 		}
@@ -5283,6 +5430,10 @@ public class AccessManager implements IAccess{
 			return systemId;
 		}
 
+		public String getUserId() {
+			return userId;
+		}
+
 		private int id;
 		private String outletId;
 		private String systemId;
@@ -5294,6 +5445,7 @@ public class AccessManager implements IAccess{
 		private String title;
 		private String collection;
 		private String waiterId;
+		private String userId;
 		private String specs;
 		private BigDecimal rate;
 		private BigDecimal subTotal;
@@ -5323,6 +5475,7 @@ public class AccessManager implements IAccess{
 			this.title = Database.readRsString(rs, "title");
 			this.collection = Database.readRsString(rs, "collection");
 			this.waiterId = Database.readRsString(rs, "waiterId");
+			this.userId = Database.readRsString(rs, "userId");
 			this.state = Database.readRsInt(rs, "state");
 			this.rate = Database.readRsBigDecimal(rs, "rate");
 			this.subTotal = Database.readRsBigDecimal(rs, "subTotal");
@@ -7146,9 +7299,19 @@ public class AccessManager implements IAccess{
 			return total;
 		}
 
+		public String getCustomerName() {
+			return customerName;
+		}
+
+		public String getCustomerNumber() {
+			return customerNumber;
+		}
+
 		private String billNo;
 		private String deliveryBoy;
 		private String dispatchTime;
+		private String customerName;
+		private String customerNumber;
 		private BigDecimal total;
 
 		@Override
@@ -7156,6 +7319,8 @@ public class AccessManager implements IAccess{
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.deliveryBoy = Database.readRsString(rs, "deliveryBoy");
 			this.dispatchTime = Database.readRsString(rs, "dispatchTime");
+			this.customerName = Database.readRsString(rs, "customerName");
+			this.customerNumber = Database.readRsString(rs, "customerNumber");
 			this.total = Database.readRsBigDecimal(rs, "total");
 		}
 	}
@@ -7477,6 +7642,7 @@ public class AccessManager implements IAccess{
 		private BigDecimal promotionalCash;
 		private String externalOrderId;
 		private String reference;
+		private long orderDateTime;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -7537,6 +7703,7 @@ public class AccessManager implements IAccess{
 			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
 			this.externalOrderId = Database.readRsString(rs, "externalOrderId");
 			this.reference = Database.readRsString(rs, "reference");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 		}
 
 		public String getHotelId() {
@@ -7775,6 +7942,9 @@ public class AccessManager implements IAccess{
 			return totalBill;
 		}
 		
+		public long getOrderDateTime() {
+			return orderDateTime;
+		}
 	}
 
 	public static class Account implements Database.OrderOnEntity {
@@ -8252,31 +8422,43 @@ public class AccessManager implements IAccess{
 	}
 
 	public static class ServerLog implements Database.OrderOnEntity {
-
-		private String hotelId;
+		
+		private int id;
+		private String outletId;
 		private String updateTime;
-		private int status;
+		private String isActive;
+		private String isTransactionLogged;
+		private String isDataDeleted;
 
-		public String getHotelId() {
-			return hotelId;
+		public int getId() {
+			return id;
 		}
-
+		public String geOutletId() {
+			return outletId;
+		}
 		public String getUpdateTime() {
 			return updateTime;
 		}
-
-		public int getStatus() {
-			return status;
+		public boolean getIsActive() {
+			return Boolean.valueOf(isActive);
+		}
+		public boolean getIsTransactionLogged() {
+			return Boolean.valueOf(isTransactionLogged);
+		}
+		public boolean getIsDataDeleted() {
+			return Boolean.valueOf(isDataDeleted);
 		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 
-			hotelId = Database.readRsString(rs, "hotelId");
-			updateTime = Database.readRsString(rs, "lastUpdateTime");
-			this.status = Database.readRsInt(rs, "status");
+			id = Database.readRsInt(rs, "id");
+			outletId = Database.readRsString(rs, "outletId");
+			updateTime = Database.readRsString(rs, "updateTime");
+			this.isActive = Database.readRsString(rs, "isActive");
+			this.isTransactionLogged = Database.readRsString(rs, "isTransactionLogged");
+			this.isDataDeleted = Database.readRsString(rs, "isDataDeleted");
 		}
-
 	}
 
 	public static class Specifications implements Database.OrderOnEntity {
@@ -9153,6 +9335,7 @@ public class AccessManager implements IAccess{
 		private int max;
 		private int min;
 		private String isActive;
+		private String isProperty;
 		private String title;
 		private String subTitle;
 
@@ -9189,6 +9372,10 @@ public class AccessManager implements IAccess{
 		public Boolean getIsActive() {
 			return Boolean.valueOf(isActive);
 		}
+
+		public Boolean getIsProperty() {
+			return Boolean.valueOf(isProperty);
+		}
 		
 		public String getTitle() {
 			return title;
@@ -9207,6 +9394,7 @@ public class AccessManager implements IAccess{
 			this.max = Database.readRsInt(rs, "max");
 			this.min = Database.readRsInt(rs, "min");
 			this.isActive = Database.readRsString(rs, "isActive");
+			this.isProperty = Database.readRsString(rs, "isProperty");
 			this.title = Database.readRsString(rs, "title");
 			this.subTitle = Database.readRsString(rs, "subTitle");
 		}
@@ -9543,12 +9731,15 @@ public class AccessManager implements IAccess{
 	public static class DBTransaction implements OrderOnEntity {
 	
 		private int id; 
+		private int batchId; 
 		private String transaction;
 		
 		public int getId() {
 			return id;
 		}
-
+		public int getBatchId() {
+			return batchId;
+		}
 		public String getTransaction() {
 			return transaction;
 		}
@@ -9557,6 +9748,7 @@ public class AccessManager implements IAccess{
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
 			this.id = Database.readRsInt(rs, "id");
+			this.batchId = Database.readRsInt(rs, "batchId");
 			this.transaction = Database.readRsString(rs, "transactions");
 		}
 	}
@@ -9571,6 +9763,9 @@ public class AccessManager implements IAccess{
 		private String mobileNumbers;
 		private String emailIds;
 		private String outletId;
+		private String serviceDate;
+		private String serviceType;
+		private String serviceInfo;
 		
 		public int getId() {
 			return id;
@@ -9620,6 +9815,38 @@ public class AccessManager implements IAccess{
 			return outletId;
 		}
 
+		public JSONObject getServiceInfo() {
+			try {
+				if(serviceInfo.length() > 2) {
+					return new JSONObject(serviceInfo);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+
+		public String getServiceDate() {
+			try {
+				return this.getServiceInfo().getString("serviceDate");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return "";
+		}
+
+		public String getServiceType() {
+			try {
+				return this.getServiceInfo().getString("serviceType");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return "";
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -9631,6 +9858,7 @@ public class AccessManager implements IAccess{
 			this.mobileNumbers = Database.readRsString(rs, "mobileNumbers");
 			this.emailIds = Database.readRsString(rs, "emailIds");
 			this.outletId = Database.readRsString(rs, "outletId");
+			this.serviceInfo = Database.readRsString(rs, "serviceInfo");
 		}
 	}
 

@@ -1,6 +1,7 @@
 package com.orderon.dao;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -236,7 +237,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	private ArrayList<OrderItem> getOrderedItems(String systemId, String orderId, String orderBy, boolean showReturned) {
 
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.quantity AS quantity, OrderItems.waiterId AS waiterId, "
+				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.quantity AS quantity, OrderItems.waiterId AS waiterId, OrderItems.waiterId AS userId, "
 				+ "MenuItems.title AS title, MenuItems.collection AS collection, OrderItems.quantity*OrderItems.rate AS finalAmount, "
 				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.specs AS reason, OrderItems.rate AS rate, "
 				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, "
@@ -246,7 +247,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		if(showReturned) {
 			sql += "UNION ALL "
 				+ "SELECT OrderItemLog.subOrderId AS subOrderId, OrderItemLog.subOrderDate AS subOrderDate, "
-				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.quantity AS quantity, OrderItemLog.subOrderId AS waiterId, "
+				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.quantity AS quantity, OrderItemLog.waiterId AS waiterId, OrderItemLog.userId AS userId, "
 				+ "MenuItems.title AS title, MenuItems.collection AS collection, 0 AS finalAmount, "
 				+ "MenuItems.station AS station, (SELECT specs FROM OrderItems WHERE OrderItems.orderId = '" + orderId
 				+ "') AS specs, OrderItemLog.reason AS reason, OrderItemLog.rate AS rate, "
@@ -289,7 +290,8 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<OrderItem> getOrderedItemForBill(String systemId, String orderId, boolean showReturned) {
 
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.waiterId AS waiterId, SUM(OrderItems.quantity) AS quantity, "
+				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, SUM(OrderItems.quantity) AS quantity, "
+				+ "OrderItems.subOrderId AS userId, OrderItems.waiterId AS waiterId, "
 				+ "MenuItems.title AS title, MenuItems.taxes AS taxes, MenuItems.charges AS charges, "
 				+ "MenuItems.collection AS collection, MenuItems.station AS station, SUM(OrderItems.quantity*OrderItems.rate) AS finalAmount, "
 				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, MenuItems.collection AS collection, "
@@ -301,7 +303,8 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		if(showReturned) {
 			sql += "UNION ALL "
 				+ "SELECT OrderItemLog.subOrderId AS subOrderId, OrderItemLog.subOrderDate AS subOrderDate, "
-				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.subOrderId AS waiterId, SUM(OrderItemLog.quantity) AS quantity, "
+				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, SUM(OrderItemLog.quantity) AS quantity, "
+				+ "OrderItemLog.userId AS userId, OrderItemLog.waiterId AS waiterId, "
 				+ "MenuItems.title AS title, MenuItems.taxes AS taxes, MenuItems.charges AS charges, "
 				+ "MenuItems.collection AS collection, MenuItems.station AS station, SUM(OrderItemLog.quantity*OrderItemLog.rate) AS finalAmount, "
 				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, MenuItems.collection AS collection, "
@@ -313,15 +316,72 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "GROUP BY OrderItemLog.menuId";
 		}
 		
-		sql += ";";
+		sql += " ORDER BY subOrderDate;";
 		return db.getRecords(sql, OrderItem.class, systemId);
+	}
+
+	@Override
+	public ArrayList<OrderItem> getOrderedItemsForPayment(String systemId, String orderId) {
+
+		String sql = "SELECT menuId, SUM(qty) AS qty, taxes, charges, collection, station, "
+				+ "SUM(finalAmount) AS finalAmount, discountType, discountValue, rate FROM "
+				+ "(SELECT OrderAddOns.addOnId AS menuId, OrderAddOns.qty, "
+				+ "MenuItems.taxes, MenuItems.charges, MenuItems.collection, MenuItems.station, "
+				+ "OrderAddOns.qty*OrderAddOns.rate AS finalAmount, MenuItems.discountType, MenuItems.discountValue, "
+				+ "OrderAddOns.rate FROM OrderAddOns, MenuItems "
+				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.addOnId == MenuItems.menuId "
+				+ "UNION ALL ";
+		
+		
+		sql += "SELECT OrderItems.menuId, OrderItems.qty, "
+				+ "MenuItems.taxes, MenuItems.charges, MenuItems.collection, MenuItems.station, "
+				+ "OrderItems.qty*OrderItems.rate AS finalAmount, MenuItems.discountType, MenuItems.discountValue, "
+				+ "OrderItems.rate AS rate FROM OrderItems, MenuItems "
+				+ "WHERE OrderItems.orderId='" + orderId + "' AND OrderItems.menuId == MenuItems.menuId "
+				+ ") GROUP BY menuId;";
+		return db.getRecords(sql, OrderItem.class, systemId);
+	}
+	
+	@Override
+	public ArrayList<OrderItem> getOrderedItemsForPayment(String systemId, String orderId, JSONArray menuItems) {
+
+		String sql = "";
+		JSONObject menuItem = null;
+		ArrayList<OrderItem> orderedItems = new ArrayList<OrderItem>();
+		OrderItem item = null;
+		BigDecimal rate = new BigDecimal(0.0);
+
+		try {
+			for (int i = 0; i < menuItems.length(); i++) {
+			
+				menuItem = menuItems.getJSONObject(i);
+			
+				sql = "SELECT MenuItems.taxes, MenuItems.charges, MenuItems.collection, MenuItems.station, "
+						+ "MenuItems.discountType, MenuItems.discountValue FROM MenuItems "
+						+ "WHERE MenuItems.menuId = '" + menuItem.getString("menuId") + "' "
+						+ "AND MenuItems.hotelId='" + systemId + "';";
+				item = db.getOneRecord(sql, OrderItem.class, systemId);
+				
+				item.setQuantity(menuItem.getInt("quantity"));
+				rate = new BigDecimal(menuItem.getDouble("rate"));
+				item.setRate(rate);
+				item.setFinalAmount(rate.multiply(new BigDecimal(menuItem.getInt("quantity"))));
+				
+				orderedItems.add(item);
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return orderedItems;
 	}
 
 	@Override
 	public ArrayList<OrderItem> getOrderedItemForBillCI(String systemId, String orderId) {
 
 		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.menuId AS menuId, OrderItems.quantity AS quantity, OrderItems.waiterId AS waiterId, MenuItems.title AS title, "
+				+ "OrderItems.menuId AS menuId, OrderItems.quantity AS quantity, OrderItems.waiterId AS waiterId, OrderItems.waiterId AS userId, MenuItems.title AS title, "
 				+ "MenuItems.collection AS collection, MenuItems.taxes AS taxes, "
 				+ "MenuItems.discountType AS discountType, MenuItems.discountValue AS discountValue, "
 				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.rate AS rate, OrderItems.quantity*OrderItems.rate AS finalAmount, "
@@ -1276,7 +1336,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	}
 
 	@Override
-	public JSONObject voidOrder(String systemId, String outletId, String orderId, String reason, String authId, String section) {
+	public JSONObject voidOrder(String systemId, String outletId, String orderId, String reason, String authId, String section, String userId) {
 
 		JSONObject outObj = new JSONObject();
 		try {
@@ -1317,7 +1377,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 					totalFoodBill += orderItem.getRate().doubleValue()*orderItem.getQuantity();
 				}
 				if (!this.updateOrderItemLog(systemId, outletId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), "Void",
-						"void", orderItem.getQuantity(), orderItem.getRate(), 0)) {
+						"void", orderItem.getQuantity(), orderItem.getRate(), 0, userId)) {
 					outObj.put("message", "Failed to update OrderItem Log. Please try again.");
 					return outObj;
 				}
@@ -1366,7 +1426,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	}
 
 	@Override
-	public Boolean complimentaryOrder(String systemId, String outletId, String orderId, String authId) {
+	public Boolean complimentaryOrder(String systemId, String outletId, String orderId, String authId, String userId) {
 
 		String sql = "UPDATE Orders SET state=" + ORDER_STATE_COMPLIMENTARY + ", "
 				+ "authId = '" + authId + "' WHERE orderId='" + orderId + "';";
@@ -1376,7 +1436,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 
 		for (OrderItem orderItem : orderitems) {
 			this.updateOrderItemLog(systemId, outletId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), "Complimentary",
-					"comp", orderItem.getQuantity(), new BigDecimal("0.0"), 0);
+					"comp", orderItem.getQuantity(), new BigDecimal("0.0"), 0, userId);
 			this.removeSubOrder(systemId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), 0);
 			ArrayList<OrderAddOn> addOns = addOnDao.getAllOrderedAddOns(systemId, orderId);
 			for (OrderAddOn orderAddOn : addOns) {
@@ -1391,9 +1451,9 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 
 	@Override
 	public boolean complimentaryItem(String systemId, String outletId, String orderId, String menuId, String authId, String subOrderId,
-			BigDecimal rate, int quantity, String reason) {
+			BigDecimal rate, int quantity, String reason, String userId) {
 
-		if (this.updateOrderItemLog(systemId, outletId, orderId, subOrderId, menuId, reason, "comp", 1, rate, 0)) {
+		if (this.updateOrderItemLog(systemId, outletId, orderId, subOrderId, menuId, reason, "comp", 1, rate, 0, userId)) {
 			this.removeSubOrder(systemId, orderId, subOrderId, menuId, quantity - 1);
 			return true;
 		}
@@ -1883,7 +1943,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 
 	@Override
 	public boolean updateOrderItemLog(String systemId, String outletId, String orderId, String subOrderId, String menuId, String reason,
-			String type, int quantity, BigDecimal rate, int itemId) {
+			String type, int quantity, BigDecimal rate, int itemId, String userId) {
 
 		int state = SUBORDER_STATE_RETURNED;
 		if (type.equals("void"))
@@ -1898,12 +1958,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 			return false;
 
 		String sql = "INSERT INTO OrderItemLog "
-				+ "(systemId, outletId, orderId, subOrderId, subOrderDate, menuId, state, reason, dateTime, quantity, rate, itemId) "
+				+ "(systemId, outletId, orderId, subOrderId, subOrderDate, menuId, state, reason, dateTime, quantity, rate, itemId, waiterId, userId) "
 				+ "VALUES('" + escapeString(systemId) + "', '" + escapeString(outletId) + "', '" + escapeString(orderId) + "', '"
 				+ escapeString(subOrderId) + "', '" + escapeString(orderedItem.getSubOrderDate()) + "', '"
 				+ escapeString(menuId) + "', " + state + ", '" + reason + "', '"
 				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', " + quantity + ", " + rate + ", "
-				+ itemId + ");";
+				+ itemId + ", '"+orderedItem.getWaiterId()+"', '"+userId+"');";
 		return db.executeUpdate(sql, systemId, true);
 	}
 

@@ -1,9 +1,19 @@
 package com.orderon.dao;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.orderon.commons.ChargeCalculator;
+import com.orderon.commons.DiscountCalculator;
+import com.orderon.commons.LoyaltyCalculator;
+import com.orderon.commons.TaxCalculator;
 import com.orderon.interfaces.IOrder;
+import com.orderon.interfaces.IOrderItem;
 import com.orderon.interfaces.IPayment;
 import com.orderon.interfaces.IService;
 
@@ -181,5 +191,219 @@ public class PaymentManager extends AccessManager implements IPayment{
 
 		return db.executeUpdate(sql, systemId, true);
 	}
+	
+	@Override
+	public JSONObject getCalculatePaymentForOrder(String systemId, String outletId, String orderId) {
+		return this.getCalculatePaymentForOrder(systemId, outletId, orderId, new JSONArray());
+	}
+	
+	@Override
+	public JSONObject getCalculatePaymentForOrder(String systemId, String outletId, String orderId, JSONArray menuItems) {
+		
+		JSONObject outObj = new JSONObject();
+		IOrderItem dao = new OrderManager(false);
+		ArrayList<OrderItem> orderedItems = null;
+		
+		if(menuItems.length()==0) {
+			orderedItems = dao.getOrderedItemsForPayment(systemId, orderId);
+		}else {
+			orderedItems = dao.getOrderedItemsForPayment(systemId, orderId, menuItems);
+		}
+		
+		IOrder orderDao = new OrderManager(false);
+		Order order = orderDao.getOrderById(systemId, orderId);
+		
+		DiscountCalculator discountCalc = new DiscountCalculator();
+		LoyaltyCalculator loyaltyCalc = new LoyaltyCalculator();
+		TaxCalculator taxCalc = new TaxCalculator();
+		ChargeCalculator chargeCalc = new ChargeCalculator();
+		
+		BigDecimal itemTotal = new BigDecimal(0.0);
+		BigDecimal subTotal = new BigDecimal(0.0);
+		BigDecimal grandTotal = new BigDecimal(0.0);
+		
+		BigDecimal promotionalCash = order.getPromotionalCash();
+		BigDecimal totalFoodDiscount = new BigDecimal(0.0);
+		BigDecimal totalBarDiscount = new BigDecimal(0.0);
+		BigDecimal totalDiscount = new BigDecimal(0.0);
+		
+		BigDecimal totalLoyalty = new BigDecimal(0.0);
 
+		BigDecimal taxableFoodBill = new BigDecimal(0.0);
+		BigDecimal taxableBarBill = new BigDecimal(0.0);
+		BigDecimal nonTaxableFoodBill = new BigDecimal(0.0);
+		BigDecimal nonTaxableBarBill = new BigDecimal(0.0);
+
+		BigDecimal totalTaxAmount = new BigDecimal(0.0);
+		BigDecimal totalChargeAmount = new BigDecimal(0.0);
+		
+		int barItemCount = 0;
+		int foodItemCount = 0;
+
+		BigDecimal foodLoyalty = new BigDecimal(0.0);
+		BigDecimal barLoyalty = new BigDecimal(0.0);
+		BigDecimal foodBill = new BigDecimal(0.0);
+		BigDecimal barBill = new BigDecimal(0.0);
+		BigDecimal usedPromoCash = new BigDecimal(0.0);
+
+		BigDecimal gst = new BigDecimal(0.0);
+		BigDecimal vat = new BigDecimal(0.0);
+		BigDecimal serviceCharge = new BigDecimal(0.0);
+		BigDecimal packagingCharge = new BigDecimal(0.0);
+		BigDecimal deliveryCharge = new BigDecimal(0.0);
+		
+		for (OrderItem orderedItem : orderedItems) {
+			itemTotal = orderedItem.getFinalAmount();
+			subTotal = subTotal.add(itemTotal);
+			usedPromoCash = new BigDecimal(0.0);
+			
+			discountCalc.calculateDiscount(systemId, outletId, order.getDiscountCodes(), orderedItem, itemTotal, order);
+			totalFoodDiscount = totalFoodDiscount.add(discountCalc.getFoodDiscount());
+			totalBarDiscount = totalBarDiscount.add(discountCalc.getBarDiscount());
+			
+			totalDiscount = discountCalc.getFoodDiscount()
+					.add(discountCalc.getBarDiscount());;
+			
+			loyaltyCalc.calculateLoyalty(systemId, order.getLoyaltyId(), orderedItem, itemTotal);
+			totalLoyalty = totalLoyalty.add(loyaltyCalc.getLoyaltyAmount());
+			
+			itemTotal = itemTotal.subtract(totalDiscount)
+					.subtract(loyaltyCalc.getLoyaltyAmount());
+			
+			if(promotionalCash.compareTo(itemTotal) == 1) {
+				promotionalCash = promotionalCash.subtract(itemTotal);
+				usedPromoCash = usedPromoCash.add(itemTotal);
+			}else {
+				usedPromoCash = usedPromoCash.add(promotionalCash);
+				promotionalCash = new BigDecimal(0.0);
+			}
+			itemTotal = itemTotal.subtract(usedPromoCash);
+			if(orderedItem.getTaxes().length() > 0) {
+				if(orderedItem.getStation().equals("Bar")) {
+					taxableBarBill = taxableBarBill.add(itemTotal);
+				}else {
+					taxableFoodBill = taxableFoodBill.add(itemTotal);
+				}
+			}else {
+				if(orderedItem.getStation().equals("Bar")) {
+					nonTaxableBarBill = nonTaxableBarBill.add(itemTotal);
+				}else {
+					nonTaxableFoodBill = nonTaxableFoodBill.add(itemTotal);
+				}
+			}
+			
+			if(orderedItem.getStation().equals("Bar")) {
+				barBill = barBill.add(itemTotal);
+				barLoyalty = barLoyalty.add(loyaltyCalc.getLoyaltyAmount());
+				barItemCount++;
+			}else {
+				foodBill = foodBill.add(itemTotal);
+				foodLoyalty = foodLoyalty.add(loyaltyCalc.getLoyaltyAmount());
+				foodItemCount++;
+			}
+			
+			taxCalc.calculateTax(systemId, outletId, orderedItem, itemTotal, order.getExcludedTaxes());
+			chargeCalc.calculateCharge(systemId, outletId, itemTotal, order.getExcludedCharges(), true, order.getOrderTypeStr());
+		}
+		
+		chargeCalc.calculateCharge(systemId, outletId, subTotal, order.getExcludedCharges(), false, order.getOrderTypeStr());
+		
+		try {
+			JSONArray taxDetails = taxCalc.getTaxDetails();
+			for (int i = 0; i < taxDetails.length(); i++) {
+					totalTaxAmount = totalTaxAmount.add(new BigDecimal(taxDetails.getJSONObject(i).getDouble("amount"))).setScale(2, RoundingMode.HALF_UP);
+			}
+			
+			JSONArray chargeDetails = chargeCalc.getChargeDetails();
+			for (int i = 0; i < chargeDetails.length(); i++) {
+				totalChargeAmount = totalChargeAmount.add(new BigDecimal(chargeDetails.getJSONObject(i).getDouble("amount"))).setScale(2, RoundingMode.HALF_UP);
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		try {
+			JSONObject tempObj = new JSONObject();
+			for (int i = 0; i < taxCalc.getTaxDetails().length(); i++) {
+				tempObj = taxCalc.getTaxDetails().getJSONObject(i);
+				
+				if(tempObj.getString("name").equals("CGST") || tempObj.getString("name").equals("SGST")) {
+					gst = gst.add(new BigDecimal(tempObj.getDouble("amount")));
+				}else if(tempObj.getString("name").equals("VATBAR") || tempObj.getString("name").equals("VAT")) {
+					vat = vat.add(new BigDecimal(tempObj.getDouble("amount")));
+				}
+			}
+			gst = gst.setScale(2, RoundingMode.HALF_UP);
+			vat = vat.setScale(2, RoundingMode.HALF_UP);
+			
+			for (int i = 0; i < chargeCalc.getChargeDetails().length(); i++) {
+				tempObj = chargeCalc.getChargeDetails().getJSONObject(i);
+				
+				if(tempObj.getString("name").equals("SERVICE CHARGE")) {
+					serviceCharge = serviceCharge.add(new BigDecimal(tempObj.getDouble("amount")));
+				}else if(tempObj.getString("name").equals("PACKAGING CHARGE")) {
+					packagingCharge = packagingCharge.add(new BigDecimal(tempObj.getDouble("amount")));
+				}else if(tempObj.getString("name").equals("DELIVERY CHARGE")) {
+					deliveryCharge = deliveryCharge.add(new BigDecimal(tempObj.getDouble("amount")));
+				}
+			}
+			serviceCharge = serviceCharge.setScale(2, RoundingMode.HALF_UP);
+			packagingCharge = packagingCharge.setScale(2, RoundingMode.HALF_UP);
+			deliveryCharge = deliveryCharge.setScale(2, RoundingMode.HALF_UP);
+		
+			outObj.put("foodItemCount", foodItemCount);
+			outObj.put("barItemCount", barItemCount);
+
+			outObj.put("subTotal", subTotal);
+			
+			totalDiscount = totalFoodDiscount
+					.add(totalBarDiscount);;
+			
+			outObj.put("totalDiscountAmount", totalDiscount);
+			outObj.put("foodDiscount", totalFoodDiscount);
+			outObj.put("barDiscount", totalBarDiscount);
+			outObj.put("fixedRupeeDiscount", order.getFixedRupeeDiscount());
+			outObj.put("zomatoVoucherDiscount", order.getZomatoVoucherAmount());
+			outObj.put("piggyBankDiscount", order.getPiggyBankAmount());
+
+			outObj.put("totalLoyaltyAmount", totalLoyalty);
+			outObj.put("foodLoyalty", foodLoyalty);
+			outObj.put("barLoyalty", barLoyalty);
+
+			outObj.put("gst", gst);
+			outObj.put("vat", vat);
+			outObj.put("serviceCharge", serviceCharge);
+			outObj.put("packagingCharge", packagingCharge);
+			outObj.put("deliveryCharge", deliveryCharge);
+
+			outObj.put("foodBill", foodBill);
+			outObj.put("foodTotal", foodBill.subtract(totalFoodDiscount).subtract(foodLoyalty).add(gst)
+					.add(serviceCharge).add(packagingCharge).add(deliveryCharge));
+			
+			outObj.put("barBill", barBill);
+			outObj.put("barTotal", barBill.subtract(totalBarDiscount).subtract(barLoyalty).add(vat));
+
+			outObj.put("promotionalCash", order.getPromotionalCash());
+			
+			outObj.put("taxes", taxCalc.getTaxDetails());
+			outObj.put("charges", chargeCalc.getChargeDetails());
+			outObj.put("discounts", discountCalc.getDiscounts());
+			
+			grandTotal = subTotal.subtract(totalDiscount)
+					.subtract(totalLoyalty)
+					.subtract(order.getPromotionalCash())
+					.add(totalTaxAmount)
+					.add(totalChargeAmount)
+					.setScale(0, RoundingMode.HALF_UP);
+
+			outObj.put("grandTotal", grandTotal);
+			
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return outObj;
+	}
 }

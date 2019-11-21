@@ -9,7 +9,10 @@ import com.orderon.dao.AccessManager.ReportBuffer;
 public interface IReportBuffer extends IAccess{
 
 	public boolean addEmailToBuffer(String outletId, String subject, String emailText, JSONArray emailIds);
-
+	
+	public boolean addEODEmailToBuffer(String outletId, String subject, String emailText, String serviceDate, 
+			String serviceType, JSONArray emailIds);
+	
 	public boolean addSmsToBuffer(String outletId, String smsText, JSONArray mobileNumbers);
 
 	public boolean addEWardsToBuffer(String outletId, String eWardsSettleBill);

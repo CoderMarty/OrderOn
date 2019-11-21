@@ -37,4 +37,6 @@ public interface IRecipe {
 	public boolean updateRecipe(String outletId, BigDecimal quantity, String menuId, int sku, String unit);
 
 	public boolean updateMethod(String outletId, String menuId, String method);
+
+	public boolean checkIfMaterialHasRecipe(String outletId, int sku);
 }

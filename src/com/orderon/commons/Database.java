@@ -276,6 +276,9 @@ public class Database {
 			return;
 		}
 		IServer dao = new ServerManager(false);
+		if(transactionLog.toString().isEmpty()) {
+			return;
+		}
 		dao.addTransaction(outletId, transactionLog.toString());
 		transactionLog = new StringBuilder();
 	}

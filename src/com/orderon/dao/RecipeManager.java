@@ -123,4 +123,12 @@ public class RecipeManager extends AccessManager implements IRecipe{
 				+ "';";
 		return db.executeUpdate(sql, outletId, true);
 	}
+
+	@Override
+	public boolean checkIfMaterialHasRecipe(String outletId, int sku) {
+		
+		String sql = "SELECT * FROM Recipe WHERE sku = "+sku+";";
+		
+		return db.hasRecords(sql, outletId);
+	}
 }

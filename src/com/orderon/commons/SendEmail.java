@@ -109,6 +109,7 @@ public class SendEmail {
 		return true;
 		
     }
+    
     public boolean sendEmailWithAttachment(ArrayList<String> recipents, String subject, String text, String[] filePaths) {
     	if(Configurator.getIsServer())
     		return true;

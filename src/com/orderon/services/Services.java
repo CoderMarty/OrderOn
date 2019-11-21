@@ -27,6 +27,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.security.SecureRandom;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -34,6 +35,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
@@ -59,6 +62,7 @@ import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.apache.commons.io.FileUtils;
 import org.glassfish.jersey.internal.util.Base64;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -66,10 +70,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.orderon.commons.BillGenerator;
 import com.orderon.commons.CardType;
 import com.orderon.commons.Configurator;
 import com.orderon.commons.EncryptDecryptString;
 import com.orderon.commons.ExpenseType;
+import com.orderon.commons.FileManager;
 import com.orderon.commons.OnlineOrderingPortals;
 import com.orderon.commons.OnlinePaymentType;
 import com.orderon.commons.PaymentType;
@@ -212,10 +218,10 @@ import com.orderon.interfaces.IUserAuthentication;
 
 @Path("/Services")
 public class Services {
-
+	
 	// static Logger logger = Logger.getLogger(Services.class);
-	private static final String api_version = "3.4.22.2";
-	private static final String stable_api_version = "3.4.22.2";
+	private static final String api_version = "3.4.23.8";
+	private static final String stable_api_version = "3.4.23.8";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -359,6 +365,7 @@ public class Services {
 			outObj.put("smsApiKey", settings.getSmsAPIKey());
 			outObj.put("downloadReports", settings.getDownloadReports());
 			outObj.put("isLiteApp", settings.getIsLiteApp());
+			outObj.put("appSettings", settings.getAppSettings());
 			outObj.put("billSize", settings.getBillSize());
 			outObj.put("billFont", settings.getBillFont());
 			
@@ -373,12 +380,6 @@ public class Services {
 			outObj.put("integrations", outArr);
 			
 			outObj.put("hasSms", settings.getHasSms());
-			if (settings.getHasServer()) {
-				IServer serverDao = new ServerManager(false);
-				ServerLog server = serverDao.getLastServerLog(systemId);
-				outObj.put("updateStatus", server.getStatus());
-				outObj.put("lastUpdateTime", server.getUpdateTime());
-			}
 			
 			IUser userDao = new UserManager(false);
 			JSONArray captains = new JSONArray();
@@ -392,6 +393,32 @@ public class Services {
 			outObj.put("imgLocation", "http://"+Configurator.getIp()+"/Images");
 			
 			outObj.put("status", true);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+	
+	@POST
+	@Path("/v1/updateInternetStatus")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String updateInternetStatus(String jsonObject) {
+		JSONObject inObj = null;
+		JSONObject outObj = new JSONObject();
+		IOutlet dao = new OutletManager(false);
+		try {
+			outObj.put("status", true);
+			inObj = new JSONObject(jsonObject);
+			
+			if(isInternetAvailable(inObj.getString("systemId"))) {
+				dao.updateInternetFlag(inObj.getString("systemId"), true);
+				outObj.put("isInternetAvailable", true);
+			}else {
+				dao.updateInternetFlag(inObj.getString("systemId"), false);
+				outObj.put("isInternetAvailable", false);
+			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -621,7 +648,7 @@ public class Services {
 			
 			outletId = inObj.getString("hotelId");
 			
-			if(!outletId.equals("ft0001")) {
+			if(!outletId.equals("h0003")) {
 				outObj.put("message", "ACCESS DENIED. 1");
 				return outObj.toString();
 			}
@@ -923,7 +950,7 @@ public class Services {
 			inObj = new JSONObject(jsonObject);
 
 			if (inObj.getString("image") != "No image") {
-				deleteFile(inObj.getString("hotelId"), inObj.getString("employeeId") + ".jpg", "Employees");
+				FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + inObj.getString("hotelId") + "Employees" + inObj.getString("employeeId") + ".jpg");
 			}
 
 			User systemUser = userDao.getUser(inObj.getString("hotelId"), inObj.getString("userId"));
@@ -1111,7 +1138,7 @@ public class Services {
 			
 			outObj.put("status", dao.deleteEmployee(inObj.getString("systemId"), inObj.getString("employeeId")));
 			
-			deleteFile(inObj.getString("systemId"), inObj.getString("employeeId") + ".jpg", "Employees");
+			FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + inObj.getString("hotelId") + "Employees" + inObj.getString("employeeId") + ".jpg");
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -1197,7 +1224,7 @@ public class Services {
 			String outletId = inObj.getString("outletId");
 			
 			if (inObj.getString("image") != "No image") {
-				deleteFile(inObj.getString("hotelId"), inObj.getString("menuId") + ".jpg", "MenuItems");
+				FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + inObj.getString("hotelId") + "MenuItems" + inObj.getString("menuId") + ".jpg");
 			}
 
 			outObj.put("status",
@@ -1539,6 +1566,12 @@ public class Services {
 			}
 			return outObj.toString();
 		}
+		long unixSeconds = 0l;
+		Date date = null;
+		// the format of your date
+		SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("hh:mm aa");
+		SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+		
 		ArrayList<TableUsage> tables = tableDao.getTableUsage(systemId, settings);
 		try {
 			for (int i = 0; i < tables.size(); i++) {
@@ -1552,6 +1585,32 @@ public class Services {
 				tableDetails.put("isVacant", tables.get(i).getIsInBilling());
 				tableDetails.put("type", tables.get(i).getType());
 				tableDetails.put("showTableView", tables.get(i).getShowTableView());
+					
+				if(tables.get(i).getOrderId().equals("")) {
+					tableDetails.put("orderTime", 0);
+				}else {
+					unixSeconds = tables.get(i).getOrderDateTime();
+					// convert seconds to milliseconds
+					date = new java.util.Date(unixSeconds*1000L);  
+					// give a timezone reference for formatting (see comment at the bottom)
+					timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("GMT+5:30")); 
+					
+					tableDetails.put("orderTime", timeFormat.format(date));
+					
+					LocalDateTime now = LocalDateTime.now();
+
+					// give a timezone reference for formatting (see comment at the bottom)
+					sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+5:30")); 
+					
+					Date curDate = sdf.parse(now.getDayOfMonth()+"/"+now.getMonthValue()+"/"+now.getYear()+" "+ now.getHour()+":"+now.getMinute());
+					long millis = curDate.getTime() - date.getTime();
+					//millis = millis/1000;
+					
+					String hms = String.format("%02d:%02d", TimeUnit.MILLISECONDS.toHours(millis),
+					            TimeUnit.MILLISECONDS.toMinutes(millis) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(millis)));
+					
+					tableDetails.put("duration", hms);
+				}
 				tablesArr.put(tableDetails);
 			}
 		} catch (Exception e) {
@@ -1860,6 +1919,7 @@ public class Services {
 				outObj.put("min", group.getMin());
 				outObj.put("description", group.getDescription());
 				outObj.put("isActive", group.getIsActive());
+				outObj.put("isProperty", group.getIsProperty());
 				outObj.put("itemIds", group.getItemIds());
 				outObj.put("items", itemArr);
 				outObj.put("name", group.getName());
@@ -2044,7 +2104,7 @@ public class Services {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
 			outObj.put("status", dao.deleteCollection(inObj.getString("systemId"), inObj.getInt("collectionId")));
-			deleteFile(inObj.getString("systemId"), inObj.getString("collectionName") + ".jpg", "Collections");
+			FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + inObj.getString("hotelId") + "Collections" + inObj.getString("collectionName") + ".jpg");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2350,7 +2410,7 @@ public class Services {
 			
 			MenuItem menuItem = menuDao.getMenuById(outletId, inObj.getString("menuId"));
 			menuDao.deleteItem(inObj.getString("systemId"), menuItem.getMenuId());
-			deleteFile(outletId, menuItem.getMenuId() + ".jpg", "MenuItems");
+			FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + outletId + "MenuItems" + menuItem.getMenuId() + ".jpg");
 			for (int i=0;i<menuItem.getGroups().length(); i++) {
 				groupDao.deleteGroup(inObj.getString("systemId"), menuItem.getGroups().getInt(i));
 			}
@@ -2762,7 +2822,7 @@ public class Services {
 	}
 
 	private void defineKOT(ArrayList<OrderItem> items, IOrderItem dao, String title, String printerStation,
-			Outlet outlet, Settings settings, Order order, int copies, boolean isCanceled, boolean isCheckKOT, String userId) {
+			Outlet outlet, Settings settings, Order order, int copies, boolean isCancelled, boolean isCheckKOT, String userId) {
 		
 		//System.out.println("Sending print to : " + printerStation);
 		StringBuilder out = new StringBuilder();
@@ -2786,15 +2846,12 @@ public class Services {
 				|| outlet.getSystemId().equals("su0001") || outlet.getSystemId().equals("fu0001")) {
 			marginTop = 35;
 		}
-		if (title.equals("SUMMARY")) {
-			marginTop = 0;
-		}
 		
-		if (isCanceled)
+		if (isCancelled)
 			body.append("<h3 style='font-size:16px; padding-top:3px; padding-bottom:3px; margin-top:"+marginTop
 					+"px; margin-bottom:5px; text-align: center; background:black; color:white;'>");
-		else if(isCheckKOT)
-			body.append("<h3 style='font-size:16px; margin-bottom:5px; text-align: center;'>");
+		else if(isCheckKOT || title.equals("SUMMARY"))
+			body.append("<h3 style='font-size:16px; padding-top:3px; padding-bottom:3px; margin-bottom:5px; text-align: center; background:black; color:white;'>");
 		else 
 			body.append("<h3 style='font-size:16px; margin-top:"+marginTop+"px; margin-bottom:5px; text-align: center;'>");
 		
@@ -2811,7 +2868,7 @@ public class Services {
 		
 		if (title.equals("SUMMARY"))
 			kotTitle.append("SUMMARY | ");
-		else if (isCanceled)
+		else if (isCancelled)
 			kotTitle.append("CANCELLED KOT | ");
 		else if(isCheckKOT)
 			kotTitle.append("REPRINT KOT | ");
@@ -2841,7 +2898,7 @@ public class Services {
 						if(len > 5) {
 							orderRef = orderRef.substring(len-4, len);
 						}
-						kotTitle.append(portal.getPortal()+ " ORDER: "+ orderRef);
+						kotTitle.append(portal.getPortal()+ " : "+ orderRef);
 					}
 				}
 			}
@@ -2897,6 +2954,9 @@ public class Services {
 		body.append("</td></tr>");
 		body.append("</tbody></table>");
 		body.append("<p style='margin:0px;'>------------------------------------------------------------------------------------------</p>");
+		if(!order.getRemarks().isEmpty()) {
+			body.append("<p style='margin:0px; font-size:12px; text-align: center; background:black; color:white;'>"+order.getRemarks()+"</p>");
+		}
 		body.append("<table class='table-condensed' style='width: 90%; padding: 0px; margin-left: 20px; margin-bottom:0px;>");
 
 		body.append("<tbody>");
@@ -2925,7 +2985,7 @@ public class Services {
 					specifications = specDao.getOrderedSpecification(outlet.getSystemId(), items.get(i).getOrderId(),
 								items.get(i).getMenuId(), items.get(i).getSubOrderId(), j);
 				}
-				if (isCanceled)
+				if (isCancelled)
 					addOns = addOnDao.getCanceledOrderedAddOns(outlet.getSystemId(), items.get(i).getOrderId(),
 							items.get(i).getSubOrderId(), items.get(i).getMenuId(), j);
 				else {
@@ -2966,7 +3026,7 @@ public class Services {
 				fontWeight = currentQuantity == 5 ? "font-weight:regular;" : "font-weight:"+kotFontWeight+";";
 				out.append("<tr style='padding: 0px; margin-top:0px; margin-bottom:0px;'>");
 				
-				if (!isCanceled) {
+				if (!isCancelled) {
 					spec = items.get(i).getSpecifications() + spec;
 					if(spec.length()>0) {
 						out.append("<td class='pull-left' style='padding:0px; width:10%; margin:0px; font-size:"+kotFontSize+";" + fontWeight + "'>" + currentQuantity);
@@ -2993,7 +3053,7 @@ public class Services {
 						+ "<td class='pull-left' style='padding-left:50px !important; border-top: none !important; padding: 0px !important; font-size: "+kotFontSize+"; font-weight: "+kotFontWeight+";'>+ "
 						+ addOns.get(k).getName());
 					
-					if (!isCanceled)
+					if (!isCancelled)
 						out.append("</td><td></td></tr>");
 					else
 						out.append("</td></tr>");
@@ -3010,9 +3070,9 @@ public class Services {
 				kotItemCount = 0;
 			}
 		}
-
-		out.append("</tbody></table><p style='margin-left:0px; margin-right:0px; margin-top:0px'>------------------------------------------------------------------------------------------</p>");
-
+		
+		out.append("<tr><td colspan='3' style='margin-left:0px; margin-right:0px; margin-top:0px; text-align:center;'>----x----x----END----x----x----</td></tr></tbody></table>");
+		
 		html = head + body + out + foot;
 
 		print(html, printerStation, copies, settings);	
@@ -3101,7 +3161,9 @@ public class Services {
 				itemDetails.put("charges", orderItems.get(i).getCharges());
 				itemDetails.put("finalAmount", orderItems.get(i).getFinalAmount());
 				itemDetails.put("discountType", orderItems.get(i).getDiscountType());
+				itemDetails.put("userId", orderItems.get(i).getUserId());
 				itemDetails.put("discountValue", orderItems.get(i).getDiscountValue());
+				itemDetails.put("orderTime", orderItems.get(i).getSubOrderDate().substring(11, 16));
 				String specs = "";
 				if(showConsolidated) {
 					addOns = addOnDao.getOrderedAddOns(systemId, orderId, orderItems.get(i).getMenuId(), showReturned);
@@ -3189,6 +3251,7 @@ public class Services {
 			Customer customer = custDao.getCustomerDetails(systemId, order.getCustomerNumber());
 			if (customer != null) {
 				orderObj.put("hasCustomer", true);
+				orderObj.put("customerId", customer.getId());
 				orderObj.put("allergyInfo", customer.getAllergyInfo());
 				orderObj.put("birthDate", customer.getBirthdate());
 				orderObj.put("anniversary", customer.getAnniversary());
@@ -3200,6 +3263,7 @@ public class Services {
 				orderObj.put("customerEmailId", customer.getEmailId());
 				orderObj.put("referenceForReview", customer.getReference());
 				orderObj.put("sendSMS", customer.getSendSMS());
+				orderObj.put("otpAuthRequired", customer.getOtpAuthRequired());
 			} else
 				orderObj.put("hasCustomer", false);
 			orderObj.put("noOfGuests", order.getNumberOfGuests());
@@ -3293,7 +3357,7 @@ public class Services {
 			// the format of your date
 			SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm"); 
 			// give a timezone reference for formatting (see comment at the bottom)
-			sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT-4"));
+			sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+5:30"));
 			orderObj.put("orderTime", sdf.format(date));
 			
 			if(orderItems.size()>0)
@@ -3368,9 +3432,6 @@ public class Services {
 				itemDetails.put("qty", orderItems.get(i).getQuantity());
 				itemDetails.put("rate", rate);
 				itemDetails.put("subTotal", subTotal);
-				itemDetails.put("state", orderItems.get(i).getState());
-				itemDetails.put("station", orderItems.get(i).getStation());
-				itemDetails.put("waiterId", orderItems.get(i).getWaiterId());
 				itemDetails.put("taxes", orderItems.get(i).getTaxes());
 				itemDetails.put("charges", orderItems.get(i).getCharges());
 				itemDetails.put("finalAmount", orderItems.get(i).getFinalAmount());
@@ -3428,11 +3489,6 @@ public class Services {
 				orderObj.put("allergyInfo", customer.getAllergyInfo());
 				orderObj.put("birthDate", customer.getBirthdate());
 				orderObj.put("anniversary", customer.getAnniversary());
-				orderObj.put("points", customer.getPoints());
-				orderObj.put("userType", customer.getUserType());
-				orderObj.put("pointToRupee", loyaltyDao.getLoyaltySettingByUserType(systemId, customer.getUserType()).getPointToRupee());
-				orderObj.put("loyaltyId", order.getLoyaltyId());
-				orderObj.put("pointsUsed", order.getLoyaltyPaid());
 				orderObj.put("customerEmailId", customer.getEmailId());
 				orderObj.put("referenceForReview", customer.getReference());
 				orderObj.put("sendSMS", customer.getSendSMS());
@@ -3447,12 +3503,6 @@ public class Services {
 			orderObj.put("customerAddress", order.getCustomerAddress());
 			orderObj.put("customerNumber", order.getCustomerNumber());
 			orderObj.put("customerGst", order.getCustomerGst());
-			orderObj.put("ambianceRating", order.getRatingAmbiance());
-			orderObj.put("hygieneRating", order.getRatingHygiene());
-			orderObj.put("serviceRating", order.getRatingService());
-			orderObj.put("foodRating", order.getRatingQof());
-			orderObj.put("reviewSuggestions", order.getReviewSuggestions());
-			orderObj.put("inhouse", order.getOrderType());
 			orderObj.put("orderType", orderDao.getOrderType(order.getOrderType()));
 			orderObj.put("takeAwayType", order.getTakeAwayType());
 			orderObj.put("hasTakenReview", order.hasTakenReview());
@@ -3460,9 +3510,7 @@ public class Services {
 			orderObj.put("orderDate", order.getOrderDate());
 			orderObj.put("billNo", order.getBillNo());
 			orderObj.put("state", order.getState());
-			orderObj.put("reason", order.getReason());
 			orderObj.put("reference", order.getReference());
-			orderObj.put("authId", order.getAuthId());
 			OnlineOrderingPortal portal = portalDao.getOnlineOrderingPortalById(systemId, order.getTakeAwayType());
 			if(portal != null) {
 				JSONObject portalObj = new JSONObject();
@@ -3473,58 +3521,13 @@ public class Services {
 				orderObj.put("portalDetails", portalObj);
 			}
 			orderObj.put("portal", portal.getPortal());
-			JSONArray discountCode = order.getDiscountCodes();
-			String appliedDiscounts = "";
-			ArrayList<Discount> discounts = new ArrayList<Discount>();
-			Discount discount = null;
-			for(int i =0; i< discountCode.length(); i++) {
-				discount = discountDao.getDiscountByName(systemId, outletId, discountCode.getString(i));
-				if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_ZOMATO_VOUCHER)) {
-					discount.setFoodValue(order.getZomatoVoucherAmount().intValue());
-				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_PIGGYBANK)) {
-					discount.setFoodValue(order.getPiggyBankAmount().intValue());
-				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_FIXED_RUPEE_DISCOUNT)) {
-					discount.setFoodValue(order.getFixedRupeeDiscount().intValue());
-				}else if(discount.getName().equals(AccessManager.DISCOUNT_TYPE_EWARDS)) {
-					discount.setFoodValue(order.getFixedRupeeDiscount().intValue());
-				}
-				discounts.add(discount);
-				appliedDiscounts += discountCode.getString(i) + ", ";
-			}
-			LoyaltyOffer loyalty = null;
-			if(order.getLoyaltyId() != 0) {
-				ILoyalty loyaltyOfferDao = new LoyaltyManager(false);
-				loyalty = loyaltyOfferDao.getLoyaltyOfferById(systemId, order.getLoyaltyId());
-				orderObj.put("loyalty", new JSONObject(loyalty));
-			}else {
-				orderObj.put("loyalty", "{}");
-			}
-			orderObj.put("discountCode", appliedDiscounts.length()>3?appliedDiscounts.substring(0,appliedDiscounts.length()-2):appliedDiscounts);
-			orderObj.put("discounts", discounts);
-			orderObj.put("excludedCharges", order.getExcludedCharges());
-			orderObj.put("excludedTaxes", order.getExcludedTaxes());
 			orderObj.put("remarks", order.getRemarks());
 			orderObj.put("externalOrderId", order.getExternalOrderId());
 			orderObj.put("isIntegrationOrder", order.getIsIntegrationOrder());
-			orderObj.put("cashToBeCollected", order.getCashToBeCollected());
-			orderObj.put("zomatoVoucherAmount", order.getZomatoVoucherAmount());
-			orderObj.put("promotionalCash", order.getPromotionalCash());
 			orderObj.put("tableNumber", order.getTableId().length() == 3 || order.getTableId().length() == 2
 							? order.getTableId().replace(",", "")
 							: order.getTableId());
-			orderObj.put("printCount", order.getPrintCount());
-			orderObj.put("compTotal", complimentaryTotal);
 			
-			//rider details
-			orderObj.put("riderName", order.getRiderName());
-			orderObj.put("riderNumber", order.getRiderNumber());
-			orderObj.put("riderStatus", order.getRiderStatus());
-			orderObj.put("ewards", order.getEWards());
-			orderObj.put("onlineOrderData", order.getOnlineOrderData());
-			orderObj.put("orderPreparationTime", order.getOrderPreparationTime());
-			
-			if(orderItems.size()>0)
-				orderObj.put("logTime", orderItems.get(0).getLogTime());
 			outObj.put("order", orderObj);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -3646,6 +3649,12 @@ public class Services {
 		ArrayList<Order> order = null;
 		int orderState = 0;
 		
+		long unixSeconds;
+		// convert seconds to milliseconds
+		Date date = null; 
+		// the format of your date
+		SimpleDateFormat sdf = new java.text.SimpleDateFormat("hh:mm aa"); 
+		
 		try {
 			if (dateFilter != null && dateFilter.length() > 0) {
 				dateFilter = dateFilter.substring(6, 10) + "/" + dateFilter.substring(3, 6) + dateFilter.substring(0, 2);
@@ -3684,13 +3693,11 @@ public class Services {
 				itemDetails.put("discount", orderState == 99 ? 0 : order.get(i).getFoodDiscount().doubleValue() + order.get(i).getBarDiscount().doubleValue());
 				itemDetails.put("billNo", order.get(i).getBillNo());
 					
-				long unixSeconds = order.get(i).getOrderDateTime();
+				unixSeconds = order.get(i).getOrderDateTime();
 				// convert seconds to milliseconds
-				Date date = new java.util.Date(unixSeconds*1000L); 
-				// the format of your date
-				SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm"); 
+				date = new java.util.Date(unixSeconds*1000L); 
 				// give a timezone reference for formatting (see comment at the bottom)
-				sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT-4")); 
+				sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+5:30"));  
 				
 				itemDetails.put("orderTime", sdf.format(date));
 				
@@ -3825,7 +3832,7 @@ public class Services {
 							orderedItems.getString("menuId"),
 							orderedItems.getString("reason"), type, returnQuantity,
 							new BigDecimal(Double.toString(orderedItems.getDouble("rate"))), 
-							orderedItems.getInt("qty"));
+							orderedItems.getInt("qty"), userId);
 
 				} else {
 					newQuantity = 0;
@@ -3835,7 +3842,7 @@ public class Services {
 							orderedItems.getString("reason"), type,
 							orderedItems.getInt("qty"), 
 							new BigDecimal(Double.toString(orderedItems.getDouble("rate"))),
-							orderedItems.getInt("qty"));
+							orderedItems.getInt("qty"), userId);
 				}
 				if (!status) {
 					outObj.put("message", "OrderItemLog could not be updated. Please contact OrderOn support.");
@@ -4064,7 +4071,7 @@ public class Services {
 				if(order.getOrderType()==AccessManager.HOME_DELIVERY) {
 					orderDao.updateDeliveryTime(systemId, orderId);
 					if(order.getCustomerNumber().length()==10 || order.getCustomerNumber().length()==11) {
-						if(settings.getHasDeliverySms() && netIsAvailable()) {
+						if(settings.getHasDeliverySms() && isInternetAvailable(systemId)) {
 							if(!order.getIsSmsSent()) {
 								String messageText = "Hi! Greetings from "+outlet.getName()+". Thank you for your order. Your food is ready and will be delivered soon. Your Bill amount is Rs."+billAmount+". Enjoy!";
 								SendSMS sms = new SendSMS();
@@ -4125,7 +4132,7 @@ public class Services {
 				}
 			}
 			outObj = dao.voidOrder(systemId, outletId, orderId, inObj.getString("reason"),
-			inObj.getString("authId"), sectionName);
+			inObj.getString("authId"), sectionName, inObj.getString("userId"));
 			if (outObj.getBoolean("status")) {
 				dao.commitTransaction(systemId);
 				dao = new OrderManager(false);
@@ -4297,6 +4304,7 @@ public class Services {
 			String orderId = inObj.getString("orderId");
 			String outletId = inObj.getString("outletId");
 			String systemId = inObj.getString("systemId");
+			String userId = inObj.getString("userId");
 			JSONArray compItems = inObj.getJSONArray("compItems");
 
 			dao.beginTransaction(systemId);
@@ -4307,7 +4315,7 @@ public class Services {
 							compItems.getJSONObject(i).getString("menuId"), inObj.getString("authId"),
 							compItems.getJSONObject(i).getString("subOrderId"),
 							new BigDecimal(Double.toString(compItems.getJSONObject(i).getDouble("rate"))), 
-							compItems.getJSONObject(i).getInt("qty"), "Complimentary")) {
+							compItems.getJSONObject(i).getInt("qty"), "Complimentary", userId)) {
 						outObj.put("message",
 								"Item could not be marked complimentary. Please try again, if problem persists contact OrderOn support.");
 						dao.rollbackTransaction();
@@ -4696,8 +4704,8 @@ public class Services {
 		try {
 			outObj.put("status", false);
 			inObj = new JSONObject(jsonObject);
-			outObj.put("status", dao.deleteItem(inObj.getString("systemId"), inObj.getString("menuId")));
-			deleteFile(inObj.getString("systemId"), inObj.getString("menuId") + ".jpg", "MenuItems");
+			outObj.put("status", dao.deleteItem(inObj.getString("hotelId"), inObj.getString("menuId")));
+			FileManager.deleteFile("http://"+Configurator.getIp()+"/Images" + "/hotels/" + inObj.getString("hotelId") + "MenuItems" + inObj.getString("menuId") + ".jpg");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -4832,6 +4840,7 @@ public class Services {
 		IOrder dao = new OrderManager(false);
 		IOutlet outletDao = new OutletManager(false);
 		IService serviceDao = new ServiceManager(false);
+		ITable tableDao = new TableManager(false);
 		try {
 			inObj = new JSONObject(jsonObject);
 			String systemId = inObj.getString("systemId");
@@ -4853,11 +4862,16 @@ public class Services {
 			String address = inObj.has("customerAddress")?inObj.getString("customerAddress"):"";
 			String customerName = inObj.getString("customer");
 			
+			String waiter = inObj.has("captain")?inObj.getString("captain"):inObj.getString("userId");
+			if(!settings.getIsCaptainBasedOrdering()) {
+				Table table = tableDao.getTableById(systemId, inObj.getString("outletId"), tableIds[0]);
+				waiter = table.getWaiterId();
+			}
+
 			outObj = dao.newOrder(inObj.getString("systemId"), inObj.getString("outletId"), settings.getHotelType(), inObj.getString("userId"), tableIds,
 					inObj.getInt("peopleCount"), customerName, mobileNumber, address,
 					inObj.has("section")?inObj.getString("section"):"", inObj.has("orderRemarks")?inObj.getString("orderRemarks"):""
-					, currentService,
-					inObj.has("captain")?inObj.getString("captain"):inObj.getString("userId"));
+					, currentService, waiter);
 
 			String[] name = customerName.split(" ");
 			String surName = "";
@@ -6222,7 +6236,7 @@ public class Services {
 			String systemId = inObj.getString("systemId");
 			Outlet outlet = outletDao.getOutletForSystem(systemId, outletId);
 			Settings settings = outletDao.getSettings(outletId);
-			if(!netIsAvailable() || !settings.getHasSms()) {
+			if(!isInternetAvailable(systemId) || !settings.getHasSms()) {
 				return out.toString();
 			}
 			ArrayList<Customer> customers = dao.getCustomersForSMS(outletId);
@@ -6701,16 +6715,6 @@ public class Services {
 			}
 		}
 		return outObj.toString();
-	}
-
-	public boolean deleteFile(String systemId, String originalName, String folder) {
-		File fileToDelete = new File("http://"+Configurator.getIp()+":8080/Images" + "/hotels/" + systemId + folder + originalName);
-		return fileToDelete.delete();
-	}
-
-	public boolean deleteFile(String filePath) {
-		File fileToDelete = new File(filePath);
-		return fileToDelete.delete();
 	}
 
 	@GET
@@ -7413,6 +7417,41 @@ public class Services {
 	}
 
 	@GET
+	@Path("/v1/getPaymentTypes")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getPaymentTypes() {
+		JSONObject outObj = new JSONObject();
+		JSONArray outArr = new JSONArray();
+		try {
+			outObj.put("status", false);
+			
+			outArr.put("CASH");
+			outArr.put("CARD");
+			outArr.put("APP");
+			outArr.put("WALLET");
+			outArr.put("GUEST");
+			outArr.put("SPLIT");
+			outObj.put("paymentType", outArr);
+			
+			outArr = new JSONArray();
+			for (OnlinePaymentType des : OnlinePaymentType.values()) {
+				outArr.put(des);
+			}
+			outObj.put("apps", outArr);
+			
+			outArr = new JSONArray();
+			for (CardType des : CardType.values()) {
+				outArr.put(des);
+			}
+			outObj.put("cards", outArr);
+			outObj.put("status", true);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+
+	@GET
 	@Path("/v1/getReferencesForReview")
 	@Produces(MediaType.APPLICATION_JSON)
 	public String getReferencesForReview() {
@@ -7484,6 +7523,50 @@ public class Services {
 	}
 
 	@POST
+	@Path("/v1/generateBill")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String generateBill(String jsonObject) {
+		
+		JSONObject inObj = null;
+		JSONObject outObj = new JSONObject();
+		String url = "";
+		
+		IOrder orderDao = new OrderManager(false);
+		
+		try {
+			outObj.put("status", false);
+			if(Configurator.getTomcatLocation().isEmpty()) {
+				outObj.put("message", "Failed to create bill. File location not found.");
+				return outObj.toString();
+			}
+			outObj.put("status", true);
+			inObj = new JSONObject(jsonObject);
+			
+			Order order = orderDao.getOrderById(inObj.getString("outletId"), inObj.getString("orderId"));
+			
+			BillGenerator gen = new BillGenerator(inObj.getString("systemId"), inObj.getString("outletId"));
+			String htmlBill = gen.makeBill(inObj.getString("orderId"));
+
+			String footerTemplete = "</body></html>";
+			
+			StringBuilder builder = new StringBuilder();
+			builder.append(billStyle);
+			builder.append(htmlBill);
+			builder.append(footerTemplete);
+			
+			url = this.makeEbill(inObj.getString("outletId"), builder.toString(), order.getBillNo(), order.getOrderDate());
+			
+			outObj.put("bill", builder.toString());
+			outObj.put("url", url);
+		}
+		catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+
+	@POST
 	@Path("/v1/addPayment")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -7514,6 +7597,22 @@ public class Services {
 				orderDao.assignBillNumberToOrder(systemId, outletId, orderId);
 			}
 			System.out.println("Payment called for Bill no. "+ order.getOrderNumber());
+
+			String url = "";
+				
+			if(settings.getIsOnlineBilling()) {
+				BillGenerator gen = new BillGenerator(systemId, outletId);
+				String htmlBill = gen.makeBill(orderId);
+
+				String footerTemplete = "</body></html>";
+				
+				StringBuilder builder = new StringBuilder();
+				builder.append(billStyle);
+				builder.append(htmlBill);
+				builder.append(footerTemplete);
+				
+				url = this.makeEbill(outletId, builder.toString(), order.getBillNo(), order.getOrderDate());
+			}
 			
 			for(int i=0; i<5; i++) {
 				status = dao.addPayment(systemId, outletId, orderId, new BigDecimal(Double.toString(inObj.getDouble("foodBill"))),
@@ -7589,7 +7688,7 @@ public class Services {
 					return outObj.toString();
 				}else {
 					int balance = customer.getPoints()+points;
-					if(settings.getHasSms() && netIsAvailable() && !settings.getIsWalletOnline() && customer.getSendSMS()) {
+					if(settings.getHasSms() && isInternetAvailable(outletId) && !settings.getIsWalletOnline() && customer.getSendSMS()) {
 						SendSMS sms = new SendSMS();
 						String scheme = "pts";
 						String scheme2 = "";
@@ -7621,24 +7720,30 @@ public class Services {
 				}
 			}else if (!mobileNo.equals("") && customer != null && inObj.getDouble("creditAmount")==0) {
 				if(!(settings.getHasDirectCheckout() && order.getOrderType() == AccessManager.HOME_DELIVERY)) {
-					SendSMS sms = new SendSMS();
-					String message = "";
-					
-					if(systemId.equals("wc0001"))
-						message = "Hi "+customer.getFullName()+"! Thank you for dining at WestCoast Diner. We look forward to serving you soon again";
-					else 
-						message = "Hi "+customer.getFullName()+"! Greetings from " + outlet.getName() 
-								+ ". Thank you for dining with us. Your bill at this visit was Rs " + inObj.getInt("total") + ". Have a nice day.";
-					
-					if(mobileNo.length() > 10) {
-						mobileNo = mobileNo.substring(0, 10);
+					if(settings.getHasSms() && settings.getIsInternetAvailable() && !settings.getIsWalletOnline() && customer.getSendSMS()) {
+						SendSMS sms = new SendSMS();
+						String message = "";
+						String customerName = customer.getFirstName().length()>10 ? customer.getFirstName().substring(0, 10) : customer.getFirstName();
+						if(outletId.equals("wc0001"))
+							message = "Hi "+customer.getFirstName()+"! Thank you for dining at WestCoast Diner. We look forward to serving you soon again";
+						else 
+							message = "Hi "+customerName+"! Greetings from " + outlet.getName() 
+									+ ". Thank you for dining with us. Your bill at this visit was Rs " + inObj.getInt("total") + ". Have a nice day.";
+						
+						if(settings.getIsOnlineBilling()) {
+							message = "Hi "+customerName+"! Greetings from "+ outlet.getName() + ". Find your eBill at " + url;
+						}
+						
+						if(mobileNo.length() > 10 && settings.getHasSms()) {
+							mobileNo = mobileNo.substring(0, 10);
+						}
+						System.out.println(message);
+						String output = "";
+						if(mobileNo.length()==10)
+							output = sms.sendSms(message, mobileNo);
+						System.out.println(output);
+						orderDao.updateOrderSMSStatusDone(outletId, orderId);
 					}
-					System.out.println(message);
-					String output = "";
-					if(mobileNo.length()==10 && settings.getHasSms())
-						output = sms.sendSms(message, mobileNo);
-					System.out.println(output);
-					orderDao.updateOrderSMSStatusDone(systemId, orderId);
 				}
 			}
 			int totalFoodDiscountValue = 0;
@@ -7752,6 +7857,326 @@ public class Services {
 		}
 		return outObj.toString();
 	}
+
+    private static final Random RANDOM = new SecureRandom();
+    
+	private String makeEbill(String outletId, String body, String billNumber, String serviceDate) {
+		
+		byte[] salt = new byte[16];
+		RANDOM.nextBytes(salt);
+	    
+		String str = outletId+serviceDate+billNumber+salt;
+		
+		String os = System.getProperty("os.name");
+		
+		String fileName = outletId.substring(0,  3)+str.hashCode()+".html";
+		String dir2 = "\\EBills\\";
+		String dir1 = "\\webapps";
+		
+		if(os.contains("Mac")) {
+			dir2 = "/EBills/";
+			dir1 = "/webapps";
+		}
+		
+		String url = Configurator.getUploadDir() + dir1 + dir2 + fileName;
+		System.out.println(url);
+		try {
+			File newHtmlFile = new File(url);
+			FileUtils.writeStringToFile(newHtmlFile, body);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		url = "http://" + Configurator.getIp() + "/EBills/" + fileName;
+		return url;
+	}
+
+	/*@POST
+	@Path("/v3/collectPayment")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String collectPayment(String jsonObject) {
+		JSONObject inObj = null;
+		JSONObject outObj = new JSONObject();
+
+		IPayment dao = new PaymentManager(false);
+		IOutlet outletDao = new OutletManager(false);
+		IOrder orderDao = new OrderManager(false);
+		IOrderItem orderItemsDao = new OrderManager(false);
+		ICustomer custDao = new CustomerManager(false);
+		ILoyalty loyaltyDao = new LoyaltyManager(false);
+		try {
+			outObj.put("status", false);
+			inObj = new JSONObject(jsonObject);
+			String outletId = inObj.getString("outletId");
+			String orderId = inObj.getString("orderId");
+			Settings settings = outletDao.getSettings(outletId);
+			Outlet outlet = outletDao.getOutlet(outletId);
+			boolean status = false;
+			double loyaltyPaid = inObj.has("loyaltyAmount")?inObj.getDouble("loyaltyAmount"):0.0;
+			String paymentType = inObj.getString("paymentType");
+			Order order = orderDao.getOrderById(outletId, orderId);
+			//Assign billnumber only when not nc
+			if(order.getBillNo().equals("") && !inObj.getString("paymentType").equals("NON CHARGEABLE")) {
+				orderDao.assignBillNumberToOrder(outletId, orderId);
+			}
+			System.out.println("Payment called for Bill no. "+ order.getOrderNumber());
+			
+			for(int i=0; i<5; i++) {
+				status = dao.addPayment(outletId, orderId, new BigDecimal(Double.toString(inObj.getDouble("foodBill"))),
+						new BigDecimal(Double.toString(inObj.getDouble("barBill"))), 
+						new BigDecimal(Double.toString(inObj.getDouble("foodDiscount"))), 
+						new BigDecimal(Double.toString(inObj.getDouble("barDiscount"))), 
+						new BigDecimal(Double.toString(loyaltyPaid)), 
+						new BigDecimal(Double.toString(inObj.getDouble("grandTotal"))),
+						new BigDecimal(Double.toString(inObj.has("serviceCharge")?inObj.getDouble("serviceCharge"):0.0)), 
+						new BigDecimal(Double.toString(inObj.has("packagingCharge")?inObj.getDouble("packagingCharge"):0.0)), 
+						new BigDecimal(Double.toString(inObj.has("deliveryCharge")?inObj.getDouble("deliveryCharge"):0.0)), 
+						new BigDecimal(Double.toString(inObj.getDouble("gst"))), 
+						new BigDecimal(Double.toString(inObj.getDouble("vat"))), 
+						new BigDecimal(Double.toString(inObj.has("tip")?inObj.getDouble("tip"):0.0)),
+						new BigDecimal(Double.toString(inObj.getDouble("cashPayment"))), 
+						new BigDecimal(Double.toString(inObj.getDouble("cardPayment"))), 
+						new BigDecimal(Double.toString(inObj.getDouble("appPayment"))),
+						new BigDecimal(Double.toString(inObj.getDouble("walletPayment"))),
+						new BigDecimal(Double.toString(inObj.getDouble("creditAmount"))),
+						new BigDecimal(Double.toString(inObj.getDouble("promotionalCash"))),
+						paymentType, new BigDecimal(Double.toString(inObj.getDouble("complimentary"))), 
+						inObj.has("section")?inObj.getString("section"):"DEFAULT");
+				if (status){
+					break;
+				}else {
+					if(i==5) {
+						outObj.put("message", "Payment could not be added. Please try again. If problem persists contact OrderOn support.");
+						return outObj.toString();
+					}else {
+						System.out.println("Retrying to add payment. OrderId: "+orderId+". Count:"+i);
+						dao.deletePayment(outletId, orderId);
+					}
+				}
+			}
+			if(inObj.getString("paymentType").equals("NON CHARGEABLE")) {
+				dao.makeOrderNonChargeable(outletId, orderId, inObj.getString("guest"));
+			}
+			
+			if (settings.getHotelType().equals("PREPAID") && settings.getHasKds()) {
+				if (!orderDao.changeOrderStatusToService(outletId, orderId)) {
+					outObj.put("message",
+							"Order Status could not be updated. Please try again. If problem persists contact OrderOn support.");
+					dao.deletePayment(outletId, orderId);
+					return outObj.toString();
+				}
+			} else {
+				if (!orderDao.markPaymentComplete(outletId, orderId)) {
+					outObj.put("message", "Failed to mark order complete. Please try again. If problem persists contact support.");
+					dao.deletePayment(outletId, orderId);
+					return outObj.toString();
+				}
+			}
+			if(inObj.getDouble("cashPayment")>0.0 || inObj.getDouble("cardPayment")>0.0) 
+				if (settings.getHasCashDrawer())
+					cashdrawerOpen(outletId);
+			
+			String mobileNo = orderDao.getMobileNoFromOrderId(outletId, orderId).getEntity();
+			//Loyalty
+			Customer customer = null;
+			
+			if (!mobileNo.equals("")) {
+				customer = custDao.getCustomerDetails(outletId, mobileNo);
+				custDao.incrementVisitCount(outletId, customer);
+			}
+				
+			if (settings.getHasLoyalty() == 1 && customer != null && inObj.getDouble("creditAmount")==0) {
+				int points = inObj.getInt("grandTotal");
+				Double pointEarned = inObj.getDouble("cashPayment") + inObj.getDouble("cardPayment") +
+										inObj.getDouble("appPayment")+inObj.getDouble("walletPayment");
+				
+				if (!loyaltyDao.addLoyaltyPoints(outletId, orderId, pointEarned.intValue(), customer)) {
+					outObj.put("message", "Loyalty Points could not be added. Please try again. If problem persists contact OrderOn support.");
+					return outObj.toString();
+				}else {
+					int balance = customer.getPoints()+points;
+					if(settings.getHasSms() && isInternetAvailable(systemId) && !settings.getIsWalletOnline() && customer.getSendSMS()) {
+						SendSMS sms = new SendSMS();
+						String scheme = "pts";
+						String scheme2 = "";
+						if(outletId.equals("ka0001")) {
+							scheme = scheme2 = "Kbeans";
+						}
+						String[] name = customer.getFirstName().split(" ");
+						String message = "";
+						if(loyaltyPaid>0) {
+							message = "Hi "+ name[0]+", Greetings from "+outlet.getName()
+									+". You have used " + loyaltyPaid+ " "+scheme+", earned " + points+ " "+scheme+". "
+									+ "Balance: "+balance+" "+scheme2+". Visit again to Redeem exciting offers.";
+						}else {
+							message = "Hi "+ name[0]+", Greetings from "+outlet.getName()
+									+", Thank you for visiting us. You have earned " + inObj.getInt("grandTotal")+ " "+scheme+". "
+									+ "Balance: "+balance+" "+scheme2+".";
+						}
+						
+						if(mobileNo.length() > 10) {
+							mobileNo = mobileNo.substring(0, 10);
+						}
+						System.out.println(message);
+						String output = "";
+						if(mobileNo.length()==10)
+							output = sms.sendSms(message, mobileNo);
+						System.out.println(output);
+						orderDao.updateOrderSMSStatusDone(outletId, orderId);
+					}
+				}
+			}else if (!mobileNo.equals("") && customer != null && inObj.getDouble("creditAmount")==0) {
+				if(!(settings.getHasDirectCheckout() && order.getOrderType() == AccessManager.HOME_DELIVERY)) {
+					if(settings.getHasSms() && isInternetAvailable(systemId) && !settings.getIsWalletOnline() && customer.getSendSMS()) {
+						SendSMS sms = new SendSMS();
+						String message = "";
+						
+						String customerName = customer.getFirstName().length()>10 ? customer.getFirstName().substring(0, 10) : customer.getFirstName();
+						
+						if(settings.getIsOnlineBilling()) {
+							BillGenerator gen = new BillGenerator(outletId);
+							String htmlBill = gen.makeBill(orderId);
+
+							String footerTemplete = "</body></html>";
+							
+							StringBuilder builder = new StringBuilder();
+							builder.append(billStyle);
+							builder.append(htmlBill);
+							builder.append(footerTemplete);
+							
+							String url = this.makeEbill(outletId, builder.toString(), order.getBillNo(), order.getOrderDate());
+							message = "Hi "+customerName+"! Greetings from "+ outlet.getName() + ". Find your eBill at " + url;
+						}else {
+							if(outletId.equals("wc0001"))
+								message = "Hi "+customer.getFirstName()+"! Thank you for dining at WestCoast Diner. We look forward to serving you soon again";
+							else 
+								message = "Hi "+customerName+"! Greetings from " + outlet.getName() 
+										+ ". Thank you for dining with us. Your bill at this visit was Rs " + inObj.getInt("grandTotal") + ". Have a nice day.";
+						}
+						
+						if(mobileNo.length() > 10) {
+							mobileNo = mobileNo.substring(0, 10);
+						}
+						System.out.println(message);
+						String output = "";
+						if(mobileNo.length()==10)
+							output = sms.sendSms(message, mobileNo);
+						System.out.println(output);
+						orderDao.updateOrderSMSStatusDone(outletId, orderId);
+					}
+				}
+			}
+			int totalFoodDiscountValue = 0;
+			int totalBarDiscountValue = 0;
+			String discountCodes = "";
+			ArrayList<String> discountEmailText = new ArrayList<String>();
+			String emailText = "";
+			order = orderDao.getOrderById(outletId, orderId);
+			if (order.getDiscountCode().length()>0) {
+				for(int x=0; x<order.getDiscountCode().length(); x++) {
+					IDiscount discountDao = new DiscountManager(false);
+					Discount discount = discountDao.getDiscountByName(outletId, order.getDiscountCode().getString(x));
+					if (!discount.getUsageLimit().equals("Unlimited")) {
+						final int usageLimit = Integer.parseInt(discount.getUsageLimit()) - 1;
+						if(!discountDao.updateUsageLimit(outletId, discount.getName(), usageLimit)){
+							outObj.put("message", "Discount usage limit could not be updated. Please contact OrderOn support.");
+							return outObj.toString();
+						}
+					}
+					//formatting the email.
+					emailText = "<hr><div>DISCOUNT CODE : "+ discount.getName();
+					String type = discount.getType()==AccessManager.DISCOUNT_TYPE_PERCENTAGE?"%":" Rupees";
+					if(discount.getFoodValue()>0) {
+						emailText += "</div><div>Total Food Discount Value: " + discount.getFoodValue() + type
+								+	"</div><div>Total Food Discount Amount: " + inObj.getDouble("foodDiscount");
+					}
+					if(discount.getBarValue()>0) {
+						emailText += "</div><div>Total Bar Discount Value: " + discount.getBarValue() + type
+								+	"</div><div>Total Bar Discount Amount: " + inObj.getDouble("barDiscount");
+					}
+					emailText += "</div>";
+					//adding the emailtext one by one for each discount
+					discountEmailText.add(emailText);
+					
+					//variables used for the emailer
+					totalFoodDiscountValue += discount.getFoodValue();
+					totalBarDiscountValue += discount.getBarValue();
+					discountCodes += discount.getName() + ", ";
+				}
+			}
+			if(order.getInHouse() == AccessManager.HOME_DELIVERY) 
+				orderDao.updateDeliveryTime(outletId, orderId);
+			else
+				orderDao.updateCompleteTime(outletId, orderId);
+			
+			if(inObj.getDouble("walletPayment")>0 || inObj.getDouble("promotionalCash")>0) {
+				orderDao.updateWalletTransactionId(outletId, orderId, inObj.getInt("walletTransactionId"));
+			}
+			
+			outObj.put("status", true);
+			if(inObj.getString("paymentType").equals("NON CHARGEABLE")) {
+				Payment payment = dao.getPayment(outletId, orderId);
+				Double total = (double) Math.round((payment.getFoodBill().doubleValue() + payment.getBarBill().doubleValue())*100)/100;
+				String subject = "Non-chargeable Order placed for "+order.getReference()+". Order No. " + order.getOrderNumber();
+				emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>A Non-Chargeable Order has been placed"
+						+ ".</h3><p> Details as follows:</p>"
+						+ "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location " + outlet.getLocation().getString("place")
+						+ "</div><div>Order No: " + order.getOrderNumber()
+						+ "</div><div>Ordered For : " + order.getReference()
+						+ "</div><div>Ordered By: " + order.getWaiterId()
+						+ "</div><div>Service Date: " + order.getOrderDate()
+						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+						+ "</div><div>Total bill amount: <b>" + total+ "</b></div>"
+						+ "<div>Items Ordered are as follows: </div>"
+						+ "<div><table style='color:#797979;'><thead>"
+						+ "<tr><th style='text-align:left;'>PARTICULAR</th><th>QTY</th><th style='text-align:right;'>RATE</th></tr>"
+						+ "</thead><tbody>";
+				
+				ArrayList<OrderItem> orderedItems = orderItemsDao.getOrderedItemForBill(outletId, orderId, false);
+
+				for (OrderItem orderItem : orderedItems) {
+					emailText += "<tr><td>" + orderItem.getTitle() + "</td><td>" + orderItem.getQty() + "</td><td style='text-align:right;'>" + orderItem.getRate() + "</td></tr>";
+				}
+
+				emailText += "<tr><th colspan='3' style='border: 1px solid #ffa300;'></th></tr>"
+						+ "<tr><th colspan='2' style='text-align:left;'>Total</th><th>"+total+"</th></tr>"
+						+ "</tbody></table></div></div>";
+				
+				String smsText = "Non Chargeable Order Placed. BillNo: "+order.getOrderNumber()
+						+", Placed For: "+ order.getReference()
+						+ ", User: "+ order.getWaiterId()
+						+ ", Total Bill Amt: "+total+".";
+				this.SendEmailAndSMS(outletId, subject, emailText, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
+			}
+			
+			if(totalFoodDiscountValue >=30 || totalBarDiscountValue >=30) {
+				discountCodes.substring(0, discountCodes.length()-3);
+				String subject = "Discount Code/s "+discountCodes+" used. Bill No. " + order.getBillNo();
+				emailText = "<div style='width:350px; ' class='alert alert-warning'><h3>Discount Codes "+discountCodes+" used."
+						+ "</h3><p> Details as follows:</p>"
+						+ "<div>Outlet Name: " + outlet.getName()
+						+ "</div><div>Location: " + outlet.getLocation().getString("place")
+						+ "</div><div>Order No: " + order.getOrderNumber()
+						+ "</div><div>Bill No: " + order.getBillNo()
+						+ "</div><div>Ordered For : " + order.getCustomerName()
+						+ "</div><div>Ordered By: " + order.getWaiterId()
+						+ "</div><div>Service Date: " + order.getOrderDate()
+						+ "</div><div>Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) + "</div>";
+				
+				for(int x=0; x<discountEmailText.size(); x++) {
+					emailText += discountEmailText.get(x);
+				}
+				emailText += "<hr><div>Total bill amount: " + inObj.getDouble("total") + "</div></div>";
+				this.SendEmail(outletId, subject, emailText, "", false, true);
+			}
+				
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}*/
 	
 	@POST
 	@Path("/v1/editPayment")
@@ -7804,8 +8229,9 @@ public class Services {
 							return outObj.toString();
 						}else {
 							int balance = customer.getPoints()+points;
-							custDao.incrementVisitCount(systemId, customer);
-							if(netIsAvailable() && settings.getHasSms()) {
+							custDao.incrementVisitCount(outletId, customer);
+							if(isInternetAvailable(systemId) && settings.getHasSms()) {
+									
 								SendSMS sms = new SendSMS();
 								String scheme = "pts";
 								String scheme2 = "";
@@ -7823,8 +8249,29 @@ public class Services {
 											+", Thank you for visiting us. You have earned " + points+ " "+scheme+". "
 											+ "Balance: "+balance+" "+scheme2+".";
 								}
-								if(systemId.equals("wc0001"))
-									message = "Hi "+customer.getFullName()+"! Thank you for dining at WestCoast Diner. We look forward to serving you soon again";
+								String customerName = customer.getFirstName().length()>10 ? customer.getFirstName().substring(0, 10) : customer.getFirstName();
+								if(outletId.equals("wc0001"))
+									message = "Hi "+customer.getFirstName()+"! Thank you for dining at WestCoast Diner. We look forward to serving you soon again";
+								else 
+									message = "Hi "+customerName+"! Greetings from " + outlet.getName() 
+											+ ". Thank you for dining with us. Your bill at this visit was Rs " + inObj.getInt("total") + ". Have a nice day.";
+								
+								if(settings.getIsOnlineBilling()) {
+									BillGenerator gen = new BillGenerator(systemId, outletId);
+									String htmlBill = gen.makeBill(orderId);
+
+									String footerTemplete = "</body></html>";
+									
+									StringBuilder builder = new StringBuilder();
+									builder.append(billStyle);
+									builder.append(htmlBill);
+									builder.append(footerTemplete);
+									
+									Order order = orderDao.getOrderById(outletId, orderId);
+									String url = this.makeEbill(outletId, builder.toString(), order.getBillNo(), order.getOrderDate());
+									message = "Hi "+customerName+"! Greetings from "+ outlet.getName() + ". Find your eBill at " + url;
+								}
+								
 								if(mobileNo.length() > 10) {
 									mobileNo = mobileNo.substring(0, 10);
 								}
@@ -7918,6 +8365,35 @@ public class Services {
 
 			outObj.put("status", true);
 		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return outObj.toString();
+	}
+
+	@POST
+	@Path("/v1/calculatePayment")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String calculatePayment(String jsonObject) {
+		IPayment dao = new PaymentManager(false);
+		JSONObject outObj = new JSONObject();
+		JSONObject inObj = null;
+		try {
+			outObj.put("status", false);
+			inObj = new JSONObject(jsonObject);
+			if(!inObj.has("outletId")) {
+				outObj.put("message", "OutletId not found.");
+			}else if(!inObj.has("orderId")) {
+				outObj.put("message", "OrderId not found.");
+			}else if(!inObj.has("orderedItems")) {
+				outObj.put("message", "OrderedItems not found.");
+			}
+			
+			outObj = dao.getCalculatePaymentForOrder(inObj.getString("systemId"), inObj.getString("outletId"), 
+					inObj.getString("orderId"), inObj.getJSONArray("orderedItems"));
+			outObj.put("status", true);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return outObj.toString();
@@ -8226,6 +8702,7 @@ public class Services {
 			outObj.put("serviceCharge", reportItems.getServiceCharge().setScale(2, RoundingMode.HALF_UP));
 			outObj.put("packagingCharge", reportItems.getPackagingCharge().setScale(2, RoundingMode.HALF_UP));
 			outObj.put("deliveryCharge", reportItems.getDeliveryCharge().setScale(2, RoundingMode.HALF_UP));
+			outObj.put("tip", reportItems.getTip().setScale(2, RoundingMode.HALF_UP));
 			arrObj = new JSONObject();
 			arrObj.put("name", CardType.VISA.toString());
 			arrObj.put("amount", dao.getCardPaymentByType(systemId, outletId, serviceDate, serviceType, CardType.VISA.toString()));
@@ -8446,6 +8923,12 @@ public class Services {
 		String transactionType = "";
 		ArrayList<Report> reportItems = dao.getSaleSummaryReport(systemId, outletId, startDate, endDate, orderType, portalId);
 		OnlineOrderingPortal zomato = portalDao.getOnlineOrderingPortalByPortal(systemId, OnlineOrderingPortals.ZOMATO);
+		
+		long unixSeconds;
+		// convert seconds to milliseconds
+		Date date = null; 
+		// the format of your date
+		SimpleDateFormat sdf = new java.text.SimpleDateFormat("hh:mm aa");
 		try {
 			for (int i = 0; i < reportItems.size(); i++) {
 				itemDetails = new JSONObject();
@@ -8491,6 +8974,15 @@ public class Services {
 				itemDetails.put("orderType", reportItems.get(i).getOrderType()==AccessManager.TAKE_AWAY?takeAwayType:orderDao.getOrderType(reportItems.get(i).getOrderType()));
 				itemDetails.put("tableId", reportItems.get(i).getTableId());
 				itemDetails.put("orderDate", reportItems.get(i).getOrderDate());
+				
+				unixSeconds = reportItems.get(i).getOrderDateTime();
+				// convert seconds to milliseconds
+				date = new java.util.Date(unixSeconds*1000L); 
+				// give a timezone reference for formatting (see comment at the bottom)
+				sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+5:30"));  
+				
+				itemDetails.put("orderTime", sdf.format(date));
+				
 				BigDecimal gst = reportItems.get(i).getGst();
 				itemDetails.put("cgst", gst.divide(new BigDecimal("2")));
 				itemDetails.put("sgst", gst.divide(new BigDecimal("2")));
@@ -9084,8 +9576,10 @@ public class Services {
 		return outObj.toString();
 	}
 
-	public static Boolean netIsAvailable() {
+	public static Boolean isInternetAvailable(String outletId) {
 	    try {
+	    	if(outletId.equals("sg0001") || outletId.equals("sg0006"))
+	    		return true;
 	        final URL url = new URL("http://www.google.com");
 	        final URLConnection conn = url.openConnection();
 	        conn.connect();
@@ -9454,15 +9948,18 @@ public class Services {
 			boolean updateServer = inObj.getBoolean("updateServer");
 			serviceDao.updateEndTime(systemId, serviceDate, serviceType);
 			outObj.put("status", false);
-			if(!netIsAvailable()) {
-				serviceDao.updateReportStatusToNotSent(systemId, serviceDate, serviceType, compiledReport);
-			}else {
-				sendEmailSmsForEod(systemId, outletId, serviceDate, serviceType, compiledReport);
-				Settings setting = outletDao.getSettings(systemId);
+			outObj.put("message", "Could not send reports to Owners. Please try again.");
+			if(sendEmailSmsForEod(systemId, outletId, serviceDate, serviceType, compiledReport)) {
+				outObj.put("status", true);
+				outObj.put("message", "Email Sent");
+			}
+			Settings setting = outletDao.getSettings(systemId);
+			if(isInternetAvailable(systemId)) {
 				if(setting.getIsServerEnabled() && updateServer)
 					this.updateServer(systemId);
+			}else {
+				outObj.put("message", "Internet Unavailable. Could not send reports to Owners. Please check your internet connection and try again.");
 			}
-			outObj.put("status", true);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -9530,7 +10027,7 @@ public class Services {
 		dao.updateReportStatusToSent(systemId, serviceDate, serviceType);
 		if(hasSentEmail) {
 			for (String path : filePaths) {
-				this.deleteFile(path);
+				FileManager.deleteFile(path);
 			}
 		}
 		return true;
@@ -9689,17 +10186,14 @@ public class Services {
 			outObj.put("status", true);
 			outObj.put("checkOutOrders", notification.getCheckoutOrders());
 			outObj.put("outOfStock", notification.getOutOfStock());
-			if(netIsAvailable()) {
-				IService serviceDao = new ServiceManager(false);
-				ArrayList<ServiceLog> logs =  serviceDao.getServiceLogsForMessageNotSent(hotelId);
-				if(logs != null) {
-					for (int i = 0; i < logs.size(); i++) {
-						this.sendEmailSmsForEod(hotelId, "", logs.get(i).getServiceDate(), logs.get(i).getServiceType(), logs.get(i).getReportForEmail());
-					}
-				}
-				
+			
+			if(isInternetAvailable(hotelId)) {
 				bufferDao.beginTransaction(hotelId);
 				ArrayList<ReportBuffer> bufferLog = bufferDao.getBuffer(hotelId);
+				if(bufferLog.size()==0) {
+					bufferDao.commitTransaction(hotelId);
+					return outObj.toString();
+				}
 				bufferDao.deleteBuffer(hotelId);
 				bufferDao.commitTransaction(hotelId);
 				ReportBuffer buffer = null;
@@ -9713,7 +10207,11 @@ public class Services {
 						for (int j =0; j< buffer.getEmailIds().length(); j++) {
 							emailIds.add(buffer.getEmailIds().getString(j));
 						}
-						email.sendEmail(emailIds, buffer.getSubject(), buffer.getEmailText());
+						if(buffer.getServiceInfo().length() > 0) {
+							this.sendEmailSmsForEod(hotelId, buffer.getOutletId(), buffer.getServiceDate(), buffer.getServiceType(), buffer.getEmailText());
+						}else {
+							email.sendEmail(emailIds, buffer.getSubject(), buffer.getEmailText());
+						}
 						emailIds.clear();
 					}else if(buffer.getMobileNumbers().length() > 0) {
 						for (int j =0; j< buffer.getMobileNumbers().length(); j++) {
@@ -9800,6 +10298,9 @@ public class Services {
 		IReport dao = new ReportManager(false);
 		IOrder orderDao = new OrderManager(false);
 		ArrayList<Order> reportItems = dao.getNCOrderReport(systemId, outletId, startDate, endDate);
+		BigDecimal foodTotal = new BigDecimal(0.0);
+		BigDecimal barTotal = new BigDecimal(0.0);
+		BigDecimal total = new BigDecimal(0.0);
 		try {
 			for (int i = 0; i < reportItems.size(); i++) {
 				itemDetails = new JSONObject();
@@ -9812,8 +10313,15 @@ public class Services {
 				itemDetails.put("foodBill", reportItems.get(i).getFoodBill());
 				itemDetails.put("barBill", reportItems.get(i).getBarBill());
 				itemsArr.put(itemDetails);
+				
+				foodTotal.add(reportItems.get(i).getFoodBill());
+				barTotal.add(reportItems.get(i).getBarBill());
+				total.add(reportItems.get(i).getTotal());
 			}
 			outObj.put("report", itemsArr);
+			outObj.put("foodTotal", foodTotal);
+			outObj.put("barTotal", barTotal);
+			outObj.put("total", total);
 			outObj.put("name", "NON CHARGEABLE ORDER REPORT");
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -10357,68 +10865,101 @@ public class Services {
 		IServer dao = new ServerManager(true);
 		try {
 			outObj.put("status", false);
+			if(!isInternetAvailable(outletId)) {
+				return outObj.toString();
+			}
+			
 			dao.beginTransaction(outletId);
-			JSONArray transactions = dao.getAllTransactions(outletId);
-			if(transactions.length() == 0) {
-				outObj.put("status", true);
+			
+			//Check if there is any update happening currently. If yes, return.
+			if(dao.checkIfSyncActive(outletId)) {
 				dao.rollbackTransaction();
 				return outObj.toString();
 			}
-			String targetUrl = "http://api.orderon.co.in:8080/OrderOn/Services/v3/syncOnSever";
-			JSONObject inObj = new JSONObject();
-			inObj.put("content", transactionLog.toString());
-			inObj.put("hotelId", outletId);
-			JSONObject response = new JSONObject(Services.executePost(targetUrl, inObj));
-			if(response.getBoolean("status")) {
-				outObj.put("updateTime", dao.updateServerLog(outletId).getString("time"));
-				outObj.put("count", response.getInt("count"));
-				System.out.println("Transaction Count is: "+ response.getInt("count"));
-				outObj.put("status", true);
-				dao.deleteAllTransactions(outletId);
+			
+			//Check if there are batches that have been logged and not deleted and delete them.
+			ArrayList<ServerLog> serverlogs = dao.getUndeletedBatches(outletId);
+			for (ServerLog serverLog : serverlogs) {
+				if(dao.deleteAllTransactionsInBatch(outletId, serverLog.getId()))
+					dao.markLogDeleted(outletId, serverLog.getId());
 			}
+			
 			dao.commitTransaction(outletId, true);
+			dao = new ServerManager(false);
+			
+			JSONArray transactions = null;
+			JSONObject inObj = new JSONObject();
+			JSONObject response = new JSONObject();
+			
+			//Check if there are batches that have been assigned and not logged and log them.
+			serverlogs = dao.getUnloggedBatches(outletId);
+			for (ServerLog serverLog : serverlogs) {
+				transactions = dao.getAllTransactionsInBatch(outletId, serverLog.getId());
+				if(transactions.length() == 0) {
+					continue;
+				}
+				inObj.put("content", transactions.toString());
+				inObj.put("hotelId", outletId);
+				response = this.updateOnlineServer(inObj);
+				if(response.getBoolean("status")) {
+					dao.markLogSuccessful(outletId, serverLog.getId());
+					System.out.println("Transaction logged for batch "+serverLog.getId()+". Count is: "+ response.getInt("count"));
+				}
+			}
+			
+			transactions = dao.getUnBatchedTransactions(outletId);
+					
+			if(transactions.length() == 0) {
+				outObj.put("count", 0);
+				outObj.put("status", true);
+				return outObj.toString();
+			}
+			
+			dao.addServerLog(outletId);
+			ServerLog serverLog = dao.getActiveServerLog(outletId);
+			dao.assignBatchIdToTransactions(outletId, serverLog.getId());
+			
+			transactions = dao.getAllTransactionsInBatch(outletId, serverLog.getId());
+
+			inObj = new JSONObject();
+			inObj.put("content", transactions.toString());
+			inObj.put("hotelId", outletId);
+			response = this.updateOnlineServer(inObj);
+			
+			JSONObject internalResponse = dao.markLogInActive(outletId, serverLog.getId());
+			
+			if(response.getBoolean("status")) {	
+				//Once sync is successful, mark the serverlog successful.
+				dao.markLogSuccessful(outletId, serverLog.getId());
+				outObj.put("updateTime", internalResponse.getString("time"));
+				outObj.put("count", response.getInt("count"));
+				System.out.println("Transaction Logged for final batch = "+serverLog.getId()+". Count is: "+ response.getInt("count"));
+				outObj.put("status", true);
+				
+				//Try to delete the transaction in the current batch, and work, then mark the log deleted.
+				if(dao.deleteAllTransactionsInBatch(outletId, serverLog.getId()))
+					dao.markLogDeleted(outletId, serverLog.getId());
+			}
 		} catch (Exception e) {
+			dao.rollbackTransaction();
 			e.printStackTrace();
 		}
 		return outObj.toString();
 	}
-
-	@GET
-	@Path("/v1/getServerState")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public String getServerState(@QueryParam("hotelId") String hotelId) {
+	
+	private JSONObject updateOnlineServer(JSONObject transactions) {
+		String targetUrl = "http://api.orderon.co.in:8090/OrderOn/Services/v3/syncOnSever";
 		JSONObject outObj = new JSONObject();
-		IServer dao = new ServerManager(false);
-		ServerLog log = dao.getLastServerLog(hotelId);
 		try {
-			outObj.put("status", log.getStatus());
-		} catch (Exception e) {
+			outObj.put("status", false);
+			outObj = new JSONObject(Services.executePost(targetUrl, transactions));
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return outObj.toString();
+		return outObj;
 	}
-
-	@POST
-	@Path("/v1/serverSetStatusToBusy")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public String getServerLog(String jsonObject) {
-		JSONObject outObj = new JSONObject();
-		IServer dao = new ServerManager(false);
-		try {
-			JSONObject inObj = new JSONObject(jsonObject);
-			ServerLog log = dao.getLastServerLog(inObj.getString("hotelId"));
-			if (log == null)
-				dao.createServerLog(inObj.getString("hotelId"));
-			else
-				dao.updateServerLog(inObj.getString("hotelId"));
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return outObj.toString();
-	}
+	
 
 	@POST
 	@Path("/v1/updateKOTStatus")
@@ -10498,7 +11039,7 @@ public class Services {
 		builder.append(footerTemplete);
 		boolean emailSent = false;
 		
-		if(netIsAvailable()) {
+		if(isInternetAvailable(hotelId)) {
 			if(filePaths==null) {
 				if(email.sendEmail(recipents, subject, builder.toString()))
 					emailSent = true;
@@ -10514,7 +11055,10 @@ public class Services {
 				recipentArr.put(recipent);
 			}
 			IReportBuffer bufferDao = new ReportBufferManager(false);
-			bufferDao.addEmailToBuffer(hotelId, subject, builder.toString(), recipentArr);
+			IService serviceDao = new ServiceManager(false);
+			ServiceLog service = serviceDao.getLasttService(hotelId);
+			bufferDao.addEODEmailToBuffer(hotelId, subject, builder.toString(), service.getServiceDate(), service.getServiceType(), recipentArr);
+			return false;
 		}
 		
 		return true;
@@ -10531,7 +11075,7 @@ public class Services {
 		if(!settings.getHasSms())
 			return;
 		
-		boolean netAvailable = netIsAvailable();
+		boolean netAvailable = isInternetAvailable(hotelId);
 		JSONArray recepients = new JSONArray();
 		
 		if(!smsText.equals("")) {
@@ -11328,7 +11872,7 @@ public class Services {
 			
 			outObj.put("status", false);
 			
-			if(!netIsAvailable()) {
+			if(!isInternetAvailable(outletId)) {
 				outObj.put("message", "Internet Unavailable! Please try again later.");
 				return outObj.toString();
 			}else {
@@ -11344,6 +11888,7 @@ public class Services {
 				smsContent = smsContent.replaceAll("#+", ";hash");
 				smsContent = smsContent.replaceAll("\\++", "plus;");
 				smsContent = smsContent.replaceAll("\\,+", "comma;");
+				smsContent = smsContent.replaceAll(" ", "+");
 				
 				for (Customer customer : customers) {
 					if(customer.getMobileNumber().startsWith("0", 1) || customer.getMobileNumber().startsWith("1", 1)

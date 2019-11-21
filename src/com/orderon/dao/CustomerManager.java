@@ -56,7 +56,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 		StringBuilder sql = new StringBuilder();
 		sql.append("INSERT INTO Customers (corporateId, hotelId, id, mobileNumber, firstName, surName , address, birthdate, anniversary, userType, "
 				+ "allergyInfo, wantsPromotion, referalCode, communicationMode, sex, visitCount, emailId, reference, " 
-				+ "isBlocked, isVerified, remarks, points, isPriority, joiningDate, lastRechargeDate, lastVisitDate) VALUES ");
+				+ "isBlocked, isVerified, remarks, points, isPriority, joiningDate, lastRechargeDate, otpAuthRequired, lastVisitDate) VALUES ");
 		
 		try {
 			for(int i=0; i<customers.length(); i++) {
@@ -89,6 +89,7 @@ public class CustomerManager extends AccessManager implements ICustomer, ICustom
 								+ customer.getBoolean("isPriority")+ "', '" 
 								+ escapeString(customer.getString("joiningDate"))+ "', '" 
 								+ escapeString(customer.getString("lastRechargeDate"))+ "', '" 
+								+ customer.getBoolean("otpAuthRequired")+ "', '" 
 								+ escapeString(customer.getString("lastVisitDate"))+ "')");
 			}
 			if(!db.executeUpdate(sql.toString(), outletId, false)) {

@@ -3,6 +3,9 @@ package com.orderon.interfaces;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import com.orderon.dao.AccessManager.Report;
 
 public interface IPayment extends IAccess{
@@ -32,4 +35,8 @@ public interface IPayment extends IAccess{
 	public Report getPayment(String systemId, String outletId, String orderId);
 	
 	public Report getCashCardSales(String systemId, String serviceDate, String serviceType);
+	
+	public JSONObject getCalculatePaymentForOrder(String systemId, String outletId, String orderId, JSONArray menuItems);
+	
+	public JSONObject getCalculatePaymentForOrder(String systemId, String outletId, String orderId);
 }

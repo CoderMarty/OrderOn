@@ -88,7 +88,9 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 		try {
 			outObj.put("status", false);
 			
-			if(!systemUser.getUserId().equals(userId)) {
+			
+			User user = this.getUser(hotelId, userId);
+			if(userType != user.getUserType()) {
 				if(!this.checkUserAccess(systemUser, userType)) {
 					outObj.put("message", "UNAUTHORISED to Update/Edit user of Selected Designation.");
 					return outObj;
@@ -140,12 +142,6 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 	}
 
 	@Override
-	public ArrayList<User> getAllCaptains(String hotelId) {
-		String sql = "SELECT userId FROM Users WHERE userType == 9 ORDER BY userId;";
-		return db.getRecords(sql, User.class, hotelId);
-	}
-
-	@Override
 	public User getUserById(String hotelId, String userId) {
 		String sql = "SELECT Users.*, (Employee.firstName || ' ' || Employee.surName) AS name "
 				+ "FROM Users, Employee WHERE userId='" + escapeString(userId) + "' AND Users.hotelId='"
@@ -170,6 +166,12 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 	public ArrayList<User> getAllUsers(String hotelId) {
 		String sql = "SELECT Users.*, (Employee.firstName || ' ' || Employee.surName) AS name " + 
 				"FROM Users, Employee WHERE Users.hotelId='" + escapeString(hotelId) + "' AND Users.employeeId == Employee.employeeId;";
+		return db.getRecords(sql, User.class, hotelId);
+	}
+
+	@Override
+	public ArrayList<User> getAllCaptains(String hotelId) {
+		String sql = "SELECT userId FROM Users WHERE userType == 9 ORDER BY userId;";
 		return db.getRecords(sql, User.class, hotelId);
 	}
 
@@ -222,7 +224,7 @@ public class UserManager extends AccessManager implements IUser, IUserAuthentica
 		if (user!=null) {
 			return user;
 		}
-		String sql = "UPDATE Users SET authToken = 0, timeStamp = NULL WHERE userId = '" + userId + "'AND hotelId = '"
+		String sql = "UPDATE Users SET authToken = 0, timeStamp = NULL WHERE userId = '" + userId + "' AND hotelId = '"
 			+ hotelId + "';";
 		db.executeUpdate(sql, hotelId, false);
 		

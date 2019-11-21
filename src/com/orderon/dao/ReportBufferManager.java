@@ -3,6 +3,8 @@ package com.orderon.dao;
 import java.util.ArrayList;
 
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.orderon.interfaces.IReportBuffer;
 
@@ -20,7 +22,27 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(subject) + "', '" + escapeString(emailText) + "', '" 
 			+ escapeString(emailIds.toString())+"');";
 		
-		return db.executeUpdate(sql, outletId, true);
+		return db.executeUpdate(sql, outletId, false);
+	}
+
+	@Override
+	public boolean addEODEmailToBuffer(String outletId, String subject, String emailText, String serviceDate, 
+			String serviceType, JSONArray emailIds) {
+		
+		JSONObject obj = new JSONObject();
+		try {
+			obj.put("serviceDate", serviceDate);
+			obj.put("serviceType", serviceType);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		String sql = "INSERT INTO ReportBuffer (outletId, subject, emailText, serviceInfo, emailIds) "
+			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(subject) + "', '" + escapeString(emailText) 
+			+ "', '" + obj.toString() + "', '" + escapeString(emailIds.toString())+"');";
+		
+		return db.executeUpdate(sql, outletId, false);
 	}
 
 	@Override
@@ -36,7 +58,7 @@ public class ReportBufferManager extends AccessManager implements IReportBuffer 
 	public boolean addEWardsToBuffer(String outletId, String eWardsSettleBill) {
 		
 		String sql = "INSERT INTO ReportBuffer (outletId, eWardsSettleBill) "
-			+ "VALUES('" + escapeString(outletId) + "', '" + eWardsSettleBill+"');";
+			+ "VALUES('" + escapeString(outletId) + "', '" + escapeString(eWardsSettleBill)+"');";
 		
 		return db.executeUpdate(sql, outletId, true);
 	}

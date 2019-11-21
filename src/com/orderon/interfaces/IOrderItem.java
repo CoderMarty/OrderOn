@@ -3,6 +3,7 @@ package com.orderon.interfaces;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.orderon.dao.AccessManager.EntityString;
@@ -16,7 +17,7 @@ public interface IOrderItem extends IAccess, IOrderAddOn, ISpecification{
 	public boolean updateKOTStatus(String systemId, String orderId);
 
 	public boolean updateOrderItemLog(String systemId, String outletId, String orderId, String subOrderId, String menuId, String reason,
-			String type, int quantity, BigDecimal rate, int itemId);
+			String type, int quantity, BigDecimal rate, int itemId, String userId);
 	
 	public ArrayList<OrderItem> getCancellableOrderedItems(String systemId, String orderId);
 	
@@ -53,7 +54,7 @@ public interface IOrderItem extends IAccess, IOrderAddOn, ISpecification{
 	public ArrayList<EntityString> getUniqueMenuIdForComplimentaryOrder(String systemId, String orderId);
 
 	public boolean complimentaryItem(String systemId, String outletId, String orderId, String menuId, String authId, String subOrderId,
-			BigDecimal rate, int qty, String reason);
+			BigDecimal rate, int qty, String reason, String userId);
 
 	public Boolean removeSubOrder(String systemId, String orderId, String subOrderId, String menuId, int qty);
 
@@ -70,4 +71,8 @@ public interface IOrderItem extends IAccess, IOrderAddOn, ISpecification{
 	public ArrayList<OrderItem> getOrderedItemsForKOT(String systemId, String orderId);
 	
 	public ArrayList<OrderItem> getOrderedItemsForReprintKOT(String systemId, String orderId);
+	
+	public ArrayList<OrderItem> getOrderedItemsForPayment(String systemId, String orderId);
+	
+	public ArrayList<OrderItem> getOrderedItemsForPayment(String systemId, String orderId, JSONArray menuItems);
 }

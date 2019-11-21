@@ -242,7 +242,7 @@ public class InventoryServices {
 			if(isCountable) {
 				countableUnit = CountableUnit.valueOf(inObj.getString("countableUnit"));
 				countableConversion = new BigDecimal(inObj.getDouble("countableConversion"));
-				ratePerUnit = ratePerUnit.divide(countableConversion, 2, RoundingMode.HALF_UP);
+				ratePerUnit = ratePerUnit.divide(countableConversion, 6, RoundingMode.HALF_UP);
 			}
 			materialType = inObj.getString("type");
 			subType = inObj.getString("subType");
@@ -476,7 +476,11 @@ public class InventoryServices {
 				
 				if(material.getMaterialType().equals(AccessManager.MATERIAL_DIRECT_ITEM)) {
 					IRecipe recipeDao = new RecipeManager(false);
-					recipeDao.updateDirectRecipe(outletId, inObj.getString("menuId"), sku);
+					if(recipeDao.checkIfMaterialHasRecipe(outletId, sku)) {
+						recipeDao.updateDirectRecipe(outletId, inObj.getString("menuId"), sku);
+					}else {
+						recipeDao.addDirectRecipe(outletId, inObj.getString("menuId"), sku);
+					}
 				}else if(material.getMaterialType().equals(AccessManager.MATERIAL_PROCESSED)) {
 					IRecipe recipeDao = new RecipeManager(false);
 					recipeDao.deleteRecipeItemForProcessedMaterial(outletId, sku);

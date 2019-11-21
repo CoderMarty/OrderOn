@@ -32,4 +32,6 @@ public interface IService {
 	public int getCashInHand(String hotelId, String serviceDate, String serviceType);
 
 	public ServiceLog getCurrentService(String hotelId);
+	
+	public ServiceLog getLasttService(String hotelId);
 }

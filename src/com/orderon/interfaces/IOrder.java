@@ -98,9 +98,10 @@ public interface IOrder extends IAccess{
 	public Boolean removeOrderedSpecification(String systemId, String orderId, String subOrderId, String menuId,
 			int itemId);
 
-	public JSONObject voidOrder(String systemId, String outletId, String orderId, String reason, String authId, String section);
+	public JSONObject voidOrder(String systemId, String outletId, String orderId, String reason, String authId, 
+			String section, String userId);
 
-	public Boolean complimentaryOrder(String systemId, String outletId, String orderId, String authId);
+	public Boolean complimentaryOrder(String systemId, String outletId, String orderId, String authId, String userId);
 
 	public Integer getOrderCount(String systemId, String outletId, String userId, Date dt);
 	

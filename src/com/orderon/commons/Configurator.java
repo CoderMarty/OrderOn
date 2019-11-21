@@ -119,4 +119,8 @@ public class Configurator {
 	public static String getTomcatLocation() {
 		return System.getenv("CATALINA_HOME");
 	}
+	
+	public static String getUploadDir() {
+		return System.getenv("ORDERON_UPLOAD");
+	}
 }
