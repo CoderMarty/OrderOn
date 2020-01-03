@@ -566,7 +566,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 					+ currentService.getServiceType() + "','"+section+"', '"+remarks+"'); ";
 			
 			for (int i = 0; i < tableIds.length; i++) {
-				sql = sql + "UPDATE Tables SET orderId = '"+orderId+"' WHERE tableId = '" + tableIds[i] + "' AND outletId = '"
+				sql = sql + "UPDATE Tables SET orderId = '"+orderId+"', isInBilling = 'false' WHERE tableId = '" + tableIds[i] + "' AND outletId = '"
 						+ outletId + "';";
 			}
 			if (!db.executeUpdate(sql, systemId, true)) {
@@ -1761,7 +1761,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 
 		LocalDateTime date = LocalDateTime.now();
 
-		String sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE systemId='" + systemId + "' AND orderDate > '"+date.getYear()+"/03/31';";
+		String sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE systemId='" + systemId + "' AND orderDate > '2019/03/31';";
 		EntityId entity = db.getOneRecord(sql, EntityId.class, systemId);
 
 		if(entity==null) {
@@ -2180,7 +2180,7 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 		else if (type.equals("comp"))
 			state = SUBORDER_STATE_CANCELED;
 		
-		String sql = "INSERT INTO OrderAddOnsLog "
+		String sql = "INSERT INTO OrderAddOnLog "
 				+ "(systemId, outletId, orderId, subOrderId, subOrderDate, menuId, state, itemId, quantity, rate, addOnId) VALUES('"
 				+ systemId + "', '" + outletId + "', '" + escapeString(orderId) + "', " + escapeString(subOrderId) + ", '"
 				+ escapeString(subOrderDate) + "', '" + escapeString(menuId) + "', '" + state + "', " + itemId + ", " 
@@ -2230,11 +2230,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "AND OrderAddOns.addOnId == MenuItems.menuId";
 		if(getReturnedItems) {
 			sql += " UNION ALL "
-				+ "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId, OrderAddOnsLog.state, "
-				+ "OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.itemId, OrderAddOnsLog.rate, "
-				+ "OrderAddOnsLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnsLog, MenuItems "
-				+ "WHERE OrderAddOnsLog.orderId='" + orderId + "' AND OrderAddOnsLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnsLog.addOnId == MenuItems.menuId;";
+				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
+				+ "OrderAddOnLog.quantity AS quantity, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
+				+ "OrderAddOnLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnLog, MenuItems "
+				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
+				+ "AND OrderAddOnLog.addOnId == MenuItems.menuId;";
 		}
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
@@ -2249,12 +2249,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "AND OrderAddOns.addOnId == MenuItems.menuId";
 		if(getReturnedItems) {
 			sql += " UNION ALL "
-				+ "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId, OrderAddOnsLog.state, "
-				+ "OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.itemId, OrderAddOnsLog.rate, "
-				+ "OrderAddOnsLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnsLog, MenuItems "
-				+ "WHERE OrderAddOnsLog.orderId='" + orderId + "' AND OrderAddOnsLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnsLog.subOrderId='" + subOrderId + "' "
-				+ "AND OrderAddOnsLog.addOnId == MenuItems.menuId;";
+				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
+				+ "OrderAddOnLog.quantity AS quantity, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
+				+ "OrderAddOnLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnLog, MenuItems "
+				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
+				+ "AND OrderAddOnLog.subOrderId='" + subOrderId + "' "
+				+ "AND OrderAddOnLog.addOnId == MenuItems.menuId;";
 		}
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
@@ -2271,12 +2271,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "AND OrderAddOns.addOnId == MenuItems.menuId";
 		if(getReturnedItems) {
 			sql += " UNION ALL "
-				+ "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId, OrderAddOnsLog.state, "
-				+ "OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.itemId, OrderAddOnsLog.rate, "
-				+ "OrderAddOnsLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnsLog, MenuItems "
-				+ "WHERE OrderAddOnsLog.orderId='" + orderId + "' AND OrderAddOnsLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnsLog.subOrderId='" + subOrderId + "' AND OrderAddOnsLog.itemId == " + itemId + " "
-				+ "AND OrderAddOnsLog.addOnId == MenuItems.menuId;";
+				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
+				+ "OrderAddOnLog.quantity AS quantity, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
+				+ "OrderAddOnLog.subOrderId, MenuItems.title, MenuItems.taxes, MenuItems.charges, MenuItems.station FROM OrderAddOnLog, MenuItems "
+				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
+				+ "AND OrderAddOnLog.subOrderId='" + subOrderId + "' AND OrderAddOnLog.itemId == " + itemId + " "
+				+ "AND OrderAddOnLog.addOnId == MenuItems.menuId;";
 		}
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
@@ -2285,12 +2285,12 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<OrderAddOn> getCanceledOrderedAddOns(String systemId, String orderId, String subOrderId,
 			String menuId, int itemId) {
 
-		String sql = "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId AS menuId, "
-				+ "OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.itemId, "
-				+ "OrderAddOnsLog.rate, OrderAddOnsLog.subOrderId, MenuItems.title "
-				+ "FROM OrderAddOnsLog, MenuItems WHERE OrderAddOnsLog.orderId='" + orderId + "' "
-				+ "AND OrderAddOnsLog.menuId='" + menuId + "' AND OrderAddOnsLog.subOrderId='" + subOrderId + "' "
-				+ "AND OrderAddOnsLog.itemId == " + itemId + " AND OrderAddOnsLog.addOnId == MenuItems.menuId;";
+		String sql = "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId AS menuId, "
+				+ "OrderAddOnLog.quantity AS quantity, OrderAddOnLog.itemId, "
+				+ "OrderAddOnLog.rate, OrderAddOnLog.subOrderId, MenuItems.title "
+				+ "FROM OrderAddOnLog, MenuItems WHERE OrderAddOnLog.orderId='" + orderId + "' "
+				+ "AND OrderAddOnLog.menuId='" + menuId + "' AND OrderAddOnLog.subOrderId='" + subOrderId + "' "
+				+ "AND OrderAddOnLog.itemId == " + itemId + " AND OrderAddOnLog.addOnId == MenuItems.menuId;";
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
 
@@ -2298,11 +2298,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<OrderAddOn> getReturnedAddOns(String systemId, String orderId, String subOrderId, String menuId,
 			int itemId) {
 
-		String sql = "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId AS menuId, "
-				+ "OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.rate, OrderAddOnsLog.itemId, OrderAddOnsLog.subOrderId, "
-				+ "MenuItems.title FROM OrderAddOnsLog, MenuItems WHERE OrderAddOnsLog.orderId='" + orderId
-				+ "' AND OrderAddOnsLog.menuId='" + menuId + "' AND OrderAddOnsLog.subOrderId='" + subOrderId
-				+ "' AND OrderAddOnsLog.itemId == " + itemId + " AND OrderAddOnsLog.addOnId == MenuItems.menuId;";
+		String sql = "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId AS menuId, "
+				+ "OrderAddOnLog.quantity AS quantity, OrderAddOnLog.rate, OrderAddOnLog.itemId, OrderAddOnLog.subOrderId, "
+				+ "MenuItems.title FROM OrderAddOnLog, MenuItems WHERE OrderAddOnLog.orderId='" + orderId
+				+ "' AND OrderAddOnLog.menuId='" + menuId + "' AND OrderAddOnLog.subOrderId='" + subOrderId
+				+ "' AND OrderAddOnLog.itemId == " + itemId + " AND OrderAddOnLog.addOnId == MenuItems.menuId;";
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
 
@@ -2314,11 +2314,11 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 				+ "OrderAddOns.subOrderId, MenuItems.title FROM OrderAddOns, MenuItems "
 				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.addOnId == MenuItems.menuId "
 				+ "AND OrderAddOns.systemId='" + systemId + "' UNION ALL "
-				+ "SELECT OrderAddOnsLog.addOnId, OrderAddOnsLog.menuId AS menuId, "
-				+ "OrderAddOnsLog.subOrderDate, OrderAddOnsLog.state, OrderAddOnsLog.quantity AS quantity, OrderAddOnsLog.rate, "
-				+ "OrderAddOnsLog.itemId, OrderAddOnsLog.subOrderId, "
-				+ "MenuItems.title FROM OrderAddOnsLog, MenuItems WHERE OrderAddOnsLog.orderId='" + orderId
-				+ "' AND OrderAddOnsLog.addOnId == MenuItems.menuId AND OrderAddOnsLog.state == " + SUBORDER_STATE_COMPLIMENTARY + ";";
+				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId AS menuId, "
+				+ "OrderAddOnLog.subOrderDate, OrderAddOnLog.state, OrderAddOnLog.quantity AS quantity, OrderAddOnLog.rate, "
+				+ "OrderAddOnLog.itemId, OrderAddOnLog.subOrderId, "
+				+ "MenuItems.title FROM OrderAddOnLog, MenuItems WHERE OrderAddOnLog.orderId='" + orderId
+				+ "' AND OrderAddOnLog.addOnId == MenuItems.menuId AND OrderAddOnLog.state == " + SUBORDER_STATE_COMPLIMENTARY + ";";
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
 
@@ -2326,10 +2326,10 @@ public class OrderManager extends AccessManager implements IOrder, IOrderItem{
 	public ArrayList<OrderAddOn> getOrderedAddOns(String systemId, String orderId, String subOrderId, String menuId, String itemId) {
 
 		String sql = "SELECT OrderAddOns.addOnId, OrderAddOns.quantity, OrderAddOns.rate "
-				+ ", MenuItems.title, OrderAddOnsLog.state FROM OrderAddOns, MenuItems "
+				+ ", MenuItems.title, OrderAddOnLog.state FROM OrderAddOns, MenuItems "
 				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.addOnId == MenuItems.menuId "
-				+ "AND OrderAddOns.systemId='" + systemId + "' AND OrderAddOnsLog.subOrderId='" + subOrderId
-				+ "' AND OrderAddOnsLog.menuId == '"+menuId+"' AND OrderAddOnsLog.itemId == '" + itemId + "';";
+				+ "AND OrderAddOns.systemId='" + systemId + "' AND OrderAddOnLog.subOrderId='" + subOrderId
+				+ "' AND OrderAddOnLog.menuId == '"+menuId+"' AND OrderAddOnLog.itemId == '" + itemId + "';";
 		return db.getRecords(sql, OrderAddOn.class, systemId);
 	}
 

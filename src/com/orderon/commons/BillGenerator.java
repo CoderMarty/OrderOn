@@ -241,7 +241,7 @@ public class BillGenerator {
 	public String makeBill(String orderId) {
 		
 		Order order = orderDao.getOrderById(outletId, orderId);
-		calculatedPayment = paymentDao.getCalculatePaymentForOrder(outletId, orderId);
+		//calculatedPayment = paymentDao.getCalculatePaymentForOrder(outletId, orderId);
 		
 		orderItems = itemDao.getOrderedItemForBill(outletId, orderId, false);
 		

@@ -222,6 +222,7 @@ public class Services {
 	// static Logger logger = Logger.getLogger(Services.class);
 	private static final String api_version = "3.4.23.8";
 	private static final String stable_api_version = "3.4.23.8";
+	private static final String minimum_app_version = "3.4.23.8";
 	private static final String billStyle = "<html style='max-width:377px;'><head><style>p{margin: 0 0 10px;} .table-condensed>thead>tr>th, .table-condensed>tbody>tr>th, .table-condensed>tfoot>tr>th, .table-condensed>thead>tr>td,"
 			+ " h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {font-family: inherit;font-weight: 500;line-height: 1.1;color: inherit;}"
 			+ " .table-condensed>tbody>tr>td, .table-condensed>tfoot>tr>td {padding: 1px;} .centered{text-align: center;} .text-right{text-align: right;} .mt0{margin-top: 0px;} .mt5{margin-top: 5px;} .mt-20{margin-top: 20px;}"
@@ -244,10 +245,38 @@ public class Services {
 			+ " .addOn-td{border-top: none !important;padding-top: 5px !important;padding-bottom: 5px !important;line-height: 1 !important;font-size: 12px !important}"
 			+ "</style></head><body style='max-width:377px; margin: 0px; font-family:Arial; background:#efefef;'>";
 
+	
+	private boolean compareApiVersion(String version) {
+		String[] clientApiVersion = version.split("[.]");
+		String[] minApiVersion = minimum_app_version.split("[.]");
+		
+		if(clientApiVersion.length == 2) {
+			return false;
+		}
+		if(minApiVersion.length == 2) {
+			if(Integer.parseInt(clientApiVersion[0])==Integer.parseInt(minApiVersion[0])) {
+				if(Integer.parseInt(clientApiVersion[1]) >= Integer.parseInt(minApiVersion[1])) {
+					return true;
+				}
+			}
+		}else {
+			if(Integer.parseInt(clientApiVersion[0])==Integer.parseInt(minApiVersion[0])) {
+				if(Integer.parseInt(clientApiVersion[1]) == Integer.parseInt(minApiVersion[1])) {
+					if(Integer.parseInt(clientApiVersion[2]) >= Integer.parseInt(minApiVersion[2])) {
+						return true;
+					}
+				}else if(Integer.parseInt(clientApiVersion[1]) > Integer.parseInt(minApiVersion[1])) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
 	@GET
-	@Path("/v1/heartbeat")
+	@Path("/v4/heartbeat")
 	@Produces(MediaType.APPLICATION_JSON)
-	public String hearbeat() {
+	public String hearbeat(@QueryParam("appVersion") String appVersion) {
 		JSONObject outObj = new JSONObject();
 		try {
 			String systemId = Configurator.getSystemId();
@@ -259,6 +288,18 @@ public class Services {
 			outObj.put("hotelId", systemId);
 			outObj.put("systemId", systemId);
 			outObj.put("ip", Configurator.getIp());
+			
+			if(appVersion.equals("debug")) {
+				outObj.put("message", "App is in debug mode.");
+			}else if(appVersion.equals("portal")) {
+				outObj.put("message", "Portal mode");
+			}else if(!this.compareApiVersion(appVersion)) {
+				outObj.put("status", false);
+				outObj.put("message", "Please update your app.");
+				return outObj.toString();
+			}else {
+				outObj.put("message", "App is upto date.");
+			}
 			outObj.put("status", true);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -3804,6 +3845,8 @@ public class Services {
 					+ "<tr><th style='text-align:left;'>PARTICULAR</th><th>REASON</th><th style='text-center;'>QTY</th><th style='text-align:right;'>RATE</th></tr>"
 					+ "</thead><tbody>";
 			
+			itemDao.beginTransaction(systemId);
+			
 			for (int i = 0; i < orderItems.length(); i++) {
 				orderedItems = orderItems.getJSONObject(i);
 				
@@ -4266,9 +4309,9 @@ public class Services {
 				String smsText = "Order Marked Void. BillNo: "+billNo+", UserName: "+orderId.split(":")[0]
 						+" , Reason: "+inObj.getString("reason")+" , Authorizer: " +inObj.getString("authId") + ".";
 			
-				if(inObj.getString("hotelId").equals("am0001"))
+				if(systemId.equals("am0001"))
 					return outObj.toString();
-				SendEmailAndSMS(inObj.getString("hotelId"), subject, emailer, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
+				SendEmailAndSMS(systemId, subject, emailer, smsText, "", AccessManager.DESIGNATION_OWNER, true, false);
 
 				outObj.put("hasWalletPayment", false);
 				if(payment != null) {

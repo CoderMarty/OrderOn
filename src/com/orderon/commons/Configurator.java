@@ -58,18 +58,6 @@ public class Configurator {
 		return "";
 	}
 	
-	public static String getTransactionLogLocation() {
-		String config = readConfigFile(getConfigFile());
-		JSONObject configObj;
-		try {
-			configObj = new JSONObject(config);
-			return configObj.getString("transactionLog");
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return "/";
-	}
-	
 	public static String getIp() {
 		String config = readConfigFile(getConfigFile());
 		JSONObject configObj;
@@ -79,7 +67,7 @@ public class Configurator {
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		return "localhost";
+		return "localhost:8080";
 	}
 	
 	public static String getDownloadLocation() {
@@ -116,6 +104,7 @@ public class Configurator {
 			return false;
 		}
 	}
+	
 	public static String getTomcatLocation() {
 		return System.getenv("CATALINA_HOME");
 	}

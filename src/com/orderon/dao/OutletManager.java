@@ -88,7 +88,7 @@ public class OutletManager extends AccessManager implements IOutlet {
 
 	@Override
 	public Settings getHotelSettings(String systemId) {
-		String sql = "SELECT * FROM System;";
+		String sql = "SELECT * FROM Hotel;";
 		return db.getOneRecord(sql, Settings.class, systemId);
 	}
 

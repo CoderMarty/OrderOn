@@ -352,6 +352,7 @@ public class AccessManager implements IAccess{
 				+ "DELETE FROM Flags WHERE id = 42;"
 				+ "DELETE FROM Flags WHERE id = 43;"
 				+ "DELETE FROM Flags WHERE id = 46;"
+				+ "DELETE FROM Flags WHERE id = 500;"
 				+ "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
 				+ "(41, '"+systemId+"', 'Breakfast', 16), "
 				+ "(42, '"+systemId+"', 'Lunch', 17), "
@@ -364,10 +365,11 @@ public class AccessManager implements IAccess{
 			
 			sql += "Update System SET version = '3.4.23.3';";
 		}else if(oldVersion.equals("3.4.23.1")) {
-			sql = "ALTER TABLE ReportBuffer ADD COLUMN serviceInfo TEXT DEFAULT '{}';"
-				+ "ALTER TABLE Orders ADD COLUMN billTaken TEXT DEFAULT 'false';";
+			sql = "ALTER TABLE Orders ADD COLUMN billTaken TEXT DEFAULT 'false';";
 			
 			sql += "Update System SET version = '3.4.23.2';";
+			
+			sql += "ALTER TABLE ReportBuffer ADD COLUMN serviceInfo TEXT DEFAULT '{}';";
 		}else if(oldVersion.equals("3.4.22.2")) {
 			sql = "ALTER TABLE System ADD COLUMN appSettings TEXT;";
 			
@@ -389,8 +391,8 @@ public class AccessManager implements IAccess{
 			sql += "UPDATE System SET appSettings = '" + appSettings + "';";
 			
 			sql += "Update System SET version = '3.4.23.1';";
-		}else if(oldVersion.equals("3.3.4.2")) {
-			sql = "Update System SET version = '3.3.3.27';";
+		}else if(oldVersion.equals("3.3.4.9")) {
+			sql = "Update Hotel SET version = '3.3.3.27';";
 			
 		}else if(oldVersion.equals("3.4.22.1")) {
 			sql = "Update System SET version = '3.4.22.2';";
@@ -655,6 +657,88 @@ public class AccessManager implements IAccess{
 			
 		} else if(oldVersion.equals("3.4.5")) {
 
+			//Upgrading bank
+			sql = "CREATE TABLE Bank2 (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
+			+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));"
+			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, systemId, outletId, section) "
+			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, hotelId, section FROM Bank;"
+			+	"DROP TABLE Bank;"
+			+	"ALTER TABLE Bank2 RENAME TO Bank;";
+			
+			sql += "Update System SET version = '3.4.6';";
+			
+		} else if(oldVersion.equals("3.4.4")) {
+
+			//Upgrading Collections
+			sql = "CREATE TABLE Collections2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+			+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
+			+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));"
+			+	"INSERT INTO Collections2 ( id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
+			+	"isActive, isActiveOnZomato, outletId, systemId) "
+			+	"SELECT Id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
+			+	"isActive, isActiveOnZomato, hotelId, hotelId FROM Collections;"
+			+	"DROP TABLE Collections;"
+			+	"ALTER TABLE Collections2 RENAME TO Collections;";
+			
+			sql += "Update System SET version = '3.4.5';";
+			
+		} else if(oldVersion.equals("3.4.3")) {
+
+			//Upgrading Discounts
+			sql = "CREATE TABLE Discounts ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, type TEXT NOT NULL, foodValue INTEGER DEFAULT 0, barValue INTEGER DEFAULT 0,"
+			+	"startDate TEXT NOT NULL, expiryDate TEXT, usageLimit TEXT NOT NULL, validCollections TEXT, offerType TEXT, "
+			+	"applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', "
+			+	"startTime TEXT, endTime TEXT, firstorderOnly TEXT DEFAULT 'false', minOrderAmount INTEGER DEFAULT 0, "
+			+	"maxFoodDiscountAmount DOUBLE DEFAULT 0.0, maxBarDiscountAmount DOUBLE DEFAULT 0.0, "
+			+	"outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Discounts ( name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
+			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
+			+	"maxBarDiscountAmount, outletId, systemId)"
+			+	"SELECT name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
+			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
+			+	"maxBarDiscountAmount, hotelId, hotelId FROM Discount;"
+			+	"DROP TABLE Discount;";
+			
+			sql += "Update System SET version = '3.4.4';";
+			
+		} else if(oldVersion.equals("3.4.2")) {
+
+			//Upgrading Taxes
+			sql = "CREATE TABLE Taxes2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Taxes2 (id, name, value, type, isActive, applicableOn, outletId, systemId) "
+			+	"SELECT id, name, value, type, isActive, applicableOn, hotelId, hotelId FROM Taxes;"
+			+	"DROP TABLE Taxes;"
+			+	"ALTER TABLE Taxes2 RENAME TO Taxes;";
+			
+			sql += "Update System SET version = '3.4.3';";
+			
+		} else if(oldVersion.equals("3.4.1")) {
+
+			//Upgrading Charges
+			sql = "CREATE TABLE Charges2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
+			+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Charges2 (id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, chargeLevel, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, systemId, outletId) "
+			+	"SELECT id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, applicableOn, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, hotelId, hotelId FROM Charges;"
+			+	"DROP TABLE Charges;"
+			+	"ALTER TABLE Charges2 RENAME TO Charges;";
+
+			//Upgrading Tiers
+			sql += "CREATE TABLE Tiers2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, "
+			+	"chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, outletId TEXT NOT NULL,"
+			+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Tiers2 ( value, chargeAlwaysApplicable, minBillAmount, outletId, systemId) "
+			+	"SELECT value, chargeAlwaysApplicable, minBillAmount, hotelId, hotelId FROM Tiers;"
+			+	"DROP TABLE Tiers;"
+			+	"ALTER TABLE Tiers2 RENAME TO Tiers;";
+			
+			sql += "Update System SET version = '3.4.2';";
+			
+		} else if(oldVersion.equals("3.3.3.27")) {
+			
 
 			//Updating Hotel Table. Renamed to System, removed unused entires.
 			sql += "CREATE TABLE System ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
@@ -686,89 +770,7 @@ public class AccessManager implements IAccess{
 			+	"UPDATE System SET deductionType = 'DELETE' WHERE deductionType != 0;"
 			+	"DROP TABLE Hotel;";
 			
-			sql += "Update System SET version = '3.4.6';";
-			
-		} else if(oldVersion.equals("3.4.4")) {
-
-			//Upgrading Collections
-			sql = "CREATE TABLE Collections2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
-			+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
-			+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));"
-			+	"INSERT INTO Collections2 ( id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
-			+	"isActive, isActiveOnZomato, outletId, systemId) "
-			+	"SELECT Id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
-			+	"isActive, isActiveOnZomato, hotelId, hotelId FROM Collections;"
-			+	"DROP TABLE Collections;"
-			+	"ALTER TABLE Collections2 RENAME TO Collections;";
-			
-			sql += "Update Hotel SET version = '3.4.5';";
-			
-		} else if(oldVersion.equals("3.4.3")) {
-
-			//Upgrading Discounts
-			sql = "CREATE TABLE Discounts ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, type TEXT NOT NULL, foodValue INTEGER DEFAULT 0, barValue INTEGER DEFAULT 0,"
-			+	"startDate TEXT NOT NULL, expiryDate TEXT, usageLimit TEXT NOT NULL, validCollections TEXT, offerType TEXT, "
-			+	"applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', "
-			+	"startTime TEXT, endTime TEXT, firstorderOnly TEXT DEFAULT 'false', minOrderAmount INTEGER DEFAULT 0, "
-			+	"maxFoodDiscountAmount DOUBLE DEFAULT 0.0, maxBarDiscountAmount DOUBLE DEFAULT 0.0, "
-			+	"outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
-			+	"INSERT INTO Discounts ( name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
-			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
-			+	"maxBarDiscountAmount, outletId, systemId)"
-			+	"SELECT name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
-			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
-			+	"maxBarDiscountAmount, hotelId, hotelId FROM Discount;"
-			+	"DROP TABLE Discount;";
-			
-			sql += "Update Hotel SET version = '3.4.4';";
-			
-		} else if(oldVersion.equals("3.4.2")) {
-
-			//Upgrading Taxes
-			sql = "CREATE TABLE Taxes2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
-			+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
-			+	"INSERT INTO Taxes2 (id, name, value, type, isActive, applicableOn, outletId, systemId) "
-			+	"SELECT id, name, value, type, isActive, applicableOn, hotelId, hotelId FROM Taxes;"
-			+	"DROP TABLE Taxes;"
-			+	"ALTER TABLE Taxes2 RENAME TO Taxes;";
-			
-			sql += "Update Hotel SET version = '3.4.3';";
-			
-		} else if(oldVersion.equals("3.4.1")) {
-
-			//Upgrading Charges
-			sql = "CREATE TABLE Charges2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
-			+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
-			+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
-			+	"INSERT INTO Charges2 (id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, chargeLevel, "
-			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, systemId, outletId) "
-			+	"SELECT id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, applicableOn, "
-			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, hotelId, hotelId FROM Charges;"
-			+	"DROP TABLE Charges;"
-			+	"ALTER TABLE Charges2 RENAME TO Charges;";
-
-			//Upgrading Tiers
-			sql += "CREATE TABLE Tiers2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, "
-			+	"chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, outletId TEXT NOT NULL,"
-			+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);"
-			+	"INSERT INTO Tiers2 ( value, chargeAlwaysApplicable, minBillAmount, outletId, systemId) "
-			+	"SELECT value, chargeAlwaysApplicable, minBillAmount, hotelId, hotelId FROM Tiers;"
-			+	"DROP TABLE Tiers;"
-			+	"ALTER TABLE Tiers2 RENAME TO Tiers;";
-			
-			sql += "Update Hotel SET version = '3.4.2';";
-			
-		} else if(oldVersion.equals("3.3.3.27")) {
-			
-			//Upgrading bank
-			sql = "CREATE TABLE Bank2 (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
-			+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));"
-			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, systemId, outletId, section) "
-			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, hotelId, section FROM Bank;"
-			+	"DROP TABLE Bank;"
-			+	"ALTER TABLE Bank2 RENAME TO Bank;";
-			
-			sql += "Update Hotel SET version = '3.4.1';";
+			sql += "Update System SET version = '3.4.1';";
 		} 
 		//Init Updated
 		if(oldVersion.equals("3.3.3.26")) {
