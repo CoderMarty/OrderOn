@@ -60,9 +60,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
-import org.apache.commons.io.FileUtils;
 import org.glassfish.jersey.internal.util.Base64;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -288,6 +288,7 @@ public class Services {
 			outObj.put("hotelId", systemId);
 			outObj.put("systemId", systemId);
 			outObj.put("ip", Configurator.getIp());
+			outObj.put("status", true);
 			
 			if(appVersion.equals("debug")) {
 				outObj.put("message", "App is in debug mode.");
@@ -300,7 +301,6 @@ public class Services {
 			}else {
 				outObj.put("message", "App is upto date.");
 			}
-			outObj.put("status", true);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -188,9 +188,9 @@ public class ReservationServices {
 			ServiceLog service = serviceDao.getCurrentService(inObj.getString("hotelId"));
 			
 			Settings setting = outletDao.getSettings(inObj.getString("hotelId"));
-			outObj = orderDao.newOrder(inObj.getString("systemId"), inObj.getString("outletId"), setting.getHotelType(), inObj.getString("userId"), tableIds,
-					reservation.getCovers(), reservation.getCustomerName(), reservation.getMobileNumber(), reservation.getCustomerAddress(),
-					inObj.has("section")?inObj.getString("section"):"", "", service);
+			//outObj = orderDao.newOrder(inObj.getString("systemId"), inObj.getString("outletId"), setting.getHotelType(), inObj.getString("userId"), tableIds,
+			//		reservation.getCovers(), reservation.getCustomerName(), reservation.getMobileNumber(), reservation.getCustomerAddress(),
+			//		inObj.has("section")?inObj.getString("section"):"", "", service);
 			
 			if(outObj.getBoolean("status")) {
 				dao.commitTransaction(inObj.getString("hotelId"));
