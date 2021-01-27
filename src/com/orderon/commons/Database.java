@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -8,13 +8,16 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbFile;
+import org.json.JSONArray;
+
+import com.orderon.dao.AccessManager.DBTransaction;
+import com.orderon.dao.ServerManager;
+import com.orderon.interfaces.IServer;
 
 public class Database {
 	private Boolean mAutoCommit;
 	private Connection mConn;
-	private String transactionLog = "";
+	private StringBuilder transactionLog;
 
 	public interface OrderOnEntity {
 		public void readFromDB(ResultSet rs);
@@ -22,11 +25,12 @@ public class Database {
 	
 	public Database(Boolean transactionBased) {
 		mAutoCommit = !transactionBased;
+		transactionLog = new StringBuilder();
 	}
 	
-	public Connection getConnection(String hotelId) throws Exception {
+	public Connection getConnection(String outletId) throws Exception {
 		try {
-			String connectionURL = Configurator.getDBConnectionString() + hotelId + ".sqlite";
+			String connectionURL = Configurator.getDBConnectionString() + outletId + ".sqlite";
 			Connection connection = null;
 			Class.forName("org.sqlite.JDBC");
 			connection = DriverManager.getConnection(connectionURL);
@@ -36,32 +40,17 @@ public class Database {
 		}
 	}
 	
-	public Connection getConnection() throws Exception{
-		return getConnection(Configurator.getHotelId());
-	}
-	
-	private void openDB(String hotelId) {
-		if(hotelId.equals("")) {
-			hotelId = Configurator.getHotelId();
-			if(hotelId.equals("")) {
-				mConn = null;
-				return;
-			}
+	private void openDB(String outletId) {
+		if(outletId.equals("")) {
+			mConn = null;
+			return;
 		}
 		try {
 			if (mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
-				
-				String connectionString = Configurator.getDBConnectionString() + hotelId + ".sqlite";
-				if(Configurator.getIsExtenstion()) {
-					NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(null, Configurator.getExtensionUser(), Configurator.getExtensionPassword());
-					SmbFile file = new SmbFile(connectionString, auth);
-					connectionString = file.getPath();
-				}
-				
+				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
-				
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -71,7 +60,7 @@ public class Database {
 	
 	private void closeDB() {
 		try {
-			if (mAutoCommit) {
+			if (mAutoCommit && mConn != null) {
 				mConn.close();
 				mConn = null;
 			}
@@ -80,13 +69,15 @@ public class Database {
 		}
 	}
 	
-	public void beginTransaction(String hotelId) {
-		if(hotelId.equals(""))
-			hotelId = Configurator.getHotelId();
+	public void beginTransaction(String outletId) {
 		try {
-			if (mAutoCommit == false) {
+			if(outletId.equals("")) {
+				mConn = null;
+				return;
+			}
+			if (!mAutoCommit) {
 				Class.forName("org.sqlite.JDBC");
-				String connectionString = Configurator.getDBConnectionString() + hotelId + ".sqlite";
+				String connectionString = Configurator.getDBConnectionString() + outletId + ".sqlite";
 				mConn = DriverManager.getConnection(connectionString);
 				mConn.setAutoCommit(mAutoCommit);
 			}
@@ -94,44 +85,55 @@ public class Database {
 			e.printStackTrace();
 		}
 	}
-	
-	public void beginTransaction(){
-		beginTransaction(Configurator.getHotelId());
-	}
 
-	public void commitTransaction() {
+	public void commitTransaction(String outletId, boolean isAServerUpdate) {
 		try {
+			if(outletId.equals("")) {
+				mConn = null;
+				return;
+			}
+			if(mConn == null) {
+				return;
+			}
 			if (!mAutoCommit) {
 				mConn.commit();
 				mConn.close();
 				mConn = null;
-				if(!Configurator.getIsServer()) {
-					String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
-					Configurator.writeToServerFile(previousContents + transactionLog);
-				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			if (mAutoCommit) {
+				return;
+			}
+			//If syncing on server
+			if(isAServerUpdate) {
+				return;
+			}
+			loadTransactionsToDB(outletId);
 		}
 	}
 
 	public void rollbackTransaction() {
 		try {
-			if (mAutoCommit == false) {
+			if(mConn == null) {
+				return;
+			}
+			if (!mAutoCommit) {
 				mConn.rollback();
 				mConn.close();
 				mConn = null;
-				transactionLog = "";
+				transactionLog = new StringBuilder();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public <T extends OrderOnEntity> T getOneRecord(String sql, Class<T> ref, String hotelId) {
+	public <T extends OrderOnEntity> T getOneRecord(String sql, Class<T> ref, String outletId) {
 		Statement stmt = null;
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
 			if (rs.next()) {
@@ -141,17 +143,19 @@ public class Database {
 				return entity;
 			}
 		} catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
 		
-		closeDB();
 		return null;
 	}
 
-	public Boolean hasRecords(String sql, String hotelId) {
+	public Boolean hasRecords(String sql, String outletId) {
 		Statement stmt = null;
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 
 			ResultSet rs = stmt.executeQuery(sql);
@@ -161,17 +165,18 @@ public class Database {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
-		closeDB();
 		return false;
 	}
 
 	public <T extends OrderOnEntity> ArrayList<T> getRecords(String sql,
-			Class<T> ref, String hotelId) {
+			Class<T> ref, String outletId) {
 		Statement stmt = null;
 		ArrayList<T> items = new ArrayList<T>();
 		try {
-			openDB(hotelId);
+			openDB(outletId);
 			stmt = mConn.createStatement();
 
 			ResultSet rs = stmt.executeQuery(sql);
@@ -180,13 +185,40 @@ public class Database {
 				entity.readFromDB(rs);
 				items.add(entity);
 			}
-			closeDB();
-			return items;
-		} catch (Exception e) {
+		} catch (NullPointerException e) {
+			System.out.println(sql);
+			System.out.println("No Record Found");
+		}catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
 			e.printStackTrace();
+		} finally {
+			closeDB();
 		}
-		items.clear();
-		closeDB();
+		return items;
+	}
+
+	public JSONArray getJsonDBRecords(String sql, String outletId) {
+		Statement stmt = null;
+		JSONArray items = new JSONArray();
+		try {
+			openDB(outletId);
+			stmt = mConn.createStatement();
+
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				DBTransaction entity = DBTransaction.class.newInstance();
+				entity.readFromDB(rs);
+				items.put(entity.getTransaction());
+			}
+		} catch (NullPointerException e) {
+			System.out.println(sql);
+			System.out.println("No Record Found");
+		}catch (Exception e) {
+			System.out.println("Outlet Id:" + outletId);
+			e.printStackTrace();
+		} finally {
+			closeDB();
+		}
 		return items;
 	}
 
@@ -198,15 +230,15 @@ public class Database {
 	 * Once the database on cloud is updated, this contents of this file are deleted.
 	 * 
 	 * @param sql 			Stores the sql queries.
-	 * @param hotelId 		Stores the hotel Id of the current hotel.
+	 * @param outletId 		Stores the hotel Id of the current hotel.
 	 * @param writeToFile	True if needs this transaction be shown on cloud.
 	 * 
 	 * @return				True if Database is updated.
 	 */
-	public Boolean executeUpdate(String sql, String hotelId, boolean writeToFile) {
+	public Boolean executeUpdate(String sql, String outletId, boolean writeToFile) {
 		Boolean ret = false;
 		Statement stmt = null;
-		openDB(hotelId);
+		openDB(outletId);
 		if(mConn == null)
 			return false;
 		try {
@@ -215,39 +247,40 @@ public class Database {
 			stmt.close();
 			ret = true;
 		} catch (Exception e) {
+			System.out.println(sql);
 			e.printStackTrace();
-		}
-		closeDB();
-		if(ret && writeToFile && !Configurator.getIsServer()){
-			sql = sql.trim();
-			if(!sql.endsWith(";"))
-				transactionLog += sql + ';';
-			else
-				transactionLog += sql;
-			if(mAutoCommit) {
-				String previousContents = Configurator.readConfigFile(Configurator.getServerFile());
-				Configurator.writeToServerFile(previousContents + transactionLog);
-				transactionLog = "";
+		} finally {
+			closeDB();
+			if(ret && writeToFile){
+				sql = sql.trim();
+				if(sql.isEmpty()) {
+					return ret;
+				}
+				transactionLog.append(sql);
+				if(!sql.endsWith(";"))
+					transactionLog.append(";");
+				if(mAutoCommit) {
+					loadTransactionsToDB(outletId);
+				}
 			}
 		}
 		return ret;
 	}
-
-	/*
-	 * Use this method for INSERT/UPDATE/DELETE queries.
-	 * Updates the database and also writes to the transaction log file.
-	 * The transaction log file is a file that stores all the transaction that takes please on the app/management portal/kds.
-	 * This file is used to update the database on the cloud periodically. 
-	 * Once the database on cloud is updated, this contents of this file are deleted.
-	 * 
-	 * @param sql 			Stores the sql queries.
-	 * @param hotelId 		Stores the hotel Id of the current hotel.
-	 * @param writeToFile	True if needs this transaction be shown on cloud.
-	 * 
-	 * @return				True if Database is updated.
-	 */
-	public Boolean executeUpdate(String sql, boolean writeToFile){
-		return executeUpdate(sql, "", writeToFile);
+	
+	private void loadTransactionsToDB(String outletId) {
+		
+		if(mConn != null) {
+			return;
+		}
+		if(Configurator.getIsServer() || Configurator.getIsDebug()) {
+			return;
+		}
+		IServer dao = new ServerManager(false);
+		if(transactionLog.toString().isEmpty()) {
+			return;
+		}
+		dao.addTransaction(outletId, transactionLog.toString());
+		transactionLog = new StringBuilder();
 	}
 	
 	public static String readRsString(ResultSet rs, String fieldName) {
@@ -290,6 +323,15 @@ public class Database {
 		} catch (Exception e) {
 			return 0;
 		}
+	}
+
+	public static long readRsLong(ResultSet rs, String fieldName) {
+		try {
+			return rs.getLong(fieldName);
+		} catch (Exception e) {
+			return 0;
+		}
+		
 	}
 	
 	public static BigDecimal readRsBigDecimal(ResultSet rs, String fieldName) {

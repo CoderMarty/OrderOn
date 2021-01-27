@@ -1,12 +1,10 @@
-package com.orderon;
+package com.orderon.dao;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
-import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -15,12 +13,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.orderon.Database.OrderOnEntity;
+import com.orderon.commons.Database;
+import com.orderon.commons.Database.OrderOnEntity;
+import com.orderon.commons.MeasurableUnit;
+import com.orderon.interfaces.IAccess;
+import com.orderon.interfaces.IMenuItem;
+import com.orderon.interfaces.IOutlet;
+import com.orderon.interfaces.IService;
+import com.orderon.interfaces.IUser;
 
 /**
  * @author Marty
@@ -34,107 +41,273 @@ import com.orderon.Database.OrderOnEntity;
  * @author Marty
  *
  */
-public class AccessManager {
-	public static final int ADMIN_USER = 0;
-	public static final int WAITER_USER = 1;
-	public static final int ORDER_STATE_SERVICE = 0;
-	public static final int ORDER_STATE_BILLING = 1;
-	public static final int ORDER_STATE_OFFKDS = 2;
-	public static final int ORDER_STATE_COMPLETE = 3;
-	public static final int ORDER_STATE_VOIDED = 99;
-	public static final int ORDER_STATE_CANCELED = 101;
-	public static final int ORDER_STATE_HIDDEN = 102;
-	public static final int ORDER_STATE_COMPLIMENTARY = 50;
-	public static final int SUBORDER_STATE_PENDING = 0;
-	public static final int SUBORDER_STATE_PROCESSING = 2;
-	public static final int SUBORDER_STATE_COMPLETE = 1;
-	public static final int SUBORDER_STATE_RECIEVED = 3;
-	public static final int SUBORDER_STATE_RETURNED = 100;
-	public static final int SUBORDER_STATE_CANCELED = 101;
-	public static final int SUBORDER_STATE_VOIDED = 99;
-	public static final int SUBORDER_STATE_COMPLIMENTARY = 50;
-	public static final int VEG = 1;
-	public static final int NONVEG = 2;
-	public static final int ALCOHOLIC = 3;
-	public static final int NONALCOHOLIC = 4;
-	public static final int CASH_ACCOUNT = 1;
-	public static final int MENUITEM_STATE_AVAILABLE = 1;
-	public static final int MENUITEM_STATE_UNAVAILABLE = 0;
-	public static final int AUTH_TOKEN = 0;
-	public static final int PRESENT = 1;
-	public static final int ABSENT = 3;
-	public static final int EXCUSED = 2;
-	public static final int AUTHORIZE = 1;
-	public static final int UNAUTHORIZE = 0;
-	public static final int INHOUSE = 1;
-	public static final int HOME_DELIVERY = 0;
-	public static final int TAKE_AWAY = 2;
-	public static final int BAR = 3;
-	public static final int NON_CHARGEABLE = 4;
-	public static final int PERCENTAGE_LOYALTY_OFFER = 0;
-	public static final int CASH_LOYALTY_OFFER = 1;
-	public static final int PRODUCT_LOYALTY_OFFER = 2;
-	public static final int ONLINE_ORDER_NEW = 0;
-	public static final int ONLINE_ORDER_ACCEPTED = 1;
-	public static final int ONLINE_ORDER_DECLINED = 2;
-	public static final int BILLTYPE_NUMBER_REFRESH = 3;
-	public static final int BILLTYPE_NUMBER = 2;
-	public static final int BILLTYPE_BF = 1;
-	public static final int DEPARTMENT_FOOD = 1;
-	public static final int DEPARTMENT_NON_ALCOHOLIC_BEVERAGE = 2;
-	public static final int DEPARTMENT_ALCOHOLIC_BEVRAGE = 3;
-	public static final int RESERVATION_STATE_CANCELLED= 4;
-	public static final int RESERVATION_STATE_BOOKED= 1;
-	public static final int RESERVATION_STATE_WAITING= 2;
-	public static final int RESERVATION_STATE_DELAYED= 3;
-	public static final int RESERVATION_STATE_SEATED= 4;
-	public static final int TYPE_RESERVATION= 0;
-	public static final int TYPE_WAITLIST= 1;
-	public static final int DISCOUNT_TYPE_FIXED = 1;
-	public static final int DISCOUNT_TYPE_PERCENTAGE = 2;
-	public static final int DISCOUNT_TYPE_FREEITEM = 3;
-	/*
-	 * KDS and POSTPAID
-	 * 
-	 * ORDER STATES 0,1,2,3; ORDERITEM STATES 0,2,3,1
-	 * 
-	 * 
-	 * NON-KDS and POSTPAID
-	 * 
-	 * ORDER STATES 0,1,3; ORDERITEM STATES 1
-	 * 
-	 * KDS and PREPAID
-	 * 
-	 * ORDER STATES 1,2,3; ORDERITEM STATES 0,2,3,1
-	 * 
-	 * 
-	 * NON-KDS and PREPAID
-	 * 
-	 * ORDER STATES 1,2,3 ORDERITEM STATES 1
-	 */
+/**
+ * @author Marty
+ *
+ */
+/**
+ * @author Marty
+ *
+ */
+public class AccessManager implements IAccess{
+	
+	public static int ORDER_STATE_SERVICE = 0;
+	public static int ORDER_STATE_BILLING = 1;
+	public static int ORDER_STATE_OFFKDS = 2;
+	public static int ORDER_STATE_COMPLETE = 3;
+	public static int ORDER_STATE_VOIDED = 99;
+	public static int ORDER_STATE_CANCELED = 101;
+	public static int ORDER_STATE_HIDDEN = 102;
+	public static int ORDER_STATE_COMPLIMENTARY = 50;
+	
+	public static int SUBORDER_STATE_PENDING = 0;
+	public static int SUBORDER_STATE_PROCESSING = 2;
+	public static int SUBORDER_STATE_COMPLETE = 1;
+	public static int SUBORDER_STATE_RECIEVED = 3;
+	public static int SUBORDER_STATE_RETURNED = 100;
+	public static int SUBORDER_STATE_CANCELED = 101;
+	public static int SUBORDER_STATE_VOIDED = 99;
+	public static int SUBORDER_STATE_COMPLIMENTARY = 50;
+	
+	public static int VEG = 1;
+	public static int NONVEG = 2;
+	public static int ALCOHOLIC = 3;
+	public static int NONALCOHOLIC = 4;
+	
+	public static int CASH_ACCOUNT = 1;
+	
+	public static int AUTH_TOKEN = 0;
+	public static int PRESENT = 1;
+	public static int ABSENT = 3;
+	public static int EXCUSED = 2;
+	public static int AUTHORIZE = 1;
+	public static int UNAUTHORIZE = 0;
+	
+	public static int DINE_IN = 1;
+	public static int HOME_DELIVERY = 0;
+	public static int TAKE_AWAY = 2;
+	public static int BAR = 3;
+	public static int NON_CHARGEABLE = 4;
+	
+	public static int PERCENTAGE_LOYALTY_OFFER = 0;
+	public static int CASH_LOYALTY_OFFER = 1;
+	public static int PRODUCT_LOYALTY_OFFER = 2;
+	
+	public static int ONLINE_ORDER_NEW = 0;
+	public static int ONLINE_ORDER_ACCEPTED = 1;
+	public static int ONLINE_ORDER_DELIVERED = 3;
+	public static int ONLINE_ORDER_DECLINED = 2;
+	public static int ONLINE_ORDER_REJECTED = 99;
+	public static int ONLINE_ORDER_TIMEDOUT = 100;
 
-	private Database db = null;
+	public static String BILLTYPE_BF = "BF";
+	public static String BILLTYPE_YEARLY_REFRESH = "YEARLY";
+	public static String BILLTYPE_MONTHLY_REFRESH = "MONTHLY";
+	public static String BILLTYPE_DAILY_REFRESH = "DAILY";
+	public static String GENERATE_BILL_PRE_ORDERING = "PRE_ORDERING";
+	public static String GENERATE_BILL_POST_ORDERING = "POST_ORDERING";
+	
+	public static int DEPARTMENT_FOOD = 1;
+	public static int DEPARTMENT_NON_ALCOHOLIC_BEVERAGE = 2;
+	public static int DEPARTMENT_ALCOHOLIC_BEVRAGE = 3;
+	
+	public static int RESERVATION_STATE_CANCELLED= 4;
+	public static int RESERVATION_STATE_BOOKED= 1;
+	public static int RESERVATION_STATE_WAITING= 2;
+	public static int RESERVATION_STATE_DELAYED= 3;
+	public static int RESERVATION_STATE_SEATED= 4;
+	public static int TYPE_RESERVATION= 0;
+	public static int TYPE_WAITLIST= 1;
+	
+	public static int DISCOUNT_TYPE_FIXED = 1;
+	public static int DISCOUNT_TYPE_PERCENTAGE = 0;
+	public static String OFFER_TYPE_FIXED = "FIXED";
+	public static String OFFER_TYPE_PERCENTAGE = "PERCENTAGE";
+	public static String DISCOUNT_TYPE_DISCOUNT_CODE = "DISCOUNT_CODE";
+	public static String DISCOUNT_TYPE_ZOMATO_VOUCHER = "ZOMATO_VOUCHER";
+	public static String DISCOUNT_TYPE_FIXED_RUPEE_DISCOUNT = "FIXED_RUPEE_DISCOUNT";
+	public static String DISCOUNT_TYPE_PIGGYBANK = "PIGGYBANK";
+	public static String DISCOUNT_TYPE_DISH = "DISH";
+	public static String DISCOUNT_TYPE_EWARDS = "EWARDS";
+	
+	public static String TABLE_TYPE_AC = "AC";	
+	public static String TABLE_TYPE_NON_AC = "NON-AC";	
+	
+	public static String DESIGNATION_OWNER = "OWNER";	
+	public static String DESIGNATION_MANAGER = "MANAGER";
+	
+	public static String DEDUCTION_NONE= "NONE";
+	public static String DEDUCTION_DELETE_DAILY= "DELETE";
+	public static String DEDUCTION_DELETE_MONTHLY= "DELETE_MONTHLY";
+	
+	public static int ONLINE_ORDERING_PORTAL_NONE= 0;
+	
+	public static int COUNTER_PARCEL_ORDER = 100;
+	
+	public static String RECIPE_CATEGORY_MANAGED = "RECIPE MANAGED";	
+	public static String RECIPE_CATEGORY_NOT_MANAGED = "RECIPE NOT MANAGED";	
+	public static String RECIPE_CATEGORY_OTHERS = "OTHERS";
+	
+	public static String MATERIAL_RAW = "RAW";	
+	public static String MATERIAL_PROCESSED = "PROCESSED";	
+	public static String MATERIAL_DIRECT_ITEM = "DIRECT_ITEM";
+	
+	public static String INVENTORY_ADDED = "ADDED";	
+	public static String INVENTORY_PURCHASED = "PURCHASED";	
+	public static String INVENTORY_USEDUP = "USEDUP";		
+	public static String INVENTORY_SPOILAGE = "SPOILAGE";	
+	public static String INVENTORY_TRANSFERED = "TRANSFERED";		
+	public static String INVENTORY_DELETED = "DELETED";			
+	public static String INVENTORY_RETURNED = "RETURNED";		
+	
+	public static String OFFER_TYPE_DISCOUNT = "DISCOUNT";	
+	public static String OFFER_TYPE_BOGO = "BOGO";	
+	
+	public static String CUSTOMER_CREDIT_UNSETTLED = "UNSETTLED";	
+	public static String CUSTOMER_CREDIT_SETTLED = "SETTLED";	
+	
+	public static String TRANSASCTION_CREDIT = "CREDIT";		
+	public static String TRANSASCTION_DEBIT = "DEBIT";	
+	
+	public static int USER_AUTHENTICATION_ANY = 0;	
+	public static int USER_AUTHENTICATION_TOP= 1;	
+	public static int USER_AUTHENTICATION_ADMIN= 2;	
+	public static int USER_AUTHENTICATION_OWNER= 3;	
+	public static int USER_AUTHENTICATION_SECRET= 101;	
+	public static int USER_AUTHENTICATION_KITCHEN = 10;	
+
+	public static Pattern VALID_EMAIL_ADDRESS_REGEX = 
+		Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE);
+	
+	public static Pattern VALID_MOBILE_NUMBER_REGEX = 
+			Pattern.compile("^[0-9+]+$", Pattern.CASE_INSENSITIVE);
+
+
+	public static Pattern VALID_DATE_REGEX = 
+		Pattern.compile("^(?:(?:31(-)(?:0?[13578]|1[02]))\\1|(?:(?:29|30)(-)(?:0?[13-9]|1[0-2])\\2))(?:(?:1[6-9]|[2-9]\\d)?\\d{2})$|^(?:29(-)0?2\\3(?:(?:(?:1[6-9]|[2-9]\\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\\d|2[0-8])(-)(?:(?:0?[1-9])|(?:1[0-2]))\\4(?:(?:1[6-9]|[2-9]\\d)?\\d{2})$", Pattern.CASE_INSENSITIVE);
+
+	protected Database db = null;
 
 	public AccessManager(Boolean transactionBased) {
 		db = new Database(transactionBased);
 	}
 
-	private String escapeString(String val) {
+	protected String escapeString(String val) {
 		return val.replaceAll("'", "''");
 	}
 
-	public void beginTransaction() {
-		db.beginTransaction();
+	public void beginTransaction(String outletId) {
+		db.beginTransaction(outletId);
 	}
 
-	public void commitTransaction() {
-		db.commitTransaction();
+	public void commitTransaction(String outletId) {
+		db.commitTransaction(outletId, false);
+	}
+
+	public void commitTransaction(String outletId, boolean isServerUpdate) {
+		db.commitTransaction(outletId, isServerUpdate);
 	}
 
 	public void rollbackTransaction() {
 		db.rollbackTransaction();
 	}
+
+	public static boolean validateEmail(String emailStr) {
+        Matcher matcher = VALID_EMAIL_ADDRESS_REGEX .matcher(emailStr);
+        return matcher.find();
+	}
 	
+	public static boolean validateMobileNumber(String mobileNumber) {
+		if(mobileNumber.length()<10)
+			return false;
+		if(mobileNumber.length()>13)
+			return false;
+        Matcher matcher = VALID_MOBILE_NUMBER_REGEX .matcher(mobileNumber);
+        return matcher.find();
+	}
+	
+	public static boolean validateDate(String dateStr) {
+		if(dateStr.equals(""))
+			return true;
+        Matcher matcher = VALID_DATE_REGEX .matcher(dateStr);
+        return matcher.find();
+	}
+
+	protected String generateShortForm(String title) {
+		String[] sf = title.split(" ");
+		StringBuilder out = new StringBuilder();
+
+		for (int i = 0; i < sf.length; i++) {
+			if (sf[i].length() >= 2)
+				out.append(sf[i].substring(0, 2).toUpperCase());
+		}
+		return out.toString();
+	}
+
+	protected String appendEndDate(String endDate) {
+		return endDate + " 23:59";
+	}
+	
+	protected String getPreviousDateString(int day) {
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.DATE, day * (-1));
+		return dateFormat.format(cal.getTime());
+	}
+
+	public static String filterUnitToDisplay(String unit) {
+
+		if (unit.equals("TABLESPOONGM"))
+			return "TABLESPOON (GM)";
+		else if (unit.equals("TABLESPOONML"))
+			return "TABLESPOON (ML)";
+		else if (unit.equals("TEASPOONGM"))
+			return "TEASPOON (GM)";
+		else if (unit.equals("TEASPOONML"))
+			return "TEASPOON (ML)";
+		else
+			return unit;
+	}
+
+	public static void main(String args[]) {
+		// dynamic testcases
+		//AccessManager dao = new AccessManager(false);
+		//dao.hideOrder("h0002", "f", "", "", 25000.0);
+
+	}
+
+	// Convert DateTime string to the requested format.
+	public String parseTime(String time, String format) {
+		LocalDateTime now = LocalDateTime.parse(time);
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+		return now.format(formatter);
+	}
+
+	// Returns current time in the requested format.
+	public String parseTime(String format) {
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+		return now.format(formatter);
+	}
+	
+	public String formatDate(String dateStr, String oldFormat, String newFormat) throws ParseException {
+
+		DateFormat df = new SimpleDateFormat(oldFormat);
+		DateFormat df2 = new SimpleDateFormat(newFormat);
+		Date date = df.parse(dateStr);
+		return df2.format(date);
+	}
+	
+	public static String getDiscountType(int type) {
+		if(type == DISCOUNT_TYPE_PERCENTAGE) {
+			return "PERCENTAGE";
+		}else
+			return "FIXED";
+	}
+	
+	public String[] getEnums(Class<? extends Enum<?>> e) {
+	    return Arrays.stream(e.getEnumConstants()).map(Enum::name).toArray(String[]::new);
+	}
 	
 	/**
 	 * @param hotelId
@@ -144,51 +317,1555 @@ public class AccessManager {
 	 * This method updates the database to accommodate any new changes in the latest API.
 	 * Will change with every update.
 	 */
-	public void updateDatabase(String hotelId, String oldVersion, String version) {
+	public boolean updateDatabase(String systemId, String oldVersion, String version) {
 		String sql = "";
 		
-		if(oldVersion.equals("3.1")) {
+		if(oldVersion.equals("3.4.23.7")) {
+			sql = "ALTER TABLE System ADD COLUMN isInternetAvailable TEXT DEFAULT 'false';";
 			
-			this.initDatabase(hotelId);
-			sql = "UPDATE MenuItems SET state = 1; Update Hotel SET version = '"+version+"';";
-		}
-		if(oldVersion.equals("3")) {
+			sql += "Update System SET version = '3.4.23.8';";
+		}else if(oldVersion.equals("3.4.23.6")) {
+			sql = "ALTER TABLE OrderItemLog ADD COLUMN waiterId TEXT;"
+				+	"ALTER TABLE OrderItemLog ADD COLUMN userId TEXT;";
 			
-			this.initDatabase(hotelId);
-			sql = "UPDATE MenuItems SET state = 1; Update Hotel SET version = '3.1';";
-		}
-		if(oldVersion.equals("2.12")) {
-			sql = "ALTER TABLE Collections ADD COLUMN collectionOrder INTEGER; update Collections set collectionOrder = id;" + 
+			sql += "Update System SET version = '3.4.23.7';";
+		}else if(oldVersion.equals("3.4.23.5")) {
+			sql = "DROP TABLE ServerLog;"
+				+ "CREATE TABLE ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, updateTime TEXT, systemId TEXT, "
+				+ "isActive TEXT DEFAULT 'true', isTransactionLogged TEXT DEFAULT 'false', isDataDeleted TEXT DEFAULT 'false');"
+				+ "ALTER TABLE DBTransactions ADD COLUMN batchId INTEGER;";
+			
+			sql += "Update System SET version = '3.4.23.6';";
+		}else if(oldVersion.equals("3.4.23.4")) {
+			sql = "ALTER TABLE Groups ADD COLUMN isProperty TEXT DEFAULT 'false';"
+					+ "UPDATE Groups SET isProperty = 'false';";
+			
+			sql += "Update System SET version = '3.4.23.5';";
+		}else if(oldVersion.equals("3.4.23.3")) {
+			sql = "ALTER TABLE Customers ADD COLUMN otpAuthRequired TEXT DEFAULT 'true';"
+					+ "UPDATE Customers SET otpAuthRequired = 'true';";
+			
+			sql += "Update System SET version = '3.4.23.4';";
+		}else if(oldVersion.equals("3.4.23.2")) {
+			sql = "DELETE FROM Flags WHERE id = 40;"
+				+ "DELETE FROM Flags WHERE id = 41;"
+				+ "DELETE FROM Flags WHERE id = 42;"
+				+ "DELETE FROM Flags WHERE id = 43;"
+				+ "DELETE FROM Flags WHERE id = 46;"
+				+ "DELETE FROM Flags WHERE id = 500;"
+				+ "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+				+ "(41, '"+systemId+"', 'Breakfast', 16), "
+				+ "(42, '"+systemId+"', 'Lunch', 17), "
+				+ "(43, '"+systemId+"', 'Dinner', 18), "
+				+ "(46, '"+systemId+"', 'Snack', 21), "
+				+ "(500, '"+systemId+"', 'Late Night', 35);";
+			
+			sql += "ALTER TABLE Orders ADD COLUMN eBillUrl TEXT;";
+			sql += "ALTER TABLE System ADD COLUMN isOnlineBilling TEXT DEFAULT 'false';";
+			
+			sql += "Update System SET version = '3.4.23.3';";
+		}else if(oldVersion.equals("3.4.23.1")) {
+			sql = "ALTER TABLE Orders ADD COLUMN billTaken TEXT DEFAULT 'false';";
+			
+			sql += "Update System SET version = '3.4.23.2';";
+			
+			sql += "ALTER TABLE ReportBuffer ADD COLUMN serviceInfo TEXT DEFAULT '{}';";
+		}else if(oldVersion.equals("3.4.22.2")) {
+			sql = "ALTER TABLE System ADD COLUMN appSettings TEXT;";
+			
+			JSONObject appSettings = new JSONObject();
+			try {
+				appSettings.put("canStartService", false);
+				appSettings.put("canStopService", false);
+				appSettings.put("canSettleBill", false);
+				appSettings.put("authorizeProcessOrder", true);
+				appSettings.put("authorizeMoveItem", true);
+				appSettings.put("authorizeTransferTable", true);
+				appSettings.put("hasTables", true);
+				appSettings.put("hasHomeDelivery", true);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			sql += "UPDATE System SET appSettings = '" + appSettings + "';";
+			
+			sql += "Update System SET version = '3.4.23.1';";
+		}else if(oldVersion.equals("3.3.4.9")) {
+			sql = "Update Hotel SET version = '3.3.3.27';";
+			
+		}else if(oldVersion.equals("3.4.22.1")) {
+			sql = "Update System SET version = '3.4.22.2';";
+			sql += "ALTER TABLE ReportBuffer ADD COLUMN eWardsSettleBill TEXT;";
+			
+		}else if(oldVersion.equals("3.4.22")) {
+			sql = "Update System SET version = '3.4.22.1';";
+			sql += "ALTER TABLE Collections ADD COLUMN kotOrder INTEGER DEFAULT 0;"
+				+ "UPDATE Collections SET kotOrder = 0;";
+			
+		}else if(oldVersion.equals("3.4.21")) {
+			sql = "Update System SET version = '3.4.22';";
+			sql += "ALTER TABLE System ADD COLUMN isLiteApp TEXT DEFAULT 'true';"
+				+ "UPDATE System SET isLiteApp = 'true';";
+			
+		}else if(oldVersion.equals("3.4.20")) {
+
+			//Upgrading Tables.
+			if(systemId.equals("ft0001")) {
+				sql = "ALTER TABLE Orders ADD COLUMN orderPreparationTime INTEGER DEFAULT 0; UPDATE Orders SET orderPreparationTime = 0;"
+					+ "ALTER TABLE Orders ADD COLUMN onlineOrderData TEXT DEFAULT '{}'; UPDATE Orders SET onlineOrderData = '{}';"
+					+ "ALTER TABLE Tables ADD COLUMN orderId TEXT;"
+					+ "ALTER TABLE System ADD COLUMN systemCode TEXT;"
+					+ "ALTER TABLE System ADD COLUMN eWardsCredentials TEXT DEFAULT '{}'; "
+					+ "ALTER TABLE Tables ADD COLUMN isInBilling TEXT DEFAULT 'false'; "
+					+ "UPDATE System SET eWardsCredentials = '{\"id\":\"2107369\",\"key\":\"2107369arivin1275\"}';";
+			}else if(systemId.equals("ft0002")) {
+				sql = "ALTER TABLE Orders ADD COLUMN orderPreparationTime INTEGER DEFAULT 0; UPDATE Orders SET orderPreparationTime = 0;"
+					+ "ALTER TABLE Orders ADD COLUMN onlineOrderData TEXT DEFAULT '{}'; UPDATE Orders SET onlineOrderData = '{}';"
+					+ "ALTER TABLE Tables ADD COLUMN orderId TEXT;"
+					+ "ALTER TABLE System ADD COLUMN systemCode TEXT;"
+					+ "ALTER TABLE System ADD COLUMN eWardsCredentials TEXT DEFAULT '{}'; "
+					+ "ALTER TABLE Tables ADD COLUMN isInBilling TEXT DEFAULT 'false'; "
+					+ "UPDATE System SET eWardsCredentials = '{\"id\":\"2107369\",\"key\":\"2107369arivin1274\"}';";
+			}
+			
+			sql += "DROP TABLE OrderTables;";
+			
+			sql += "Update System SET version = '3.4.21';";
+			
+		} else if(oldVersion.equals("3.4.19")) {
+
+			//Upgrading Tables.
+			sql = "ALTER TABLE Specifications ADD COLUMN outletId; UPDATE Specifications SET outletId = '"+systemId+"';";
+				
+			sql += "Update System SET version = '3.4.20';";
+			
+		} else if(oldVersion.equals("3.4.18")) {
+
+			//Upgrading Tables.
+			sql = "CREATE TABLE IF NOT EXISTS Outlets ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, address TEXT, contact TEXT, "
+			+	"GSTNumber TEXT, VATNumber TEXT, code TEXT NOT NULL, website TEXT, imageLocation TEXT, schedule TEXT DEFAULT '[]', "
+			+	"location TEXT DEFAULT '{\"place\":\"\"}', links TEXT DEFAULT '{}', companyName TEXT, carouselImages TEXT DEFAULT '[]', menuBanner TEXT, "
+			+	"featuredItemId TEXT, closedDates TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Outlets (id, name, address, contact, GSTNumber, VATNumber, code, imageLocation, schedule, location, links, "
+			+	"companyName, carouselImages, menuBanner, featuredItemId, closedDates, outletId, systemId, corporateId) "
+			+	"SELECT id, name, address, contact, GSTNumber, VATNumber, code, imageLocation, schedule, location, links, companyName, "
+			+	"carouselImages, menuBanner, featuredItemId, closeDates, outletId, outletId, corporateId FROM Outlet;"
+			+	"DROP TABLE Outlet;";
+				
+			sql += "Update System SET version = '3.4.19';";
+			
+		} else if(oldVersion.equals("3.4.17")) {
+
+			//Upgrading Tables.
+			sql = "CREATE TABLE Payments ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, billNo TEXT NOT NULL, orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL, "
+			+	"foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, discountCodes TEXT, foodDiscount DOUBLE DEFAULT 0.0, barDiscount DOUBLE DEFAULT 0.0, "
+			+	"total DOUBLE DEFAULT 0.0, gst DOUBLE DEFAULT 0.0, vat DOUBLE DEFAULT 0.0, serviceCharge DOUBLE DEFAULT 0.0, packagingCharge DOUBLE DEFAULT 0.0, "
+			+	"deliveryCharge DOUBLE DEFAULT 0.0, paymentType TEXT, cashPayment DOUBLE DEFAULT 0.0, cardPayment DOUBLE DEFAULT 0.0, appPayment DOUBLE DEFAULT 0.0, "
+			+	"walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0, loyaltyAmount DOUBLE DEFAULT 0.0, "
+			+	"complimentary DOUBLE DEFAULT 0.0, roundOff DOUBLE DEFAULT 0.0, tip DOUBLE DEFAULT 0.0, billNo2 TEXT, section TEXT, outletId TEXT NOT NULL, "
+			+	"systemId TEXT NOT NULL);"
+			+	"INSERT INTO Payments (id, billNo, orderId, orderDate, foodBill, barBill, discountCodes, foodDiscount, barDiscount, total, gst, vat, serviceCharge, packagingCharge, "
+			+	"deliveryCharge, paymentType, cashPayment, cardPayment, appPayment, walletPayment, creditAmount, promotionalCash, loyaltyAmount, complimentary, "
+			+	"roundOff, tip, billNo2, section, outletId, systemId) "
+			+	"SELECT id, billNo, orderId, orderDate, foodBill, barBill, discountName, foodDiscount, barDiscount, total, gst, VATBAR, serviceCharge, packagingCharge, "
+			+	"deliveryCharge, cardType, cashPayment, cardPayment, appPayment, walletPayment, creditAmount, promotionalCash, loyaltyAmount, complimentary, "
+			+	"roundOff, tip, billNo2, section, hotelId, hotelId FROM Payment;"
+			+	"DROP TABLE Payment;";
+				
+			sql += "Update System SET version = '3.4.18';";
+			
+		} else if(oldVersion.equals("3.4.15")) {
+
+			//Upgrading Tables.
+			sql = "CREATE TABLE Orders2 (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL UNIQUE, orderDate TEXT NOT NULL, orderDateTime TEXT, "
+			+	"serviceType TEXT NOT NULL, state INTEGER NOT NULL, orderType INTEGER NOT NULL, takeAwaytype INTEGER, tableId TEXT, billNo INTEGER, "
+			+	"billNo2 INTEGER, printCount INTEGER DEFAULT 0, completeTimestamp TEXT, section TEXT, reference TEXT, remarks TEXT, loyaltyId INTEGER, "
+			+	"loyaltyPaid INTEGER DEFAULT 0, loyaltyEarned DOUBLE DEFAULT 0.0, eWards TEXT DEFAULT '{}', waiterId TEXT, deliveryBoy TEXT, deliveryTimeStamp TEXT, externalOrderId TEXT, "
+			+	"isFoodReady TEXT DEFAULT 'false', riderName TEXT, riderNumber TEXT, riderStatus TEXT, amountReceivable DOUBLE DEFAULT 0.0, cashToBeCollected TEXT,"
+			+ 	" orderPreparationTime INTEGER DEFAULT 0, onlineOrderData TEXT DEFAULT '{}', discountCodes TEXT DEFAULT '[]', "
+			+	"fixedRupeeDiscount DOUBLE DEFAULT 0.0, zomatoVoucherAmount DOUBLE DEFAULT 0.0, piggyBank DOUBLE DEFAULT 0.0, goldDiscount DOUBLE DEFAULT 0.0, "
+			+   "walletTransactionId INTEGER DEFAULT 0, promotionalCash DOUBLE DEFAULT 0.0, "
+			+	"excludedCharges TEXT DEFAULT '[]', excludedTaxes TEXT DEFAULT '[]', customerName TEXT, customerAddress TEXT, customerNumber TEXT, "
+			+	"customerGST TEXT, numberOfGuests INTEGER DEFAULT 1, isSmsSent TEXT DEFAULT 'false', reason TEXT, authId TEXT, ratingAmbiance INTEGER, ratingQof INTEGER, "
+			+	"ratingService INTEGER, ratingHygiene INTEGER, reviewSuggestions TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO Orders2 (id, orderId, orderDate, orderDateTime, serviceType, state, orderType, takeAwaytype, tableId, billNo, billNo2, printCount, completeTimestamp, "
+			+	"section, reference, remarks, loyaltyId, loyaltyPaid, loyaltyEarned, eWards, waiterId, deliveryBoy, deliveryTimeStamp, externalOrderId, "
+			+	"isFoodReady, riderName, riderNumber, riderStatus, amountReceivable, cashToBeCollected, discountCodes, fixedRupeeDiscount, zomatoVoucherAmount, "
+			+	"piggyBank, walletTransactionId, promotionalCash, excludedCharges, excludedTaxes, customerName, customerAddress, customerNumber, "
+			+	"customerGST, numberOfGuests, isSmsSent, reason, authId, ratingAmbiance, ratingQof, ratingService, ratingHygiene, reviewSuggestions, outletId, systemId) "
+			+	"SELECT id, orderId, orderDate, orderDateTime, serviceType, state, inhouse, takeAwaytype, tableId, billNo, billNo2, printCount, completeTimestamp, "
+			+	"section, reference, remarks, loyaltyId, loyaltyPaid, loyaltyEarned, eWards, waiterId, deliveryBoy, deliveryTimeStamp, externalOrderId, "
+			+	"isFoodReady, riderName, riderNumber, riderStatus, amountReceivable, cashToBeCollected, discountCode, fixedRupeeDiscount, zomatoVoucherAmount, "
+			+	"piggyBank, walletTransactionId, promotionalCash, excludedCharges, excludedTaxes, customerName, customerAddress, customerNumber, "
+			+	"customerGST, numberOfGuests, isSmsSent, reason, authId, rating_ambiance, rating_qof, rating_service, rating_hygiene, reviewSuggestions, hotelId, hotelId "
+			+	"FROM Orders;"
+			+	"DROP TABLE Orders;"
+			+	"ALTER TABLE Orders2 RENAME TO Orders;"
+			+ 	"UPDATE Orders SET isSmsSent = 'true' WHERE isSmsSent = 1;"
+			+ 	"UPDATE Orders SET isSmsSent = 'false' WHERE isSmsSent = 0;";
+				
+			sql += "Update System SET version = '3.4.17';";
+			
+		} else if(oldVersion.equals("3.4.14")) {
+
+			//Upgrading OrderSpecifications.
+			sql = "CREATE TABLE OrderSpecifications2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, subOrderId TEXT NOT NULL, "
+			+	"menuId TEXT NOT NULL, itemId INTEGER, specification TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO OrderSpecifications2 (id, orderId, subOrderId, menuId, itemId, specification, outletId, systemId) "
+			+	"SELECT id, orderId, subOrderId, menuId, itemId, specification, hotelId, hotelId FROM OrderSpecifications;"
+			+	"DROP TABLE OrderSpecifications;"
+			+	"ALTER TABLE OrderSpecifications2 RENAME TO OrderSpecifications;";
+				
+			sql += "Update System SET version = '3.4.15';";
+			
+		} else if(oldVersion.equals("3.4.13")) {
+
+			//Upgrading OrderItems.
+			sql = "CREATE TABLE OrderItems2 ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId text NOT NULL, "
+			+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, rate DOUBLE NOT NULL, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+			+	"subOrderDate TEXT NOT NULL, specs TEXT, billNo TEXT, billNo2 TEXT, isKotPrinted INTEGER, kotNumber INTEGER, botNumber INTEGER, "
+			+	"waiterId TEXT, itemIsMoved TEXT DEFAULT 'false', outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO OrderItems2 (id, orderId, subOrderId, menuId, rate, quantity, state, subOrderDate, specs, billNo, billNo2, isKotPrinted, "
+			+	"kotNumber, botNumber, waiterId, itemIsMoved, outletId, systemId) "
+			+	"SELECT id, orderId, subOrderId, menuId, rate, qty, state, subOrderDate, specs, billNo, billNo2, isKotPrinted, kotNumber, botNumber, "
+			+	"waiterId, itemIsMoved, hotelId, hotelId FROM OrderItems;"
+			+	"DROP TABLE OrderItems;"
+			+	"ALTER TABLE OrderItems2 RENAME TO OrderItems;";
+				
+			sql += "Update System SET version = '3.4.14';";
+			
+		} else if(oldVersion.equals("3.4.12")) {
+
+			//Upgrading OrderItemLog.
+			sql = "UPDATE OrderItemLog SET subOrderDate = '' WHERE subOrderDate is null;"
+			+	"UPDATE OrderItemLog SET quantity = 0 WHERE quantity is null;"
+			+	"CREATE TABLE OrderItemLog2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+			+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, itemId INTEGER, rate DOUBLE, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+			+	"subOrderDate TEXT NOT NULL, reason TEXT, dateTime TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO OrderItemLog2 (id, orderId, subOrderId, menuId, itemId, rate, quantity, state, subOrderDate, reason, dateTime, outletId, systemId) "
+			+	"SELECT id, orderId, subOrderId, menuId, itemId, rate, quantity, state, subOrderDate, reason, dateTime, hotelId, hotelId FROM OrderItemLog;"
+			+	"DROP TABLE OrderItemLog;"
+			+	"ALTER TABLE OrderItemLog2 RENAME TO OrderItemLog;";
+				
+			sql += "Update System SET version = '3.4.13';";
+			
+		} else if(oldVersion.equals("3.4.11")) {
+
+			//Upgrading OrderAddOns.
+			sql = "UPDATE OrderAddOns SET state = 1 WHERE state is null;"
+			+	"UPDATE OrderAddOns SET subOrderDate = '' WHERE subOrderDate is null;"
+			+	"CREATE TABLE OrderAddOns2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+			+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT, itemId INTEGER, rate DOUBLE NOT NULL,"
+			+	"quantity INTEGER NOT NULL, state INTEGER NOT NULL, subOrderDate TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO OrderAddOns2 (id, orderId, subOrderId, menuId, addOnId, itemId, rate, quantity, state, subOrderDate, outletId, systemId) "
+			+	"SELECT id, orderId, subOrderId, menuId, addOnId, itemId, rate, qty, state, subOrderDate, hotelId, hotelId FROM OrderAddOns;"
+			+	"DROP TABLE OrderAddOns;"
+			+	"ALTER TABLE OrderAddOns2 RENAME TO OrderAddOns;";
+				
+			sql += "Update System SET version = '3.4.12';";
+			
+		} else if(oldVersion.equals("3.4.10")) {
+
+			//Upgrading OrderAddOnsLog.
+			sql = "UPDATE OrderAddOnLog SET subOrderDate = '' WHERE subOrderDate is null;"
+			+	"CREATE TABLE OrderAddOnsLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+			+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT, itemId INTEGER NOT NULL, rate DOUBLE NOT NULL, "
+			+	"quantity INTEGER NOT NULL, state INTEGER NOT NULL, subOrderDate TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO OrderAddOnsLog (id, orderId, subOrderId, menuId, addOnId, itemId, rate, quantity, state, subOrderDate, outletId, systemId) "
+			+	"SELECT id, orderId, subOrderId, menuId, addOnId, itemId, rate, quantity, state, subOrderDate, hotelId, hotelId FROM OrderAddOnLog;"
+			+	"DROP TABLE OrderAddOnLog;"
+			+	"ALTER TABLE OrderAddOnsLog RENAME TO OrderAddOnLog;";
+				
+			sql += "Update System SET version = '3.4.11';";
+			
+		} else if(oldVersion.equals("3.4.9")) {
+
+			//Upgrading Tables.
+			sql = "CREATE TABLE Tables2 ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId TEXT NOT NULL UNIQUE, orderId TEXT, isInBilling TEXT DEFAULT 'true', "
+			+	"section TEXT, type TEXT, showTableView TEXT DEFAULT 'true', waiterId TEXT, subTables TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL);"
+			+	"INSERT INTO Tables2 (id, tableId, section, type, showTableView, waiterId, subTables, outletId, systemId) "
+			+	"SELECT id, tableId, section, type, showTableView, waiterId, subTables, hotelId, hotelId FROM Tables;"
+			+	"DROP TABLE Tables;"
+			+	"ALTER TABLE Tables2 RENAME TO Tables;";
+				
+			sql += "Update System SET version = '3.4.10';";
+			
+		} else if(oldVersion.equals("3.4.8")) {
+
+			if(!systemId.equals("h0002")){
+				//Upgrading Menu.
+				sql = "CREATE TABLE MenuItems2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, menuId TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, "
+				+	"code TEXT, collection TEXT NOT NULL, subCollection TEXT, station TEXT NOT NULL, dineInRate DOUBLE DEFAULT 0.0, dineInNonAcRate DOUBLE DEFAULT 0.0,"
+				+	"deliveryRate DOUBLE DEFAULT 0.0, onlineRate DOUBLE DEFAULT 0.0, onlineRate1 DOUBLE DEFAULT 0.0, onlineRate2 DOUBLE DEFAULT 0.0, "
+				+	"onlineRate3 DOUBLE DEFAULT 0.0, onlineRate4 DOUBLE DEFAULT 0.0, onlineRate5 DOUBLE DEFAULT 0.0, isCombo TEXT DEFAULT 'false', "
+				+	"comboPrice DOUBLE DEFAULT 0.0, comboReducedPrice DOUBLE DEFAULT 0.0, costPrice DOUBLE DEFAULT 0.0, discountType TEXT, discountValue DOUBLE DEFAULT 0.0, "
+				+	"flags TEXT DEFAULT '[]', inStock TEXT DEFAULT 'true', imgUrl TEXT, coverImgUrl TEXT, incentiveQuantity INTEGER DEFAULT '0', incentiveAmount INTEGER DEFAULT 0, "
+				+	"groups TEXT DEFAULT '[]', taxes TEXT DEFAULT '[]', charges TEXT DEFAULT '[]', gstInclusive TEXT DEFAULT 'false', syncOnZomato TEXT DEFAULT 'true', "
+				+	"isRecomended TEXT DEFAULT 'false', isTreats TEXT DEFAULT 'false', isDefault TEXT DEFAULT 'false', isBogo TEXT DEFAULT 'false', "
+				+	"preparationTime INTEGER DEFAULT 0, method TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);"
+				+	"INSERT INTO MenuItems2 (id, menuId, title, description, code, collection, subCollection, station, dineInRate, dineInNonAcRate, deliveryRate, "
+				+	"onlineRate, onlineRate1, onlineRate2, onlineRate3, onlineRate4, onlineRate5, isCombo, comboPrice, comboReducedPrice, costPrice, discountType, "
+				+	"discountValue, flags, inStock, imgUrl, coverImgUrl, incentiveQuantity, incentiveAmount, groups, taxes, charges, gstInclusive, syncOnZomato, isRecomended, "
+				+	"isTreats, isDefault, isBogo, preparationTime, method, outletId, systemId) "
+				+	"SELECT id, menuId, title, description, code, collection, subCollection, station, dineInRate, dineInNonAcRate, deliveryRate, "
+				+	"onlineRate, onlineRate1, onlineRate2, onlineRate3, onlineRate4, onlineRate5, isCombo, comboPrice, comboReducedPrice, costPrice, discountType, "
+				+	"discountValue, flags, state, img, coverImgUrl, hasIncentive, incentive, groups, taxes, charges, gstInclusive, syncOnZomato, isRecomended, "
+				+	"isTreats, isDefault, isBogo, preparationTime, method, hotelId, hotelId FROM MenuItems;"
+				+	"PRAGMA foreign_keys = OFF;"
+				+	"DROP TABLE MenuItems;"
+				+	"ALTER TABLE MenuItems2 RENAME TO MenuItems;"
+				+	"UPDATE MenuItems SET inStock = 'true' WHERE inStock = '1';"
+				+	"UPDATE MenuItems SET inStock = 'false' WHERE inStock = '0';";
+			}
+			
+			sql += "Update System SET version = '3.4.9';";
+			
+		} else if(oldVersion.equals("3.4.7")) {
+
+			//Upgrading SubCollections.
+			sql = "CREATE TABLE Groups2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds INTEGER NOT NULL, name INTEGER NOT NULL, "
+			+	"description TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', "
+			+	"isActiveOnline TEXT DEFAULT 'false', title TEXT, subTitle TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Groups2 ( itemIds, name, description, max, min, isActive, isActiveOnline, title, subTitle, outletId, systemId) "
+			+	"SELECT itemIds, name, description, max, min, isActive, isActive, title, subTitle, hotelId, hotelId FROM Groups;"
+			+	"DROP TABLE Groups;"
+			+	"ALTER TABLE Groups2 RENAME TO Groups;";
+			
+			sql += "Update System SET version = '3.4.8';";
+			
+		} else if(oldVersion.equals("3.4.6")) {
+
+			//Upgrading SubCollections.
+			sql = "CREATE TABLE SubCollections2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+			+	"subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, isActive TEXT, isActiveOnline TEXT, outletId TEXT NOT NULL,"
+			+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO SubCollections2 ( name, description, subCollectionOrder, collection, isActive, isActiveOnline, outletId, systemId) "
+			+	"SELECT name, description, subCollectionOrder, collection, isActive, isActive, hotelId, hotelId FROM SubCollections;"
+			+	"DROP TABLE SubCollections;"
+			+	"ALTER TABLE SubCollections2 RENAME TO SubCollections;";
+
+			//Upgrading Schedules
+			sql += "CREATE TABLE Schedules2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, days TEXT NOT NULL, "
+			+	"timeSlots INTEGER NOT NULL, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Schedules2 ( name, days, timeSlots, outletId, systemId) "
+			+	"SELECT name, days, timeSlots, hotelId, hotelId FROM Schedules;"
+			+	"DROP TABLE Schedules;"
+			+	"ALTER TABLE Schedules2 RENAME TO Schedules;";
+			
+			sql += "Update System SET version = '3.4.7';";
+			
+		} else if(oldVersion.equals("3.4.5")) {
+
+			//Upgrading bank
+			sql = "CREATE TABLE Bank2 (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
+			+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));"
+			+	"INSERT INTO Bank2 (accountNumber, bankName, accountName, balance, systemId, outletId, section) "
+			+	"SELECT accountNumber, bankName, accountName, balance, hotelId, hotelId, section FROM Bank;"
+			+	"DROP TABLE Bank;"
+			+	"ALTER TABLE Bank2 RENAME TO Bank;";
+			
+			sql += "Update System SET version = '3.4.6';";
+			
+		} else if(oldVersion.equals("3.4.4")) {
+
+			//Upgrading Collections
+			sql = "CREATE TABLE Collections2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+			+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
+			+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));"
+			+	"INSERT INTO Collections2 ( id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
+			+	"isActive, isActiveOnZomato, outletId, systemId) "
+			+	"SELECT Id, name, description, imgUrl, collectionOrder, hasSubCollection, scheduleIds, isSpecialCombo, tags, "
+			+	"isActive, isActiveOnZomato, hotelId, hotelId FROM Collections;"
+			+	"DROP TABLE Collections;"
+			+	"ALTER TABLE Collections2 RENAME TO Collections;";
+			
+			sql += "Update System SET version = '3.4.5';";
+			
+		} else if(oldVersion.equals("3.4.3")) {
+
+			//Upgrading Discounts
+			sql = "CREATE TABLE Discounts ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, type TEXT NOT NULL, foodValue INTEGER DEFAULT 0, barValue INTEGER DEFAULT 0,"
+			+	"startDate TEXT NOT NULL, expiryDate TEXT, usageLimit TEXT NOT NULL, validCollections TEXT, offerType TEXT, "
+			+	"applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', "
+			+	"startTime TEXT, endTime TEXT, firstorderOnly TEXT DEFAULT 'false', minOrderAmount INTEGER DEFAULT 0, "
+			+	"maxFoodDiscountAmount DOUBLE DEFAULT 0.0, maxBarDiscountAmount DOUBLE DEFAULT 0.0, "
+			+	"outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Discounts ( name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
+			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
+			+	"maxBarDiscountAmount, outletId, systemId)"
+			+	"SELECT name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections, offerType, "
+			+	"applicableOnZomato, isActive, offerQuantity, bogoItems, startTime, endTime, firstorderOnly, minOrderAmount, maxFoodDiscountAmount, "
+			+	"maxBarDiscountAmount, hotelId, hotelId FROM Discount;"
+			+	"DROP TABLE Discount;";
+			
+			sql += "Update System SET version = '3.4.4';";
+			
+		} else if(oldVersion.equals("3.4.2")) {
+
+			//Upgrading Taxes
+			sql = "CREATE TABLE Taxes2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Taxes2 (id, name, value, type, isActive, applicableOn, outletId, systemId) "
+			+	"SELECT id, name, value, type, isActive, applicableOn, hotelId, hotelId FROM Taxes;"
+			+	"DROP TABLE Taxes;"
+			+	"ALTER TABLE Taxes2 RENAME TO Taxes;";
+			
+			sql += "Update System SET version = '3.4.3';";
+			
+		} else if(oldVersion.equals("3.4.1")) {
+
+			//Upgrading Charges
+			sql = "CREATE TABLE Charges2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
+			+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
+			+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Charges2 (id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, chargeLevel, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, systemId, outletId) "
+			+	"SELECT id, name, type, value, isActive, isAlwaysApplicable, isApplicableOnline, isApplicableOn, applicableOn, "
+			+	"orderType, minBillAmount, hasTierWiseValues, taxesOnCharge, hotelId, hotelId FROM Charges;"
+			+	"DROP TABLE Charges;"
+			+	"ALTER TABLE Charges2 RENAME TO Charges;";
+
+			//Upgrading Tiers
+			sql += "CREATE TABLE Tiers2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, "
+			+	"chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, outletId TEXT NOT NULL,"
+			+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);"
+			+	"INSERT INTO Tiers2 ( value, chargeAlwaysApplicable, minBillAmount, outletId, systemId) "
+			+	"SELECT value, chargeAlwaysApplicable, minBillAmount, hotelId, hotelId FROM Tiers;"
+			+	"DROP TABLE Tiers;"
+			+	"ALTER TABLE Tiers2 RENAME TO Tiers;";
+			
+			sql += "Update System SET version = '3.4.2';";
+			
+		} else if(oldVersion.equals("3.3.3.27")) {
+			
+
+			//Updating Hotel Table. Renamed to System, removed unused entires.
+			sql += "CREATE TABLE System ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
+			+	"hotelType TEXT DEFAULT 'POSTPAID' , theme TEXT DEFAULT '0' , smsEnabled TEXT DEFAULT 'true' , deliverySmsEnabled TEXT DEFAULT 'false' , "
+			+	"serverEnabled TEXT DEFAULT 'false' , hasCashDrawer TEXT DEFAULT 'false' , hasLoyalty INTEGER DEFAULT 0 , hasIncentiveScheme TEXT DEFAULT 'false' , "
+			+	"hasKot TEXT DEFAULT 'true' , kotIHTBNSZSUF TEXT DEFAULT '1:1:1:1:1:0:1:1:1' , kotSettings TEXT DEFAULT '600:455:2' , kotFontFamily TEXT DEFAULT 'Arial' , "
+			+	"kotFontSize TEXT DEFAULT '15px' , kotFontWeight TEXT DEFAULT 'bold' , hasKds TEXT DEFAULT 'false' , hasDirectCheckout TEXT DEFAULT 'false' , "
+			+	"hasNC TEXT DEFAULT 'true' , hasBar TEXT DEFAULT 'false' , loadCustomerDb TEXT DEFAULT 'true' , allowItemCancellationOnPhone TEXT DEFAULT 'false' , "
+			+	"hasEod TEXT DEFAULT 'false' , hasNewOrderScreen TEXT DEFAULT 'true' , isCaptainBasedOrdering TEXT DEFAULT 'true' , showOccupiedTablesOnly TEXT DEFAULT 'true' , "
+			+	"deductionType TEXT, isWalletOnline TEXT DEFAULT 'false' , isWalletOffline TEXT DEFAULT 'false' , isCreditActive TEXT DEFAULT 'false' , "
+			+	"billType TEXT DEFAULT 'YEARLY' , printLogo TEXT DEFAULT 'false' , hasConciseBill TEXT DEFAULT 'false' , zomatoApiKey TEXT , smsAPIKey TEXT , eWardsCredentials TEXT DEFAULT '{}', "
+			+	"hasFullRounding TEXT DEFAULT 'false' , capturePayments TEXT DEFAULT 'false' , downloadReports TEXT DEFAULT 'true' , smsId , senderId);";
+			
+			sql += "INSERT INTO System (version , systemId , hotelType , theme, deliverySmsEnabled, hasKot , kotIHTBNSZSUF , kotSettings , kotFontFamily , "
+			+	"kotFontSize, kotFontWeight , hasKds , hasDirectCheckout , hasNC , hasBar , loadCustomerDb , allowItemCancellationOnPhone , "
+			+	"hasEod , hasNewOrderScreen , isCaptainBasedOrdering , showOccupiedTablesOnly, isWalletOnline , isWalletOffline , isCreditActive , "
+			+	"printLogo , hasConciseBill , zomatoApiKey , smsAPIKey , hasFullRounding , capturePayments , downloadReports , smsId , senderId) "
+			+	"SELECT version , hotelId , hotelType , theme , deliverySmsEnabled, hasKot , kotIHTBNSZSUF , kotSettings , kotFontFamily , "
+			+	"kotFontSize, kotFontWeight , hasKds , hasDirectCheckout , hasNC , hasBar , loadCustomerDb , allowItemCancellationOnPhone , "
+			+	"hasEod , hasNewOrderScreen , isCaptainBasedOrdering , showOccupiedTablesOnly, isWalletOnline , isWalletOffline , isCreditActive , "
+			+	"printLogo , hasConciseBill , apiKey , smsAPIKey , hasFullRounding , capturePayments , downloadReports , smsId , senderId FROM Hotel;"
+			+	"UPDATE System SET smsEnabled = 'false' WHERE smsEnabled == 0;"
+			+	"UPDATE System SET serverEnabled = 'true' WHERE serverEnabled == 1;"
+			+	"UPDATE System SET hasCashDrawer = 'true' WHERE hasCashDrawer == 1;"
+			+	"UPDATE System SET hasIncentiveScheme = 'true' WHERE hasIncentiveScheme == 1;"
+			+	"UPDATE System SET billType = 'YEARLY' WHERE billType == 2;"
+			+	"UPDATE System SET billType = 'DAILY' WHERE billType == 3;"
+			+	"UPDATE System SET billType = 'MONTHLY' WHERE billType == 4;"
+			+	"UPDATE System SET deductionType = 'DELETE' WHERE deductionType != 0;"
+			+	"DROP TABLE Hotel;";
+			
+			sql += "Update System SET version = '3.4.1';";
+		} 
+		//Init Updated
+		if(oldVersion.equals("3.3.3.26")) {
+
+			sql = "ALTER TABLE Orders ADD COLUMN orderDateTime TEXT;"
+					+ "ALTER TABLE Orders ADD COLUMN goldDiscount DOUBLE;";
+			
+			sql += "Update Hotel SET version = '3.3.3.27';";
+		} else if(oldVersion.equals("3.3.3.25")) {
+
+			sql = "ALTER TABLE Orders ADD COLUMN eWards TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.3.26';";
+		} else if(oldVersion.equals("3.3.3.24")) {
+
+			sql = "ALTER TABLE ReportBuffer ADD COLUMN subject TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.3.25';";
+		} else if(oldVersion.equals("3.3.3.23")) {
+
+			sql = "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[Alcoholic Beverage]';"
+				+ "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[“Alcoholic Beverage”]';"
+				+ "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[\"Alcoholic Beverage\"]';";
+			
+			sql += "Update Hotel SET version = '3.3.3.24';";
+		} else if(oldVersion.equals("3.3.3.22")) {
+
+			sql =  "ALTER TABLE OrderItems ADD COLUMN botNumber INTEGER;";
+			sql += "Update Hotel SET version = '3.3.3.23';";
+		}else if(oldVersion.equals("3.3.3.21")) {
+			
+			if(systemId.equals("vh0001")) {
+				sql += "UPDATE Hotel SET senderId = 'VINTGE', smsId = 'vh0001', smsAPIKey = 'Ae67Ng_-';";
+			} else if(systemId.contains("sg000")) {
+				sql += "UPDATE Hotel SET senderId = 'SPGOLD', smsId = 'springold350', smsAPIKey = 'springold@350';";
+			} else if(systemId.contains("ka0001")) {
+				sql += "UPDATE Hotel SET senderId = 'KAFINE', smsId = 'ka0001', smsAPIKey = '1b@fR3Y!';";
+			} 
+			
+			sql += "Update Hotel SET version = '3.3.3.22';";
+			sql += "Update Customers SET sendSMS = 'true' WHERE sendSMS IS NULL;";
+					
+		}else if(oldVersion.equals("3.3.3.20")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN senderId TEXT;";
+			
+			if(systemId.equals("h0002") || systemId.equals("h0003")) {
+				sql += "UPDATE Hotel SET senderId = 'DEMOOO';";
+			} else if(systemId.equals("wc0001")) {
+				sql += "UPDATE Hotel SET senderId = 'WCOAST';";
+			}
+			
+			sql += "Update Hotel SET version = '3.3.3.21';";
+					
+		}else if(oldVersion.equals("3.3.3.19")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN smsId TEXT;";
+			
+			if(systemId.equals("wc0001")) {
+				sql += "UPDATE Hotel SET smsId = 'wc00010', smsAPIKey = '3!6j_NIm';";
+			}
+					
+			sql += "CREATE TABLE ReportBuffer ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, smsText TEXT, "
+					+ "emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', outletId TEXT);";
+
+			sql += "Update Hotel SET version = '3.3.3.20';";
+					
+		}else if(oldVersion.equals("3.3.3.18")) {
+			sql = "DELETE FROM Flags;"
+				+ " INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+				+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+				+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+				+ "(3, '"+systemId+"', 'Beverage', 5), "
+				+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+				+ "(4, '"+systemId+"', 'Spicy', 2), "
+				+ "(7, '"+systemId+"', 'Seasonal', 3), "
+				+ "(10, '"+systemId+"', 'Chef Special', 4), "
+				+ "(11, '"+systemId+"', 'Grilled', 5), "
+				+ "(12, '"+systemId+"', 'Fried', 5), "
+				+ "(13, '"+systemId+"', ' Platter', 6), "
+				+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+				+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+				+ "(16, '"+systemId+"', 'Vegan', 9), "
+				+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+				+ "(19, '"+systemId+"', 'Choice Item', 14), "
+				+ "(20, '"+systemId+"', 'Treat Available', 11), "
+				+ "(21, '"+systemId+"', 'Pepsi', 11), "
+				+ "(22, '"+systemId+"', 'Meal', 12), "
+				+ "(23, '"+systemId+"', 'Cake', 13), "
+				+ "(24, '"+systemId+"', 'Egg', 1), "
+				+ "(25, '"+systemId+"', 'Lipton', 11), "
+				+ "(26, '"+systemId+"', 'Turbo', 11), "
+				+ "(27, '"+systemId+"', 'Weekend Specials', 14), "
+				+ "(28, '"+systemId+"', 'Free Item', 11), "
+				+ "(29, '"+systemId+"', 'Value Week', 11), "
+				+ "(30, '"+systemId+"', 'Diet Pepsi', 11), "
+				+ "(31, '"+systemId+"', 'Exclusive Offer', 11), "
+				+ "(32, '"+systemId+"', 'Pepsi Combo', 11), "
+				+ "(33, '"+systemId+"', 'Thums Up', 11), "
+				+ "(34, '"+systemId+"', 'Sprite', 11), "
+				+ "(35, '"+systemId+"', 'Fanta', 11), "
+				+ "(36, '"+systemId+"', 'Kinley Soda', 11), "
+				+ "(37, '"+systemId+"', 'Maaza', 11), "
+				+ "(38, '"+systemId+"', 'Minute Maid', 11), "
+				+ "(39, '"+systemId+"', 'Limca', 11), "
+				+ "(40, '"+systemId+"', 'BREAKFAST', 15), "
+				+ "(41, '"+systemId+"', 'LUNCH', 16), "
+				+ "(42, '"+systemId+"', 'DINNER', 17), "
+				+ "(43, '"+systemId+"', 'PIZZA', 18), "
+				+ "(44, '"+systemId+"', 'SNACKS', 19), "
+				+ "(45, '"+systemId+"', 'NORTH_INDIAN', 20), "
+				+ "(46, '"+systemId+"', 'DESSERT', 21), "
+				+ "(47, '"+systemId+"', 'CHINESE', 22), "
+				+ "(48, '"+systemId+"', 'SOUTH_INDIAN', 23), "
+				+ "(49, '"+systemId+"', 'BURGER', 24), "
+				+ "(50, '"+systemId+"', 'BIRYANI', 25), "
+				+ "(51, '"+systemId+"', 'FAST_FOOD', 26), "
+				+ "(53, '"+systemId+"', 'PARTY COMBOS', 27), "
+				+ "(54, '"+systemId+"', 'BEVERAGES', 28), "
+				+ "(55, '"+systemId+"', 'SNACKS', 29), "
+				+ "(56, '"+systemId+"', 'BREADS', 30), "
+				+ "(57, '"+systemId+"', 'DESSERTS', 31), "
+				+ "(58, '"+systemId+"', 'RICE', 32), "
+				+ "(59, '"+systemId+"', 'SIDES', 33), "
+				+ "(60, '"+systemId+"', 'NEW', 34);";
+
+			sql += "Update Hotel SET version = '3.3.3.19';";
+		}else if(oldVersion.equals("3.3.3.17")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN deliverySmsEnabled TEXT; "
+				+ "ALTER TABLE Hotel ADD COLUMN downloadReports TEXT; "
+				+ "UPDATE Hotel SET deliverySmsEnabled = 'true', downloadReports = 'true';";
+			
+			sql += "Update Hotel SET version = '3.3.3.18';";
+		}else if(oldVersion.equals("3.3.3.16")) {
+			sql = "CREATE TABLE IF NOT EXISTS DBTransactions (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, transactions TEXT);";
+			
+			sql += "Update Hotel SET version = '3.3.3.17';";
+		}else if(oldVersion.equals("3.3.3.15")) {
+			sql += "UPDATE MenuItems SET flags = '[1]' WHERE flags = '[\"Vegetarian\"]';"
+					+ "UPDATE MenuItems SET flags = '[2]' WHERE flags = '[\"Non-Vegetarian\"]';"
+					+ "UPDATE MenuItems SET flags = '[3]' WHERE flags = '[\"Beverage\"]';"
+					+ "UPDATE MenuItems SET flags = '[1]' WHERE flags = '[“Vegetarian”]';"
+					+ "UPDATE MenuItems SET flags = '[2]' WHERE flags = '[“Non-Vegetarian”]';"
+					+ "UPDATE MenuItems SET flags = '[3]' WHERE flags = '[“Beverage”]';"
+					+ "UPDATE MenuItems SET flags = '[1]' WHERE flags = '[Vegetarian]';"
+					+ "UPDATE MenuItems SET flags = '[2]' WHERE flags = '[Non-Vegetarian]';"
+					+ "UPDATE MenuItems SET flags = '[3]' WHERE flags = '[Beverage]';"
+					+ "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[Alcoholic-Beverage]';"
+					+ "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[“Alcoholic-Beverage”]';"
+					+ "UPDATE MenuItems SET flags = '[5]' WHERE flags = '[\"Alcoholic-Beverage\"]';"
+					+ "UPDATE MenuItems SET title = REPLACE(title, \"'\", \"\");";
+
+			sql += "Update Hotel SET version = '3.3.3.16';";
+		}else if(oldVersion.equals("3.3.3.14")) {
+			sql += "ALTER TABLE PromotionalCampaign ADD COLUMN status TEXT;";
+
+			sql += "Update Hotel SET version = '3.3.3.15';";
+		}else if(oldVersion.equals("3.3.3.13")) {
+			sql += "ALTER TABLE Groups ADD COLUMN title TEXT;"
+				+ "ALTER TABLE Groups ADD COLUMN subTitle TEXT;";
+
+			sql += "Update Hotel SET version = '3.3.3.14';";
+		}else if(oldVersion.equals("3.3.3.12")) {
+			sql = "DELETE FROM Designations;"
+				+ "INSERT INTO Designations (Id, hotelId, designation, hasIncentive) VALUES "
+				+ "(0, '"+systemId+"', 'WAITER', 'false'), "
+				+ "(1, '"+systemId+"', 'MANAGER', 'false'), "
+				+ "(2, '"+systemId+"', 'ADMINISTRATOR', 'false'), "
+				+ "(3, '"+systemId+"', 'CHEF', 'false'), "
+				+ "(4, '"+systemId+"', 'RECEPTIONIST', 'false'), "
+				+ "(5, '"+systemId+"', 'RETAILASSCOCIATE', 'false'), "
+				+ "(6, '"+systemId+"', 'BACKOFFICE', 'false'), "
+				+ "(7, '"+systemId+"', 'DELIVERYBOY', 'false'), "
+				+ "(8, '"+systemId+"', 'OWNER', 'false'), "
+				+ "(9, '"+systemId+"', 'CAPTAIN', 'false'), "
+				+ "(10, '"+systemId+"', 'CASHIER', 'false'),"
+				+ "(11, '"+systemId+"', 'HELPER', 'false'),"
+				+ "(12, '"+systemId+"', 'CLEANER', 'false'),"
+				+ "(13, '"+systemId+"', 'EXEC_CHEF', 'false'),"
+				+ "(14, '"+systemId+"', 'COMMI_1', 'false'),"
+				+ "(15, '"+systemId+"', 'COMMI_2', 'false'),"
+				+ "(16, '"+systemId+"', 'COMMI_3', 'false');";
+
+			sql += "Update Hotel SET version = '3.3.3.13';";
+			
+		}else if(oldVersion.equals("3.3.3.11")) {
+			
+			sql = "UPDATE MenuItems set flags = replace (flags, '\"', '');";
+			sql += "Update Hotel SET version = '3.3.3.12';";
+			
+		}else if(oldVersion.equals("3.3.3.10")) {
+			sql += "ALTER TABLE MenuItems ADD COLUMN coverImgUrl TEXT;"
+				+ "ALTER TABLE MenuItems ADD COLUMN isCombo TEXT; UPDATE MenuItems SET isCombo = 'false';"
+				+ "ALTER TABLE MenuItems ADD COLUMN comboPrice DOUBLE DEFAULT 0.0; "
+				+ "UPDATE MenuItems SET comboReducedPrice = 0.0 WHERE comboReducedPrice == NULL;"
+				+ "UPDATE MenuItems SET comboPrice = 0.0 WHERE comboReducedPrice = 0.0;"
+				+ "UPDATE MenuItems SET comboPrice = comboReducedPrice, isCombo = 'true' WHERE comboReducedPrice > 0;";
+			
+			sql += "DELETE FROM Flags;";
+			sql += "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+					+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+					+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+					+ "(3, '"+systemId+"', 'Beverage', 5), "
+					+ "(24, '"+systemId+"', 'Egg', 1), "
+					+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+					+ "(4, '"+systemId+"', 'Spicy', 2), "
+					+ "(7, '"+systemId+"', 'Seasonal', 3), "
+					+ "(10, '"+systemId+"', 'Chef Special', 4), "
+					+ "(11, '"+systemId+"', 'Grilled', 5), "
+					+ "(12, '"+systemId+"', 'Fried', 5), "
+					+ "(13, '"+systemId+"', ' Platter', 6), "
+					+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+					+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+					+ "(16, '"+systemId+"', 'Vegan', 9), "
+					+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+					+ "(20, '"+systemId+"', 'Treat Available', 11), "
+					+ "(22, '"+systemId+"', 'Meal', 12), "
+					+ "(23, '"+systemId+"', 'Cake', 13), "
+					+ "(19, '"+systemId+"', 'Choice Item', 14),"
+					+ "(41, '"+systemId+"', 'BREAKFAST', 15),"
+					+ "(42, '"+systemId+"', 'LUNCH', 16),"
+					+ "(43, '"+systemId+"', 'DINNER', 17),"
+					+ "(48, '"+systemId+"', 'PIZZA', 18),"
+					+ "(46, '"+systemId+"', 'SNACKS', 19),"
+					+ "(44, '"+systemId+"', 'NORTH_INDIAN', 20),"
+					+ "(40, '"+systemId+"', 'DESSERT', 21),"
+					+ "(45, '"+systemId+"', 'CHINESE', 22),"
+					+ "(47, '"+systemId+"', 'SOUTH_INDIAN', 23),"
+					+ "(49, '"+systemId+"', 'BURGER', 24),"
+					+ "(50, '"+systemId+"', 'BIRYANI', 25),"
+					+ "(51, '"+systemId+"', 'FAST_FOOD', 26),"
+					+ "(53, '"+systemId+"', 'PARTY COMBOS', 27);";
+
+			sql += "Update Hotel SET version = '3.3.3.11';";
+		}else if(oldVersion.equals("3.3.3.9")) {
+			sql += "ALTER TABLE Collections ADD COLUMN tags TEXT; UPDATE Collections SET tags = '[]';";
+
+			sql += "Update Hotel SET version = '3.3.3.10';";
+		}else if(oldVersion.equals("3.3.3.8")) {
+			sql += "ALTER TABLE PromotionalCampaign ADD COLUMN ageGroup TEXT;";
+
+			sql += "Update Hotel SET version = '3.3.3.9';";
+		}else if(oldVersion.equals("3.3.3.7")) {
+			sql += "ALTER TABLE Hotel ADD COLUMN isWalletOffline TEXT DEFAULT 'false';";
+
+			sql += "Update Hotel SET version = '3.3.3.8';";
+		}else if(oldVersion.equals("3.3.3.6")) {
+			sql += "ALTER TABLE Hotel ADD COLUMN smsAPIKey TEXT;"
+				+ "ALTER TABLE Hotel ADD COLUMN promotionalSmsBalance INTEGER;"
+				+ "ALTER TABLE Hotel ADD COLUMN transactionalSMSCount INTEGER;";
+
+			if(systemId.contains("sg")) {
+				sql += "UPDATE Hotel SET smsAPIKey = '7fuq5R6qA1A-HnD9qq35P5G5MwfV7dQeE81qSvI4sZ';";
+			}
+			sql += "CREATE TABLE PromotionalCampaign ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, messageContent TEXT NOT NULL, "
+					+ "usageDetails TEXT, totalSMSSent INTEGER, outletId TEXT, outletIds TEXT DEFAULT '[]', userTypes TEXT DEFAULT '[]', sex TEXT DEFAULT 'BOTH');";
+			
+			sql += "Update Hotel SET version = '3.3.3.7';";
+		}else if(oldVersion.equals("3.3.3.5")) {
+			sql += "UPDATE Payment set roundOff = ROUND(((cardPayment+cashPayment+appPayment+promotionalCash+creditAmount+walletPayment)-total)*100)/100;" 
+				+	"UPDATE Payment set roundOff = 0 where cardType = 'VOID';"
+				+	"UPDATE Payment set roundOff = 0 where cardType = 'NON_CHARGEABLE';"
+				+	"ALTER TABLE PromoCode ADD COLUMN showOnApp TEXT DEFAULT 'false';";
+
+			sql += "Update Hotel SET version = '3.3.3.6';";
+		}else if(oldVersion.equals("3.3.3.4")) {
+			sql += "CREATE TABLE InventoryCheckLog (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, dateTime TEXT NOT NULL, "
+					+ "serviceDate TEXT NOT NULL, materialData TEXT NOT NULL, userId TEXT NOT NULL, outletId TEXT);";
+
+			sql += "Update Hotel SET version = '3.3.3.5';";
+		}else if(oldVersion.equals("3.3.3.3")) {
+			
+			sql += "UPDATE MenuItems SET onlineRate1 = onlineRate, onlineRate2 = onlineRate, onlineRate3 = onlineRate, "
+					+ "onlineRate4 = onlineRate, onlineRate5 = onlineRate;";
+			
+			sql += "UPDATE OnlineOrderingPortals SET menuAssociation = 0;"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 1 WHERE portal = 'ZOMATO';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 2 WHERE portal = 'SWIGGY';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 3 WHERE portal = 'FOODPANDA';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 4 WHERE portal = 'UBEREATS';"
+					+ "UPDATE OnlineOrderingPortals SET menuAssociation = 5 WHERE portal = 'FOODILOO';";
+			
+			sql += "Update Hotel SET version = '3.3.3.4';";
+		}else if(oldVersion.equals("3.3.3.2")) {
+			sql += "CREATE TABLE IF NOT EXISTS Payment2 ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, billNo TEXT NOT NULL DEFAULT (null), "
+					+ "orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL DEFAULT (null), foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, foodDiscount DOUBLE DEFAULT (0), "
+					+ "barDiscount DOUBLE, total DOUBLE NOT NULL, serviceCharge DOUBLE DEFAULT (0), serviceTax DOUBLE DEFAULT (0), VATFOOD DOUBLE DEFAULT (0), VATBAR DOUBLE DEFAULT (0), "
+					+ "sbCess DOUBLE DEFAULT (0), kkCess DOUBLE DEFAULT (0), tip DOUBLE DEFAULT (0), cashPayment DOUBLE DEFAULT (0), cardPayment DOUBLE DEFAULT (0), "
+					+ "appPayment DOUBLE DEFAULT (0), discountName text, cardType TEXT, gst DOUBLE, loyaltyAmount DOUBLE, complimentary DOUBLE, section TEXT, billNo2 TEXT , "
+					+ "packagingCharge DOUBLE DEFAULT 0.0, deliveryCharge DOUBLE DEFAULT 0.0, walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, "
+					+ "roundOff DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0); ";
+			
+			sql += "INSERT INTO Payment2 (hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, foodDiscount, barDiscount, loyaltyAmount, total, " + 
+					"serviceCharge, packagingCharge, deliveryCharge, gst, VATBAR, tip, cashPayment, cardPayment, appPayment, walletPayment, " + 
+					"creditAmount, promotionalCash, discountName, cardType, complimentary, section, roundOff) " + 
+					"SELECT hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, foodDiscount, barDiscount, loyaltyAmount, total, " + 
+					"serviceCharge, packagingCharge, deliveryCharge, gst, VATBAR, tip, cashPayment, cardPayment, appPayment, walletPayment, " + 
+					"creditAmount, promotionalCash, discountName, cardType, complimentary, section, roundOff FROM Payment; ";
+			
+			sql += "DROP TABLE Payment;" +
+				"ALTER TABLE Payment2 RENAME TO Payment;";
+			
+			sql += "Update Hotel SET version = '3.3.3.3';";
+		}else if(oldVersion.equals("3.3.3.1")) {
+			//Delete duplicate entries in Payment table
+			sql = "DELETE FROM Payment WHERE id NOT IN  (SELECT id FROM Payment GROUP BY orderId); ";
+
+			sql += "Update Hotel SET version = '3.3.3.2';";
+		}else if(oldVersion.equals("3.3.3")) {
+			
+			sql += "ALTER TABLE MenuItems ADD COLUMN onlineRate1 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate2 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate3 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate4 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN onlineRate5 DOUBLE DEFAULT 0.0;"
+				+	"ALTER TABLE OnlineOrderingPortals ADD COLUMN menuAssociation INTEGER;";
+			
+			sql += "Update Hotel SET version = '3.3.3.1';";
+		}else if(oldVersion.equals("3.3.2.23")) {
+			
+			sql += "ALTER TABLE MenuItems ADD COLUMN discountType TEXT;"
+				+	"ALTER TABLE MenuItems ADD COLUMN discountValue DOUBLE;";
+			
+			sql += "Update Hotel SET version = '3.3.3';";
+		}else if(oldVersion.equals("3.3.2.22")) {
+			
+			sql += "ALTER TABLE Hotel ADD COLUMN capturePayments TEXT DEFAULT 'false';";
+			
+			if(systemId.equals("sg0002")) {
+				sql += "UPDATE Hotel SET capturePayments = 'true';";
+			}else {
+				sql += "UPDATE Hotel SET capturePayments = 'false';";
+			}
+			
+			sql += "Update Hotel SET version = '3.3.2.23';";
+		}else if(oldVersion.equals("3.3.2.21")) {
+			
+			sql = "UPDATE Customers SET communicationMode = '[]' WHERE communicationMode is null;"
+				+ "Update Hotel SET version = '3.3.2.22';";
+			
+			System.out.println(sql);
+			db.executeUpdate(sql, systemId, true);
+			System.out.println("Updating Menu Items.");
+
+			IMenuItem dao = new MenuItemManager(false);
+			ArrayList<MenuItem> menu = dao.getMenu(systemId);
+			String title = "";
+			for (MenuItem menuItem : menu) {
+				title = toTitleCase(menuItem.getTitle());
+				sql = "UPDATE MenuItems SET title = '"+ title +"' WHERE menuId = '"+menuItem.getMenuId()+"';";
+				db.executeUpdate(sql, systemId, true);
+			}
+			System.out.println("Updated Menu Items.");
+			return true;
+		}else if(oldVersion.equals("3.3.2.20")) {
+			
+			sql += "ALTER TABLE Collections ADD COLUMN isSpecialCombo TEXT; Update Collections SET isSpecialCombo = 'false';"
+				+ "ALTER TABLE Collections ADD COLUMN isActiveOnZomato TEXT; Update Collections SET isActiveOnZomato = isActive;"
+				+ "Update Collections SET isActive = 'true';"
+				+ "UPDATE Hotel SET kotSettings = '600:455:2', kotFontSize = '15px', kotFontWeight = 'bold';";
+			
+			sql += "Update Hotel SET version = '3.3.2.21';";
+		}else if(oldVersion.equals("3.3.2.19")) {
+			
+			sql += "ALTER TABLE Orders ADD COLUMN riderStatus TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.2.20';";
+		}else if(oldVersion.equals("3.3.2.18")) {
+			
+			sql += "ALTER TABLE TransactionLog ADD COLUMN promoAmount DOUBLE DEFAULT 0.0; UPDATE TransactionLog SET promoAmount = 0.0;";
+			
+			sql += "Update Hotel SET version = '3.3.2.19';";
+		}else if(oldVersion.equals("3.3.2.17")) {
+			
+			sql += "ALTER TABLE Orders ADD COLUMN promotionalCash DOUBLE DEFAULT 0.0; UPDATE Orders SET promotionalCash = 0.0;";
+			
+			sql += "Update Hotel SET version = '3.3.2.18';";
+		}else if(oldVersion.equals("3.3.2.16")) {
+			
+			sql += "ALTER TABLE Customers ADD COLUMN promotionalCash DOUBLE DEFAULT 0.0; UPDATE Customers SET promotionalCash = 0;"
+				+	"ALTER TABLE Payment ADD COLUMN roundOff DOUBLE DEFAULT 0.0; UPDATE Payment SET roundOff = ROUND((total-(Payment.foodBill+Payment.barBill+gst+VATBAR-foodDiscount-barDiscount))*100)/100;"
+				+	"ALTER TABLE Payment ADD COLUMN promotionalCash DOUBLE DEFAULT 0.0; UPDATE Payment SET promotionalCash = 0.0;"
+				+	"ALTER TABLE MenuItems ADD COLUMN gstInclusive TEXT DEFAULT 'false'; UPDATE MenuItems SET gstInclusive = 'false';";
+			
+			sql += "Update Hotel SET version = '3.3.2.17';";
+		}else if(oldVersion.equals("3.3.2.15")) {
+			
+			sql += "UPDATE TransactionLog SET cashAmount = 0, cardAmount = 0, appAmount = 0, transferAmount = 0; "
+				+ "UPDATE TransactionLog SET cashAmount = transAmount WHERE paymentType = 'CASH'; "
+				+ "UPDATE TransactionLog SET cardAmount = transAmount WHERE paymentType = 'CARD';"
+				+ "UPDATE TransactionLog SET appAmount = transAmount WHERE paymentType = 'PAYTM';"
+				+ "UPDATE TransactionLog SET transferAmount = transAmount WHERE paymentType = 'TRANSFER';";
+			
+			sql += "Update Hotel SET version = '3.3.2.16';";
+		}else if(oldVersion.equals("3.3.2.14")) {
+			
+			sql += "ALTER TABLE TransactionLog ADD COLUMN appAmount DOUBLE;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN transferAmount DOUBLE;";
+			
+			sql += "Update Hotel SET version = '3.3.2.15';";
+			
+			sql += "ALTER TABLE TransactionLog ADD COLUMN cashAmount DOUBLE;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN cardAmount DOUBLE;";
+		}else if(oldVersion.equals("3.3.2.13")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN hasFullRounding TEXT; " + 
+				"ALTER TABLE Customers ADD COLUMN sendSMS TEXT; UPDATE Customers SET sendSMS = 'true'; ";
+			
+			if(systemId.contains("sg000")) {
+				sql += "UPDATE Hotel SET hasFullRounding = 'true';";
+			}else {
+				sql += "UPDATE Hotel SET hasFullRounding = 'false';";
+			}
+
+			sql += "Update Hotel SET version = '3.3.2.14';";
+		}else if(oldVersion.equals("3.3.2.12")) {
+			
+			sql = "DROP TABLE Designations;";
+			
+			sql += "CREATE TABLE IF NOT EXISTS Designations ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, designation TEXT UNIQUE, hasIncentive TEXT "
+					+ ", hotelId TEXT);";
+			
+			sql += "INSERT INTO Designations (Id, hotelId, designation, hasIncentive) VALUES "
+					+ "(0, '"+systemId+"', 'WAITER', 'false'), "
+					+ "(1, '"+systemId+"', 'MANAGER', 'false'), "
+					+ "(2, '"+systemId+"', 'ADMINISTRATOR', 'false'), "
+					+ "(3, '"+systemId+"', 'CHEF', 'false'), "
+					+ "(4, '"+systemId+"', 'RECEPTIONIST', 'false'), "
+					+ "(5, '"+systemId+"', 'RETAILASSCOCIATE', 'false'), "
+					+ "(6, '"+systemId+"', 'BACKOFFICE', 'false'), "
+					+ "(7, '"+systemId+"', 'DELIVERYBOY', 'false'), "
+					+ "(8, '"+systemId+"', 'OWNER', 'false'), "
+					+ "(9, '"+systemId+"', 'CAPTAIN', 'false'), "
+					+ "(10, '"+systemId+"', 'CASHIER', 'false');";
+			
+			sql += "ALTER TABLE Orders ADD COLUMN walletTransactionId INTEGER;";
+			
+			sql += "Update Hotel SET version = '3.3.2.13';";
+		}else if(oldVersion.equals("3.3.2.11")) {
+			sql = "ALTER TABLE TransactionLog ADD COLUMN authorizer TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN reason TEXT; "
+				+ "ALTER TABLE TransactionLog ADD COLUMN serviceDate TEXT; ";
+
+			sql += "Update Hotel SET version = '3.3.2.12';";
+		}else if(oldVersion.equals("3.3.2.10")) {
+			sql = "ALTER TABLE Orders ADD COLUMN isFoodReady TEXT; UPDATE Orders SET isFoodReady='true'; "
+				+ "ALTER TABLE OnlineOrders ADD COLUMN orderNumber INTEGER; ";
+
+			sql += "Update Hotel SET version = '3.3.2.11';";
+		}else if(oldVersion.equals("3.3.2.9")) {
+			sql = "ALTER TABLE Recipe ADD COLUMN processedMaterialSku INTEGER; ";
+
+			sql += "Update Hotel SET version = '3.3.2.10';";
+		}else if(oldVersion.equals("3.3.2.8")) {
+			sql = "ALTER TABLE PurchaseLog ADD COLUMN creditBalance DOUBLE; "
+				+ "UPDATE PurchaseLog SET creditBalance = grandTotal WHERE paymentType = 'CREDIT'; ";
+
+			sql += "CREATE TABLE IF NOT EXISTS VendorTransactions ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, "
+					+ "vendorId INTEGER NOT NULL, transType TEXT NOT NULL, transAmount DOUBLE NOT NULL, paymentType TEXT NOT NULL, account TEXT NOT NULL, "
+					+ "dateTime TEXT NOT NULL, paymentDate TEXT NOT NULL, userId TEXT NOT NULL, corporateId TEXT, outletId TEXT); ";
+			
+			sql += "Update Hotel SET version = '3.3.2.9';";
+		}else if(oldVersion.equals("3.3.2.7")) {
+			sql = "UPDATE Users SET userType = 12 WHERE userType = 10;" 
+				+ "UPDATE Users SET userType = 10 WHERE userType = 5;"
+				+ "UPDATE Users SET userType = 11 WHERE userType = 6;"
+				+ "UPDATE Users SET userType = 19 WHERE userType = 7;"
+				+ "UPDATE Users SET userType = 17 WHERE userType = 8;"
+				+ "UPDATE Users SET userType = 18 WHERE userType = 9;"
+				+ "UPDATE Users SET userType = 9 WHERE userType = 19;"
+				+ "UPDATE Users SET userType = 7 WHERE userType = 17;"
+				+ "UPDATE Users SET userType = 8 WHERE userType = 18;";
+			
+			sql += "Update Hotel SET version = '3.3.2.8';";
+		}else if(oldVersion.equals("3.3.2.6")) {
+			sql = "CREATE TABLE Recipe2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku INTEGER NOT NULL, menuId TEXT NOT NULL, "
+					+ "quantity INTEGER NOT NULL, hotelId TEXT NOT NULL, unit TEXT NOT NULL DEFAULT GRAM, "
+					+ "FOREIGN KEY(menuId) REFERENCES MenuItems(menuId), FOREIGN KEY(sku) REFERENCES Stock(sku));";
+			if(!systemId.equals("gg0001")) 
+				sql += "INSERT INTO Recipe2 (id , sku, menuId, quantity , hotelId, unit) " + 
+					"SELECT Id , CAST(sku AS INTEGER), menuId, quantity , hotelId, unit FROM Recipe;";
+				
+			sql += "DROP TABLE Recipe;" +
+				"ALTER TABLE Recipe2 RENAME TO Recipe;";
+			
+			sql += "Update Hotel SET version = '3.3.2.7';";
+		}else if(oldVersion.equals("3.3.2.5")) {
+			sql = "ALTER TABLE PurchaseLog ADD COLUMN paymentType TEXT NOT NULL DEFAULT 'CASH';"
+				+ "ALTER TABLE PurchaseLog ADD COLUMN account TEXT NOL NULL DEFAULT 'CASH_DRAWER';"
+				+ "ALTER TABLE PurchaseLog ADD COLUMN remark TEXT;";
+
+			sql += "Update Hotel SET version = '3.3.2.6';";
+		}else if(oldVersion.equals("3.3.2.4")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN theme TEXT DEFAULT '0';";
+			if(systemId.equals("gg0001") || systemId.equals("am0001"))
+				sql += "UPDATE Hotel SET theme = '1';";
+
+			sql += "Update Hotel SET version = '3.3.2.5';";
+		}else if(oldVersion.equals("3.3.2.3")) {
+			sql = "ALTER TABLE InventoryLog ADD COLUMN ratePerUnit DOUBLE DEFAULT 0.0;";
+
+			sql += "Update Hotel SET version = '3.3.2.4';";
+		}else if(oldVersion.equals("3.3.2.2")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN hasConciseBill TEXT DEFAULT 'false';";
+			
+			if(systemId.equals("am0001") || systemId.equals("cb0001") ||systemId.equals("gg0001") ||systemId.equals("bb0001"))
+				sql += "UPDATE Hotel SET hasConciseBill = 'true';";
+			else
+				sql += "UPDATE Hotel SET hasConciseBill = 'false';";
+			
+			sql += "Update Hotel SET version = '3.3.2.3';";
+		}else if(oldVersion.equals("3.3.2.1")) {
+			sql = "CREATE TABLE IF NOT EXISTS PurchaseLog (purchaseId TEXT NOT NULL PRIMARY KEY UNIQUE, "
+				+ "billNo TEXT, challanNo TEXT, "
+				+ "vendorId INTEGER, outletId INTEGER, additionalDiscount DOUBLE, totalDiscount DOUBLE, charge DOUBLE, roundOff DOUBLE, "
+				+ "totalGst DOUBLE, grandTotal DOUBLE, purchaseDate INTEGER, dateTime TEXT);";
+			
+			sql += "Update Hotel SET version = '3.3.2.2';";
+		}else if(oldVersion.equals("3.3.2")) {
+			sql = "CREATE TABLE InventoryLog2 ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, sku INTEGER NOT NULL, type TEXT NOT NULL, "
+				+ "quantity DOUBLE NOT NULL, amount DOUBLE NOT NULL, outletId TEXT, orderId TEXT, menuId TEXT, balanceQuantity INTEGER, "
+				+ "gst DOUBLE, gstValue INTEGER, discount DOUBLE, totalAmount DOUBLE, purchaseId INTEGER, logId TEXT DEFAULT '[]', dateTime TEXT);";
+			if(!systemId.equals("gg0001")) 
+				sql += "INSERT INTO InventoryLog2 (sku, type, quantity, amount, outletId, orderId, menuId)" + 
+					"SELECT sku, function, quantity, amount, outletId, orderId, menuId FROM InventoryLog;";
+				
+			sql += "DROP TABLE InventoryLog;" +
+					"ALTER TABLE InventoryLog2 RENAME TO InventoryLog;";
+			
+			sql += "Update Hotel SET version = '3.3.2.1';";
+		}else if(oldVersion.equals("3.3.1.9")) {
+			sql = "Update Hotel SET version = '3.3.2';";
+			sql += "DROP TABLE InventoryManager;";
+		}else if(oldVersion.equals("3.3.1.8")) {
+			sql = "ALTER TABLE Outlet ADD COLUMN closedDates TEXT DEFAULT '[]';";
+			
+			sql += "Update Hotel SET version = '3.3.1.9';";
+		}else if(oldVersion.equals("3.3.1.7")) {
+			sql = "ALTER TABLE Outlet ADD COLUMN carouselImages TEXT DEFAULT '[]';"
+				+ "ALTER TABLE Outlet ADD COLUMN menuBanner TEXT;"
+				+ "ALTER TABLE Outlet ADD COLUMN featuredItemId TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.1.8';";
+		}else if(oldVersion.equals("3.3.1.6")) {
+			sql = "ALTER TABLE Materials ADD COLUMN tax TEXT DEFAULT '[]'; UPDATE Materials SET tax = '[]';";
+			
+			sql += "Update Hotel SET version = '3.3.1.7';";
+		}else if(oldVersion.equals("3.3.1.5")) {
+			sql = "ALTER TABLE OrderItems ADD COLUMN itemIsMoved TEXT DEFAULT 'false';";
+			
+			sql += "Update Hotel SET version = '3.3.1.6';";
+		}else if(oldVersion.equals("3.3.1.4")) {
+			sql = "ALTER TABLE Orders ADD COLUMN amountReceivable DOUBLE;";
+			
+			sql += "Update Hotel SET version = '3.3.1.5';";
+		}else if(oldVersion.equals("3.3.1.3")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN apiKey TEXT;"
+				+ "ALTER TABLE OnlineOrders ADD COLUMN riderName TEXT;"
+				+ "ALTER TABLE OnlineOrders ADD COLUMN riderNumber TEXT;"
+				+ "ALTER TABLE OnlineOrders ADD COLUMN riderStatus TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.1.4';";
+			
+			sql += "ALTER TABLE OnlineOrders ADD COLUMN portalId TEXT;";
+		}else if(oldVersion.equals("3.3.1.2")) {
+			sql = "CREATE TABLE InventoryLog (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, sku INTEGER NOT NULL, " +
+				"function TEXT NOT NULL, quantity DOUBLE NOT NULL, amount DOUBLE NOT NULL, outletId TEXT, orderId TEXT, menuId TEXT);" + 
+				"INSERT INTO InventoryLog (sku, function, quantity, amount, outletId, orderId, menuId)" + 
+				"SELECT CAST(sku AS INTEGER), crud, quantity, amount, hotelId, orderId, menuId FROM StockLog;" + 
+				"DROP TABLE StockLog;";
+			
+			sql += "Update Hotel SET version = '3.3.1.3';";
+		}else if(oldVersion.equals("3.3.1.1")) {
+			sql = "ALTER TABLE ServiceLog ADD COLUMN reportForEmail TEXT;";
+			
+			sql += "Update Hotel SET version = '3.3.1.2';";
+		}else if(oldVersion.equals("3.3")) {
+			sql = "PRAGMA foreign_keys = OFF;" + 
+			"CREATE TABLE Material2 ( sku INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, displayableUnit TEXT NOT NULL DEFAULT 'GRAM'," + 
+			"quantity DOUBLE, measurableUnit TEXT NOT NULL, isCountable TEXT DEFAULT 'false', countableUnit TEXT, countableConversion DOUBLE, " + 
+			"ratePerUnit DOUBLE NOT NULL DEFAULT 0.0, minQuantity INTEGER NOT NULL DEFAULT 1, outletId TEXT NOT NULL, materialType TEXT DEFAULT 'RAW'," + 
+			"subType TEXT, state TEXT DEFAULT 'AVAILABLE', isActive TEXT DEFAULT 'true', category TEXT DEFAULT 'RECIPE MANAGED');" + 
+			"INSERT INTO Material2 ( sku, name , displayableUnit, quantity, measurableUnit, isCountable, ratePerUnit, minQuantity, outletId," + 
+			"materialType, state , isActive, category) " + 
+			"SELECT sku, name , displayableUnit, 0, unit, 'false', ratePerUnit, minQuantity, hotelId, 'RAW', state , 'true', 'RECIPE MANAGED' FROM Material;" + 
+			"DROP Table Material;" + 
+			"ALTER TABLE Material2 RENAME TO Materials;" + 
+			"UPDATE Materials SET quantity = (SELECT quantity FROM Stock WHERE Materials.sku == CAST(Stock.sku AS INTEGER));" + 
+			"DROP Table Stock;";
+			
+			sql += "Update Hotel SET version = '3.3.1.1';";
+		}else if(oldVersion.equals("3.2.9.12")) {
+			sql = "CREATE TABLE Vendors (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId TEXT, outletId TEXT, name TEXT,"
+					+ " address TEXT, poc TEXT, emailId TEXT, GSTNumber TEXT, balance DOUBLE); ";
+			
+			sql += "Update Hotel SET version = '3.3';";
+		}else if(oldVersion.equals("3.2.9.11")) {
+			sql =  "ALTER TABLE Orders ADD COLUMN excludedTaxes TEXT DEFAULT '[]'; UPDATE Orders SET excludedTaxes = '[]';"
+				+ "ALTER TABLE Orders ADD COLUMN fixedRupeeDiscount DOUBLE DEFAULT 0.0;";
+			
+			sql += "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+systemId+"', 'FIXED_RUPEE_DISCOUNT', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";	
+			
+			sql += "Update Hotel SET version = '3.2.9.12';";
+		}else if(oldVersion.equals("3.2.9.10")) {
+			sql = "CREATE TABLE CustomerCreditLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, amount DOUBLE NOT NULL, "
+			+ "mobileNumber TEXT NOT NULL, outletId TEXT NOT NULL, state TEXT NOT NULL, transDate TEXT NOT NULL, "
+			+ "settlementDate TEXT NOT NULL, orderId TEXT NOT NULL, paymentType TEXT);";
+				
+			sql += "Update Hotel SET version = '3.2.9.11';";
+		}else if(oldVersion.equals("3.2.9.9")) {
+			sql = "ALTER TABLE TransactionLog ADD COLUMN cashAmount TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN cardAmount TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN lastVisitDate TEXT;";
+				
+			sql += "Update Hotel SET version = '3.2.9.10';";
+		}else if(oldVersion.equals("3.2.9.8")) {
+			sql = "ALTER TABLE Customers ADD COLUMN joiningDate TEXT;"
+				+ "ALTER TABLE Customers ADD COLUMN lastRechargeDate TEXT;"
+				+ "ALTER TABLE Customers ADD COLUMN lastVisitDate TEXT;";
+				
+			sql += "Update Hotel SET version = '3.2.9.9';";
+		}else if(oldVersion.equals("3.2.9.7")) {
+			sql = "ALTER TABLE Orders ADD COLUMN loyaltyEarned DOUBLE;"
+				+ "ALTER TABLE Payment ADD COLUMN creditAmount DOUBLE;";
+				
+			sql += "Update Hotel SET version = '3.2.9.8';";
+		}else if(oldVersion.equals("3.2.9.6")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN isWalletOnline TEXT DEFAULT 'false';"
+				+ "ALTER TABLE Hotel ADD COLUMN isCreditActive TEXT DEFAULT 'false';"
+				+ "ALTER TABLE Hotel ADD COLUMN printLogo TEXT DEFAULT 'false';"
+				+ "ALTER TABLE Customers ADD COLUMN sex TEXT DEFAULT 'MALE';";
+			
+			sql += "UPDATE MenuItems SET flags = '[19]' WHERE flags LIKE '%Choice Item%';";
+				
+			sql += "Update Hotel SET version = '3.2.9.7';";
+		}else if(oldVersion.equals("3.2.9.5")) {
+
+			sql = "INSERT INTO Outlet (id, corporateId, outletId, name, companyName, address, contact, GSTNumber, VATNumber, code) "
+			+ "SELECT Id, hotelId, hotelId, hotelName, description, hotelAddress, hotelContact, GSTNumber, VATNumber, hotelCode FROM Hotel;";
+			sql += "Update Hotel SET version = '3.2.9.6';";
+		}else if(oldVersion.equals("3.2.9.4.2")) {
+			sql = "ALTER TABLE Payment ADD COLUMN walletPayment DOUBLE DEFAULT 0.0;"
+				+ "ALTER TABLE TotalRevenue ADD COLUMN wallet DOUBLE DEFAULT 0.0;";
+			
+			sql += "Update Hotel SET version = '3.2.9.5';";
+		}else if(oldVersion.equals("3.2.9.4.1")) {
+
+			sql = "Update Hotel SET version = '3.2.9.4.2';";
+			sql += "INSERT INTO OnlineOrderingPortals (id, portal, name, requiresLogistics, commisionValue, commisionType, hasIntegration,"
+					+ " hotelId, paymentCycleDay, discountsApplied) VALUES "
+					+ "(6 , 'ZOMATO_PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]');";
+			
+		}else if(oldVersion.equals("3.2.9.4")) {
+			sql = "CREATE TABLE Outlet (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId TEXT NOT NULL, "
+					+ "outletId TEXT NOT NULL, name TEXT NOT NULL, companyName TEXT, address TEXT, contact TEXT, GSTNumber TEXT, VATNumber TEXT, "
+					+ "code TEXT NOT NULL, imageLocation TEXT, schedule TEXT DEFAULT [], location TEXT DEFAULT [],"
+					+ "links TEXT DEFAULT []);";
+			sql += "ALTER TABLE TransactionLog ADD COLUMN orderId TEXT;"
+				+ "ALTER TABLE TotalRevenue ADD COLUMN zomatoPickup DOUBLE;";
+			
+			sql += "Update Hotel SET version = '3.2.9.4.1';";
+		}else if(oldVersion.equals("3.2.9.3.1")) {
+			
+			sql = "SELECT * FROM Employee WHERE sendSMS = 'true';";
+			ArrayList<Employee> employees = db.getRecords(sql, Employee.class, systemId);
+			sql = "";
+			for(Employee e : employees) {
+				sql += "UPDATE Employee SET sendEODSMS = 'true' WHERE employeeId = '"+ e.getEmployeeId() + "';";
+			}
+			if(systemId.equals("jp0001")) {
+				sql += "UPDATE payment SET total = foodbill-foodDiscount+gst, appPayment = ROUND(foodbill-foodDiscount+gst), cardType = 'SWIGGY' WHERE payment.orderId= (SELECT orderId  FROM Orders WHERE Orders.inhouse = 2 AND Orders.takeAwaytype = 2 AND orderId = Payment.orderId) AND appPayment = 0 AND cardType != 'VOID';";
+			}
+			sql += "Update Hotel SET version = '3.2.9.4';";
+		}else if(oldVersion.equals("3.2.9.3")) {
+			sql = "ALTER TABLE Employee ADD COLUMN sendEODSMS TEXT DEFAULT false; UPDATE Employee SET sendEODSMS = 'false';";
+				
+			sql += "Update Hotel SET version = '3.2.9.3.1';";
+		}else if(oldVersion.equals("3.2.9.2")) {
+			sql = "Update Hotel SET version = '3.2.9.3';"
+				+ "ALTER TABLE Customers ADD COLUMN imageLocation TEXT;"
+				+ "ALTER TABLE Customers ADD COLUMN address2 TEXT;"
+				+ "ALTER TABLE Customers ADD COLUMN address3 TEXT;"
+				+ "ALTER TABLE MenuItems ADD COLUMN corporateId TEXT;";
+			
+			sql += "DROP Table CorporateId;"
+				+ "CREATE TABLE Corporation ( corporateId text NOT NULL UNIQUE, businessName text NOT NULL, referrerBonus INTEGER NOT NULL DEFAULT 0, refereeBonus INTEGER NOT NULL DEFAULT 0)";
+		}else if(oldVersion.equals("3.2.9.1")) {
+			sql = "Update Hotel SET version = '3.2.9.2';"
+				+ "ALTER TABLE TransactionLog ADD COLUMN paymentId TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN paymentRequestId TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN paymentType TEXT;"
+				+ "ALTER TABLE TransactionLog ADD COLUMN transactionId INTEGER NOT NULL DEFAULT 0;";
+		}else if(oldVersion.equals("3.2.9")) {
+			sql = "Update Hotel SET version = '3.2.9.1';"
+				+ "ALTER TABLE TotalRevenue ADD COLUMN swiggyPop DOUBLE;"
+				+ "ALTER TABLE TotalRevenue ADD COLUMN googlePay DOUBLE;"
+				+ "ALTER TABLE TotalRevenue ADD COLUMN magicPin DOUBLE;";
+		}else if(oldVersion.equals("3.2.8.9")) {
+			sql = "Update Hotel SET version = '3.2.9';"
+				+ "CREATE TABLE TransactionLog ( Id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId	TEXT NOT NULL, "
+				+ "outletId	TEXT NOT NULL, transDate TEXT NOT NULL, transTime TEXT NOT NULL, "
+				+ "mobileNumber	TEXT NOT NULL, state TEXT NOT NULL, userId TEXT, rechargeAmount INTEGER NOT NULL, "
+				+ "offerAmount INTEGER, transAmount	INTEGER NOT NULL, referralCode TEXT, promoCode INTEGER, transType TEXT NOT NULL, "
+				+ "gst DOUBLE, transCharge DOUBLE);"
+				+ "ALTER TABLE Customers ADD COLUMN otp INTEGER;"
+				+ "ALTER TABLE Customers ADD COLUMN otpCount INTEGER;"
+				+ "ALTER TABLE Customers ADD COLUMN isVerified TEXT DEFAULT 'false';"
+				+ "ALTER TABLE Customers ADD COLUMN isBlocked TEXT DEFAULT 'false';"
+				+ "UPDATE Customers SET isVerified = 'false', isBlocked = 'false';"
+				+ "ALTER TABLE Customers ADD COLUMN pinGenTime TEXT;";
+		}else if(oldVersion.equals("3.2.8.8")) {
+			sql = "Update Hotel SET version = '3.2.8.9';"
+				+ "ALTER TABLE Customers ADD COLUMN communicationMode TEXT;";
+		}else if(oldVersion.equals("3.2.8.7")) {
+			sql = "Update Hotel SET version = '3.2.8.8';"
+				+ "ALTER TABLE Customers ADD COLUMN referalCode TEXT;"
+				+ "ALTER TABLE Customers ADD COLUMN wallet INTEGER;"
+				+ "ALTER TABLE Customers ADD COLUMN amountEarned DOUBLE;"
+				+ "ALTER TABLE Customers ADD COLUMN amountSpent DOUBLE;";
+
+			sql += "CREATE TABLE IF NOT EXISTS PromoCode ( name text NOT NULL UNIQUE, corporateId text NOT NULL, "
+			+ "description text NOT NULL, offerType text NOT NULL, rechargeAmount integer NOT NULL, offerAmount integer NOT NULL, startDate text NOT NULL, expiryDate text, "
+			+ "isActive TEXT DEFAULT 'true', firstTimeOnly TEXT DEFAULT 'false', showOnApp TEXT DEFAULT 'false', PRIMARY KEY(name) );";
+
+			sql += "CREATE TABLE IF NOT EXISTS CorporateId ( corporateId text NOT NULL UNIQUE, businessName text NOT NULL, referalbonusAmount INTEGER NOT NULL );";
+		}else if(oldVersion.equals("3.2.8.6")) {
+			sql = "Update Hotel SET version = '3.2.8.7';"
+				+ "ALTER TABLE Customers ADD COLUMN corporateId TEXT;";
+			if(systemId.equals("sg0001")) {
+				sql += "Update Customers SET corporateId = 'SPRINGOLD';";
+			}
+		}else if(oldVersion.equals("3.2.8.5")) {
+			sql = "Update Hotel SET version = '3.2.8.6';";
+			sql += "ALTER TABLE Hotel ADD COLUMN drawerCode TEXT;";
+			if(systemId.equals("ka0001")) {
+				sql += "Update Hotel SET drawerCode = '{ 27, 112, 0, 100, (byte) 250 }';";
+			}else if(systemId.equals("nd0001")) {
+				sql += "Update Hotel SET drawerCode = '{ 27, 112, 48, 55, (byte) 121 }';";
+			}
+		}else if(oldVersion.equals("3.2.8.4")) {
+			sql = "Update Hotel SET version = '3.2.8.5';";
+			sql +=  "ALTER TABLE Groups ADD COLUMN description TEXT;";
+		}else if(oldVersion.equals("3.2.8.3")) {
+			sql =  "UPDATE Bank SET section = 'DEFAULT';";
+			sql += "Update Hotel SET version = '3.2.8.4';";
+		}else if(oldVersion.equals("3.2.8.2")) {
+			sql =  "ALTER TABLE Discount ADD COLUMN maxFoodDiscountAmount DOUBLE;"
+					+ "ALTER TABLE Discount ADD COLUMN maxBarDiscountAmount DOUBLE;";
+			sql += "Update Hotel SET version = '3.2.8.3';";
+		}else if(oldVersion.equals("3.2.8.1")) {
+			sql =  "ALTER TABLE Orders ADD COLUMN cashToBeCollected DOUBLE;"
+					+ "ALTER TABLE Orders ADD COLUMN zomatoVoucherAmount DOUBLE;" 
+					+ "ALTER TABLE Orders ADD COLUMN piggyBank DOUBLE;";
+			sql += "Update Hotel SET version = '3.2.8.2';";
+		}else if(oldVersion.equals("3.2.8")) {
+			sql = "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+systemId+"', 'ZOMATO_VOUCHER', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+
+			sql += "INSERT INTO Discount (hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('"+systemId+"', 'PIGGYBANK', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+					
+			sql += "DELETE FROM Flags;";
+			sql += "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+					+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+					+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+					+ "(3, '"+systemId+"', 'Beverage', 5), "
+					+ "(24, '"+systemId+"', 'Egg', 1), "
+					+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+					+ "(4, '"+systemId+"', 'Spicy', 2), "
+					+ "(7, '"+systemId+"', 'Seasonal', 3), "
+					+ "(10, '"+systemId+"', 'Chef Special', 4), "
+					+ "(11, '"+systemId+"', 'Grilled', 5), "
+					+ "(12, '"+systemId+"', 'Fried', 5), "
+					+ "(13, '"+systemId+"', ' Platter', 6), "
+					+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+					+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+					+ "(16, '"+systemId+"', 'Vegan', 9), "
+					+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+					+ "(20, '"+systemId+"', 'Treat Available', 11), "
+					+ "(22, '"+systemId+"', 'Meal', 12), "
+					+ "(23, '"+systemId+"', 'Cake', 13), "
+					+ "(19, '"+systemId+"', 'Choice Item', 14),"
+					+ "(41, '"+systemId+"', 'BREAKFAST', 15),"
+					+ "(42, '"+systemId+"', 'LUNCH', 16),"
+					+ "(43, '"+systemId+"', 'DINNER', 17),"
+					+ "(48, '"+systemId+"', 'PIZZA', 18),"
+					+ "(46, '"+systemId+"', 'SNACKS', 19),"
+					+ "(44, '"+systemId+"', 'NORTH_INDIAN', 20),"
+					+ "(40, '"+systemId+"', 'DESSERT', 21),"
+					+ "(45, '"+systemId+"', 'CHINESE', 22),"
+					+ "(47, '"+systemId+"', 'SOUTH_INDIAN', 23),"
+					+ "(49, '"+systemId+"', 'BURGER', 24),"
+					+ "(50, '"+systemId+"', 'BIRYANI', 25),"
+					+ "(51, '"+systemId+"', 'FAST_FOOD', 26),"
+					+ "(53, '"+systemId+"', 'PARTY COMBOS', 27);";
+			sql += "Update Hotel SET version = '3.2.8.1';";
+		}else if(oldVersion.equals("3.2.7.11")) {
+			sql = "CREATE TABLE Customers2 ( Id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId	text NOT NULL," + 
+					"	mobileNumber text NOT NULL, firstName text, surName TEXT, address text, birthdate TEXT," + 
+					"	anniversary	TEXT, userType TEXT, remarks TEXT , allergyInfo	TEXT, points INTEGER, wantsPromotion	TEXT," + 
+					"	visitCount	TEXT, dateOfLastVisit TEXT, isPriority TEXT, emailId TEXT, reference TEXT, password BLOB," + 
+					"	salt BLOB, authToken TEXT, timeStamp TEXT, isLoggedIn TEXT );";
+			sql += "INSERT INTO Customers2 (Id, hotelId, mobileNumber, firstName , address, birthdate, anniversary, userType, remarks, allergyInfo, points, wantsPromotion," + 
+					"visitCount, dateOfLastVisit, isPriority, emailId, reference) " +
+					"SELECT Id, hotelId, mobileNo, customer , address, birthdate, anniversary, userType, remarks, allergyInfo, points, wantsPromotion," + 
+					"visitCount, dateOfLastVisit, isPriority, emailId, reference FROM Customers;" + 
+					"DROP TABLE Customers; " + 
+					"ALTER TABLE Customers2 RENAME TO Customers;";
+			sql += "Update Hotel SET version = '3.2.8';";
+		}else if(oldVersion.equals("3.2.7.10")) {
+			sql = "CREATE TABLE IF NOT EXISTS Sections (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, kitchenPrinter TEXT, barPrinter TEXT, "
+					+ "summaryPrinter TEXT, beveragePrinter TEXT, outdoorPrinter TEXT, cashierPrinter INTEGER, hotelId TEXT );";
+			sql += "INSERT INTO Sections (id, name, kitchenPrinter, barPrinter, summaryPrinter, beveragePrinter, outdoorPrinter, cashierPrinter, hotelId) VALUES "
+					+ "(1 , 'DEFAULT', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', '"+systemId+"');";
+			sql += "Update Hotel SET version = '3.2.7.11';";
+		}else if(oldVersion.equals("3.2.7.9")) {
+			sql = "update payment set complimentary = foodBill +barBill, gst = 0, total=0, foodDiscount = 0, barDiscount = 0, serviceCharge = 0, vatBar = 0 where cardType = 'NON_CHARGEABLE';";
+
+			sql += "Update Hotel SET version = '3.2.7.10';";
+		}else if(oldVersion.equals("3.2.7.8")) {
+			sql =  "ALTER TABLE Discount ADD COLUMN offerType TEXT; UPDATE Discount SET offerType = '"+OFFER_TYPE_DISCOUNT+"';"
+				+  "ALTER TABLE Discount ADD COLUMN applicableOnZomato TEXT DEFAULT 'false'; UPDATE Discount SET applicableOnZomato = 'false';"
+				+  "ALTER TABLE Discount ADD COLUMN isActive TEXT DEFAULT 'true'; UPDATE Discount SET isActive = 'true';"
+				+  "ALTER TABLE Discount ADD COLUMN offerQuantity INTEGER DEFAULT 0; UPDATE Discount SET offerQuantity = 0;"
+				+  "ALTER TABLE Discount ADD COLUMN startTime TEXT;"
+				+  "ALTER TABLE Discount ADD COLUMN endTime TEXT;"
+				+  "ALTER TABLE Discount ADD COLUMN firstOrderOnly TEXT DEFAULT 'false'; UPDATE Discount SET firstOrderOnly = 'false';"
+				+  "ALTER TABLE Discount ADD COLUMN minOrderAmount INTEGER DEFAULT 0; UPDATE Discount SET minOrderAmount = 0;"
+				+  "ALTER TABLE Discount ADD COLUMN bogoItems TEXT DEFAULT '[]'; UPDATE Discount SET bogoItems = '[]';";
+
+			sql += "Update Hotel SET version = '3.2.7.9';";
+		}else if(oldVersion.equals("3.2.7.7")) {
+			sql =  "ALTER TABLE Orders ADD COLUMN externalOrderId TEXT;"
+				+	"ALTER TABLE Orders ADD COLUMN riderName TEXT;"
+				+	"ALTER TABLE Orders ADD COLUMN riderNumber TEXT;"
+				+	"ALTER TABLE Charges ADD COLUMN isApplicableOnline TEXT; UPDATE Charges SET isApplicableOnline = 'false';"
+				+   "UPDATE Orders SET excludedCharges = '[]' WHERE excludedCharges is null;";
+			
+			sql += "CREATE TABLE IF NOT EXISTS OnlineOrderingPortals ( id INTEGER NOT NULL UNIQUE, portal TEXT NOT NULL, name TEXT NOT NULL, requiresLogistics TEXT NOT NULL, "
+					+ "commisionValue DOUBLE, commisionType TEXT, hasIntegration TEXT, hotelId TEXT, paymentCycleDay TEXT, discountsApplied TEXT, PRIMARY KEY(id) );";
+
+			sql += "INSERT INTO OnlineOrderingPortals (id, portal, name, requiresLogistics, commisionValue, commisionType, hasIntegration,"
+					+ " hotelId, paymentCycleDay, discountsApplied, menuAssociation) VALUES "
+					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 0), "
+					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 1), "
+					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 2), "
+					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 3), "
+					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 4), "
+					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 5), "
+					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 1), "
+					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]', 0);";
+			
+			sql += "Update Hotel SET version = '3.2.7.8';";
+		}else if(oldVersion.equals("3.2.7.6")) {
+			sql =  "ALTER TABLE Customers ADD COLUMN emailId TEXT;"
+				+	"ALTER TABLE Customers ADD COLUMN reference TEXT;"
+				+	"ALTER TABLE Orders ADD COLUMN excludedCharges TEXT DEFAULT '[]';";
+
+			sql += "Update Hotel SET version = '3.2.7.7';";
+		}else if(oldVersion.equals("3.2.7.5")) {
+			//SQLLITE CONCATE OPERATION ||
+			sql =  "ALTER TABLE OrderItems ADD COLUMN kotNumber INTEGER;";
+
+			sql += "Update Hotel SET version = '3.2.7.6';";
+		}else if(oldVersion.equals("3.2.7.4")) {
+			//SQLLITE CONCATE OPERATION ||
+			sql = "UPDATE Orders set discountCode = '[]' WHERE discountCode is null;"
+				+ "UPDATE Payment set discountName = '[]' WHERE discountName = '';"
+				+ "UPDATE Orders set discountCode = '[\"' || discountCode || '\"]' WHERE discountCode not like '[%';"
+				+ "UPDATE Payment set discountName = '[\"' || discountName || '\"]' WHERE discountName not like '[%';";
+
+			sql += "Update Hotel SET version = '3.2.7.5';";
+		}else if(oldVersion.equals("3.2.7.3")) {
+			sql = "ALTER TABLE Employee ADD COLUMN sendOperationalEmail TEXT DEFAULT false; UPDATE Employee SET sendOperationalEmail = 'false';"
+				+ "ALTER TABLE Employee ADD COLUMN sendEODEmail TEXT DEFAULT false; UPDATE Employee SET sendEODEmail = 'false';"
+				+ "ALTER TABLE Employee ADD COLUMN sendSMS TEXT DEFAULT false; UPDATE Employee SET sendSMS = 'false';";
+
+			sql += "Update Hotel SET version = '3.2.7.4';";
+		}else if(oldVersion.equals("3.2.7.2")) {
+			sql = "CREATE TABLE OrderAddOns2 ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, subOrderId INTEGER NOT NULL, " + 
+					"qty INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT NOT NULL, rate INTEGER NOT NULL, itemId INTEGER, state TEXT, subOrderDate TEXT );" + 
+					"INSERT INTO OrderAddOns2 (Id, hotelId, orderId, subOrderId, qty, menuId, addOnId, rate, itemId, state, subOrderDate) SELECT Id, hotelId, orderId, subOrderId, " +
+					"qty, menuId, addOnId, rate, itemId, state, subOrderDate FROM OrderAddOns;" + 
+					"DROP TABLE OrderAddOns; " + 
+					"ALTER TABLE OrderAddOns2 RENAME TO OrderAddOns;" + 
+					"CREATE TABLE OrderAddOnLog2 ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, " +
+					"subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, quantity INTEGER NOT NULL, rate INTEGER NOT NULL, state TEXT, addOnId TEXT, subOrderDate TEXT );" + 
+					"INSERT INTO OrderAddOnLog2 (Id, hotelId, orderId, subOrderId, menuId, itemId, quantity, rate, state, addOnId, subOrderDate) " +
+					"SELECT Id, hotelId, orderId, subOrderId, menuId, itemId, quantity, rate, state, addOnId, subOrderDate FROM OrderAddOnLog;" + 
+					"DROP TABLE OrderAddOnLog;" + 
+					"ALTER TABLE OrderAddOnLog2 RENAME TO OrderAddOnLog;";
+
+			sql += "Update Hotel SET version = '3.2.7.3';";
+		}else if(oldVersion.equals("3.2.7.1")) {
+			sql = "ALTER TABLE Material ADD COLUMN materialType TEXT DEFAULT 'INVENTORY_MANAGED';"
+					+ "ALTER TABLE Material ADD COLUMN state INTEGER DEFAULT 1;"
+					+ " UPDATE Material SET materialType = 'INVENTORY_MANAGED', "
+					+ "state = 1;";
+
+			sql += "Update Hotel SET version = '3.2.7.2';";
+		}else if(oldVersion.equals("3.2.7")) {
+			sql = "ALTER TABLE ServiceLog ADD COLUMN deductionState INTEGER DEFAULT 0;";
+
+			sql += "Update Hotel SET version = '3.2.7.1';";
+		}else if(oldVersion.equals("3.2.6")) {
+			sql = "ALTER TABLE Hotel ADD COLUMN deductionType INTEGER DEFAULT 0;";
+
+			sql += "Update Hotel SET version = '3.2.7';";
+		}else if(oldVersion.equals("3.2.5")) {
+			sql = "ALTER TABLE Charges ADD COLUMN isApplicableOn TEXT DEFAULT '[]';"
+				+ "ALTER TABLE Hotel ADD COLUMN VATNumber TEXT DEFAULT '';";
+
+			sql += "Update Hotel SET version = '3.2.6';";
+		}else if(oldVersion.equals("3.2.4")) {
+			sql = "ALTER TABLE StockLog ADD COLUMN orderId TEXT;"
+				+ "ALTER TABLE StockLog ADD COLUMN menuId TEXT;";
+
+			sql += "Update Hotel SET version = '3.2.5';";
+		}else if(oldVersion.equals("3.2.3")) {
+			sql = "ALTER TABLE Payment ADD COLUMN packagingCharge DOUBLE DEFAULT 0.0; UPDATE Payment SET packagingCharge = 0.0;"
+				+ "ALTER TABLE Payment ADD COLUMN deliveryCharge DOUBLE DEFAULT 0.0; UPDATE Payment SET deliveryCharge = 0.0;"
+				+ "ALTER TABLE Taxes ADD COLUMN applicableOn TEXT DEFAULT 'FOOD'; UPDATE Taxes SET applicableOn = 'FOOD';";
+			
+
+			sql += "Update Hotel SET version = '3.2.4';";
+		}else if(oldVersion.equals("3.2.2")) {
+			this.initDatabase(systemId);
+
+			sql = "INSERT INTO Designations (Id, hotelId, designation, hasIncentive) VALUES "
+					+ "(1, '"+systemId+"', 'WAITER', 'false'), "
+					+ "(2, '"+systemId+"', 'MANAGER', 'false'), "
+					+ "(3, '"+systemId+"', 'ADMINISTRATOR', 'false'), "
+					+ "(4, '"+systemId+"', 'CHEF', 'false'), "
+					+ "(5, '"+systemId+"', 'RECEPTIONIST', 'false'), "
+					+ "(6, '"+systemId+"', 'RETAILASSCOCIATE', 'false'), "
+					+ "(7, '"+systemId+"', 'BACKOFFICE', 'false'), "
+					+ "(8, '"+systemId+"', 'DELIVERYBOY', 'false'), "
+					+ "(9, '"+systemId+"', 'OWNER', 'false'), "
+					+ "(10, '"+systemId+"', 'CAPTAIN', 'false'), "
+					+ "(11, '"+systemId+"', 'CASHIER', 'false');";
+			
+			sql += "DELETE FROM Flags;"
+					+ " INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+					+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+					+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+					+ "(3, '"+systemId+"', 'Beverage', 5), "
+					+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+					+ "(4, '"+systemId+"', 'Spicy', 2), "
+					+ "(7, '"+systemId+"', 'Seasonal', 3), "
+					+ "(10, '"+systemId+"', 'Chef Special', 4), "
+					+ "(11, '"+systemId+"', 'Grilled', 5), "
+					+ "(12, '"+systemId+"', 'Fried', 5), "
+					+ "(13, '"+systemId+"', ' Platter', 6), "
+					+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+					+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+					+ "(16, '"+systemId+"', 'Vegan', 9), "
+					+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+					+ "(19, '"+systemId+"', 'Choice Item', 14), "
+					+ "(20, '"+systemId+"', 'Treat Available', 11), "
+					+ "(21, '"+systemId+"', 'Pepsi', 11), "
+					+ "(22, '"+systemId+"', 'Meal', 12), "
+					+ "(23, '"+systemId+"', 'Cake', 13), "
+					+ "(24, '"+systemId+"', 'Egg', 1), "
+					+ "(25, '"+systemId+"', 'Lipton', 11), "
+					+ "(26, '"+systemId+"', 'Turbo', 11), "
+					+ "(27, '"+systemId+"', 'Weekend Specials', 14), "
+					+ "(28, '"+systemId+"', 'Free Item', 11), "
+					+ "(29, '"+systemId+"', 'Value Week', 11), "
+					+ "(30, '"+systemId+"', 'Diet Pepsi', 11), "
+					+ "(31, '"+systemId+"', 'Exclusive Offer', 11), "
+					+ "(32, '"+systemId+"', 'Pepsi Combo', 11), "
+					+ "(33, '"+systemId+"', 'Thums Up', 11), "
+					+ "(34, '"+systemId+"', 'Sprite', 11), "
+					+ "(35, '"+systemId+"', 'Fanta', 11), "
+					+ "(36, '"+systemId+"', 'Kinley Soda', 11), "
+					+ "(37, '"+systemId+"', 'Maaza', 11), "
+					+ "(38, '"+systemId+"', 'Minute Maid', 11), "
+					+ "(39, '"+systemId+"', 'Limca', 11), "
+					+ "(40, '"+systemId+"', 'BREAKFAST', 15), "
+					+ "(41, '"+systemId+"', 'LUNCH', 16), "
+					+ "(42, '"+systemId+"', 'DINNER', 17), "
+					+ "(43, '"+systemId+"', 'PIZZA', 18), "
+					+ "(44, '"+systemId+"', 'SNACKS', 19), "
+					+ "(45, '"+systemId+"', 'NORTH_INDIAN', 20), "
+					+ "(46, '"+systemId+"', 'DESSERT', 21), "
+					+ "(47, '"+systemId+"', 'CHINESE', 22), "
+					+ "(48, '"+systemId+"', 'SOUTH_INDIAN', 23), "
+					+ "(49, '"+systemId+"', 'BURGER', 24), "
+					+ "(50, '"+systemId+"', 'BIRYANI', 25), "
+					+ "(51, '"+systemId+"', 'FAST_FOOD', 26), "
+					+ "(53, '"+systemId+"', 'PARTY COMBOS', 27),"
+					+ "(54, '"+systemId+"', 'BEVERAGES', 28), "
+					+ "(55, '"+systemId+"', 'SNACKS', 29), "
+					+ "(56, '"+systemId+"', 'BREADS', 30), "
+					+ "(57, '"+systemId+"', 'DESSERTS', 31), "
+					+ "(58, '"+systemId+"', 'RICE', 32), "
+					+ "(59, '"+systemId+"', 'SIDES', 33), "
+					+ "(60, '"+systemId+"', 'NEW', 34);";
+
+			sql += "INSERT INTO Taxes (Id, hotelId, name, value, type, isActive) VALUES "
+					+ "(1, '"+systemId+"', 'CGST', 2.5, 'PERCENTAGE', 'true'), "
+					+ "(2, '"+systemId+"', 'SGST', 2.5, 'PERCENTAGE', 'true'); ";
+			
+			sql += "ALTER TABLE Hotel ADD COLUMN isCaptainBasedOrdering TEXT; UPDATE Hotel SET isCaptainBasedOrdering = 'true';"
+					+  "ALTER TABLE Hotel ADD COLUMN showOccupiedTablesOnly TEXT; UPDATE Hotel SET showOccupiedTablesOnly = 'false';"
+					+  "ALTER TABLE Tables ADD COLUMN subTables TEXT;";
+			
+			sql += "UPDATE MenuItems SET flags = '[2]' WHERE vegType ==2 AND flags == '';"
+				+ "UPDATE MenuItems SET flags = '[1]' WHERE vegType ==1 AND flags == '';"
+				+ "UPDATE MenuItems SET flags = '[5]' WHERE vegType ==3 AND flags == '';"
+				+ "UPDATE MenuItems SET flags = '[3]' WHERE vegType ==4 AND flags == '';"
+				+ "UPDATE MenuItems SET flags = '[2, 19]' WHERE vegType ==2 AND flags LIKE '%ci%';"
+				+ "UPDATE MenuItems SET flags = '[1 ,19]' WHERE vegType ==1 AND flags LIKE '%ci%';"
+				+ "UPDATE MenuItems SET flags = '[5, 19]' WHERE vegType ==3 AND flags LIKE '%ci%';"
+				+ "UPDATE MenuItems SET flags = '[1 ,19]' WHERE vegType ==4 AND flags LIKE '%ci%';";
+			
+			sql += "UPDATE MenuItems SET taxes = '[1,2]' WHERE isTaxable ==0;"
+				+	"UPDATE MenuItems SET taxes = '[]' WHERE isTaxable ==1;"
+				+	"UPDATE MenuItems SET charges = '[]';"
+				+	"UPDATE MenuItems SET groups = '[]';";
+			
+			sql += "Update Hotel SET version = '3.2.3';";
+		}else if(oldVersion.equals("3.2.1")) {
+			
+			sql = "ALTER TABLE Tables ADD COLUMN type TEXT DEFAULT 'AC'; UPDATE Tables SET type = 'AC';"
+				+ "ALTER TABLE Tables ADD COLUMN showTableView TEXT DEFAULT 'true'; UPDATE Tables SET showTableView = 'true';"
+				+ "ALTER TABLE Hotel ADD COLUMN hasNewOrderScreen TEXT DEFAULT 'true'; UPDATE Hotel SET hasNewOrderScreen = 'true';";
+					
+			sql += "Update Hotel SET version = '3.2.2';";
+		}else if(oldVersion.equals("3.2")) {
+			
+			sql = "ALTER TABLE Collections ADD COLUMN description TEXT;" +
+					"ALTER TABLE Collections ADD COLUMN imgUrl TEXT;" +
+					"ALTER TABLE MenuItems ADD COLUMN syncOnZomato TEXT;" +
+					"ALTER TABLE Charges ADD COLUMN orderType TEXT;" +
+					"ALTER TABLE SubCollections ADD COLUMN description TEXT;" +
+					"ALTER TABLE Specifications ADD COLUMN isDisplayable TEXT; UPDATE Specifications SET isDisplayable = 'true' WHERE id < 21;"
+					+ " UPDATE Specifications SET isDisplayable = 'false' WHERE id > 20; ";
+
+			sql += "ALTER TABLE Collections ADD COLUMN collectionOrder INTEGER; update Collections set collectionOrder = id;" + 
 					"ALTER TABLE Collections ADD COLUMN hasSubCollection TEXT NOT NULL DEFAULT 'false';" +
 					"ALTER TABLE Collections ADD COLUMN isActive TEXT NOT NULL DEFAULT 'true';" +
 					"ALTER TABLE Collections ADD COLUMN name TEXT; update Collections set name = collection;" +
-					"ALTER TABLE Collections ADD COLUMN scheduleId INTEGER;";
+					"ALTER TABLE Collections ADD COLUMN scheduleIds TEXT;";
 			sql += "CREATE TABLE Collections1 ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, name text NOT NULL, "
-					+ "image TEXT DEFAULT (null), collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, isActive TEXT NOT NULL, scheduleId INTEGER ); ";
-			sql += "INSERT INTO Collections1 (hotelId, name, image, collectionOrder, hasSubCollection, isActive, scheduleId) " +
-					"SELECT hotelId, collection, image, collectionOrder, hasSubCollection, isActive, scheduleId FROM Collections; " +
+					+ "image TEXT DEFAULT (null), collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, isActive TEXT NOT NULL, scheduleIds TEXT ); ";
+			sql += "INSERT INTO Collections1 (hotelId, name, image, collectionOrder, hasSubCollection, isActive, scheduleIds) " +
+					"SELECT hotelId, collection, image, collectionOrder, hasSubCollection, isActive, scheduleIds FROM Collections; " +
 					"DROP TABLE Collections; " +
-					"ALTER TABLE Collections1 RENAME TO Collections;" +
-					"Update Hotel SET version = '3';";
-		}
-		if(oldVersion.equals("2.11")) {
-			sql += "CREATE TABLE Charges ( sr INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, amount FLOAT NOT NULL, amount2 INTEGER, amount3 INTEGER );"
-					+ " Update Hotel SET version = '2.12';";
-		}
-		if(oldVersion.equals("2.1")) {
-			sql += "CREATE TABLE IF NOT EXISTS Reservations ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, "
-				+ "customerId INTEGER NOT NULL, maleCount INTEGER NOT NULL, femaleCount INTEGER NOT NULL, "
-				+ "childrenCount INTEGER NOT NULL, bookingTime TEXT NOT NULL, bookingDate TEXT NOT NULL, timeStamp TEXT NOT NULL, state INTEGER NOT NULL, "
-				+ "type INTEGER NOT NULL, orderId TEXT UNIQUE, hotelId TEXT NOT NULL, foreign key(customerId) references Customers(id) ); "
-				+ "ALTER TABLE Customers ADD COLUMN isPriority TEEXT; update Customers set isPriority = 'false';" +
+					"ALTER TABLE Collections1 RENAME TO Collections; ";
+			sql += "Update Hotel SET version = '3.2.1';";
+		}else if(oldVersion.equals("3.1")) {
+			
+			sql = "ALTER TABLE MenuItems ADD COLUMN subCollection INTEGER;" +
+					"ALTER TABLE MenuItems ADD COLUMN groups TEXT; ALTER TABLE MenuItems ADD COLUMN taxes TEXT; ALTER TABLE MenuItems ADD COLUMN charges TEXT;" +
+					"ALTER TABLE MenuItems ADD COLUMN isRecomended TEXT DEFAULT 'false'; ALTER TABLE MenuItems ADD COLUMN isTreats TEXT DEFAULT 'false'; " +
+					"ALTER TABLE MenuItems ADD COLUMN isBogo TEXT DEFAULT 'false'; ALTER TABLE MenuItems ADD COLUMN isDefault TEXT DEFAULT 'false'; " +
+					"ALTER TABLE MenuItems ADD COLUMN isAddOn TEXT NOT NULL DEFAULT 'false';" +
+					"ALTER TABLE MenuItems ADD COLUMN comboReducedPrice DOUBLE DEFAULT 0.0;";
+			sql += "CREATE TABLE IF NOT EXISTS MenuItems1 ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, station TEXT NOT NULL, " +
+					"menuId text NOT NULL UNIQUE, title text NOT NULL, description text, collection text NOT NULL, subCollection TEXT, " +
+					"flags text, preparationTime integer, deliveryRate DOUBLE NOT NULL, dineInRate DOUBLE NOT NULL DEFAULT 0, dineInNonAcRate DOUBLE NOT NULL DEFAULT 0, onlineRate DOUBLE, " +
+					"costPrice DOUBLE DEFAULT Null, vegType int NOT NULL, method TEXT, state INTEGER NOT NULL, code TEXT, addOns TEXT, " +
+					"img text, hasIncentive INTEGER, incentive INTEGER, isTaxable INTEGER NOT NULL, groups TEXT, taxes TEXT, charges TEXT, " +
+					"isRecomended TEXT DEFAULT 'false', isTreats TEXT DEFAULT 'false', isDefault TEXT DEFAULT 'false', isBogo TEXT DEFAULT 'false', comboReducedPrice DOUBLE, isAddOn TEXT NOT NULL DEFAULT 'false'); "; 
+			sql += "INSERT INTO MenuItems1 (Id, hotelId, station, menuId, title, description, collection, subCollection, flags, preparationTime, deliveryRate, " +
+					"dineInRate, onlineRate, costPrice, vegType, method, state, code, addOns, img, hasIncentive, incentive, isTaxable, groups, taxes, " +
+					"charges, isRecomended, isTreats, isDefault, isBogo, comboReducedPrice, isAddOn) " +
+					"SELECT Id, hotelId, station, menuId, title, description, category, subCollection, flags, preparationTime, rate, " +
+					"inHouseRate, onlineRate, costPrice, vegType, method, state, shortForm, addOns, img, hasIncentive, incentive, isTaxable, groups, taxes, charges, " +
+					"isRecomended, isTreats, isDefault, isBogo, comboReducedPrice, isAddOn FROM MenuItems; " +
+					"DROP TABLE MenuItems; " +
+					"ALTER TABLE MenuItems1 RENAME TO MenuItems;";
+			sql += "Update Hotel SET version = '3.2';";
+		}else if(oldVersion.equals("3")) {
+			
+			sql = "CREATE TABLE IF NOT EXISTS SubCollections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL,"
+					+ " subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, hotelId INTEGER NOT NULL, isActive TEXT); ";
+			
+			sql += "UPDATE MenuItems SET state = 1; Update Hotel SET version = '3.1';";
+		}else if(oldVersion.equals("2.11")) {
+			sql += "CREATE TABLE Charges ( sr INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, amount DOUBLE NOT NULL, amount2 INTEGER, amount3 INTEGER );"
+					+ " Update Hotel SET version = '3';";
+		}else if(oldVersion.equals("2.1")) {
+			sql += "ALTER TABLE Customers ADD COLUMN isPriority TEXT; update Customers set isPriority = 'false';" +
 				"Update Hotel SET version = '2.11';";
-		}
-		if(oldVersion.equals("2") || oldVersion.equals("2.0")) {
-			sql = "ALTER TABLE TotalRevenue ADD COLUMN zomatoPay BigDecimal; update TotalRevenue set zomatoPay = 0.0;" + 
-				"ALTER TABLE TotalRevenue ADD COLUMN nearBy BigDecimal; update TotalRevenue set nearBy = 0.0;" +
+		}else if(oldVersion.equals("2") || oldVersion.equals("2.0")) {
+			sql = "ALTER TABLE TotalRevenue ADD COLUMN zomatoPay DOUBLE; update TotalRevenue set zomatoPay = 0.0;" + 
+				"ALTER TABLE TotalRevenue ADD COLUMN nearBy DOUBLE; update TotalRevenue set nearBy = 0.0;" +
 				"Update Hotel SET version = '2.1';";
-		}
-		if(oldVersion.equals("1.02 rev.10023")) {
+		}else if(oldVersion.equals("1.02 rev.10023")) {
 			sql = "ALTER TABLE Payment ADD COLUMN appPayment BigDecimal; update Payment set appPayment = 0.0 where appPayment isNull;" + 
 				"update Payment set appPayment= cardpayment, cardpayment=0.0 where (cardType LIKE '%ZOMATO%') OR (cardType LIKE '%SWIGGY%') " +
 				"OR (cardType LIKE '%DINEOUT%') OR (cardType LIKE '%PAYTM%') OR (cardType LIKE '%FOODPANDA%') OR (cardType LIKE '%UBEREATS%') " + 
@@ -196,8 +1873,7 @@ public class AccessManager {
 				+ "update Payment set complimentary = 0.0 where complimentary isnull;"
 				+ "update Payment set loyaltyAmount = 0.0 where complimentary isnull;"
 				+ "Update Hotel SET version = '2.0';";
-		}
-		if(oldVersion.equals("1.01A rev.10023") || oldVersion.equals("")) {
+		}else if(oldVersion.equals("1.01A rev.10023") || oldVersion.equals("")) {
 			sql = "ALTER TABLE Hotel ADD COLUMN version TEXT;" + 
 				"Update Hotel SET version = '1.02 rev.10023';" +
 				"ALTER TABLE Orders ADD COLUMN takeAwaytype integer;" +
@@ -210,84 +1886,94 @@ public class AccessManager {
 				"update Orders set takeAwayType = 0 WHERE inHouse != 2;";
 		}
 		System.out.println(sql);
-		db.executeUpdate(sql, true);
+		if(sql.isEmpty()) {
+			return false;
+		}
+		return db.executeUpdate(sql, systemId, true);
 	}
 
 	public void initDatabase(String hotelId) {
+		
 		String sql = "CREATE TABLE IF NOT EXISTS Users (  Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, userId text NOT NULL, "
-			+ "userPasswd BLOB NOT NULL, employeeId text NOT NULL, userType integer NOT NULL, authToken text, timeStamp text, salt BLOB,"
-		 	+ "UNIQUE(hotelId,userId,employeeId),"
-		 	+ "FOREIGN KEY(employeeId) REFERENCES Employee(employeeId));";
+		+ "userPasswd BLOB NOT NULL, employeeId text NOT NULL, userType integer NOT NULL, authToken text, timeStamp text, salt BLOB,"
+	 	+ "UNIQUE(hotelId,userId,employeeId),"
+	 	+ "FOREIGN KEY(employeeId) REFERENCES Employee(employeeId));";
 		db.executeUpdate(sql, hotelId, false);
 
+		sql = "CREATE TABLE IF NOT EXISTS Designations ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, designation TEXT UNIQUE, hasIncentive TEXT "
+		+ ", hotelId TEXT);";
+		db.executeUpdate(sql, hotelId, false);
+		
 		sql = "CREATE TABLE IF NOT EXISTS TransactionHistory ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, trType TEXT NOT NULL, "
-		+ "trDetail TEXT NOT NULL, amount FLOAT NOT NULL, balance FLOAT NOT NULL, trDate TEXT NOT NULL, userId TEXT, authoriser TEXT, "
+		+ "trDetail TEXT NOT NULL, amount DOUBLE NOT NULL, balance DOUBLE NOT NULL, trDate TEXT NOT NULL, userId TEXT, authoriser TEXT, "
 		+ "employeeId TEXT NOT NULL, hotelId TEXT, paymentType TEXT, trAccountName TEXT, serviceDate TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE SubCollections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, "
-				+ "subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, hotelId TEXT NOT NULL );";
+		sql = "CREATE TABLE IF NOT EXISTS SubCollections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+		+	"subCollectionOrder INTEGER NOT NULL, collection TEXT NOT NULL, isActive TEXT, isActiveOnline TEXT, outletId TEXT NOT NULL,"
+		+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE Schedules ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, days TEXT NOT NULL, " +
-			"timeSlots INTEGER NOT NULL, hotelId TEXT NOT NULL );";
+		sql = "CREATE TABLE IF NOT EXISTS Schedules ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, days TEXT NOT NULL, "
+		+	"timeSlots INTEGER NOT NULL, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";		
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE Groups ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds INTEGER NOT NULL, name INTEGER NOT NULL, "
-				+ "decription TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, isActive TEXT NOT NULL DEFAULT 'true' )";
+		sql = "CREATE TABLE IF NOT EXISTS Groups ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, itemIds INTEGER NOT NULL, name INTEGER NOT NULL, "
+		+	"description TEXT, max INTEGER NOT NULL, min INTEGER NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', "
+		+	"isActiveOnline TEXT DEFAULT 'false', title TEXT, subTitle TEXT, isProperty TEXT DEFAULT 'false', outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS TotalRevenue ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, "
-		+ "serviceDate TEXT NOT NULL, serviceType TEXT NOT NULL, cash FLOAT NOT NULL, card FLOAT NOT NULL, app FLOAT, visa FLOAT, "
-		+ "mastercard FLOAT, maestro FLOAT, amex FLOAT, rupay FLOAT, others FLOAT, difference FLOAT DEFAULT (null), reason TEXT, "
-		+ "total FLOAT NOT NULL, clearance TEXT, zomato FLOAT DEFAULT (null), swiggy FLOAT DEFAULT (null), dineOut FLOAT DEFAULT (null), "
-		+ "mswipe FLOAT, paytm FLOAT, complimentary FLOAT, section TEXT, foodiloo FLOAT, uberEats FLOAT, foodPanda FLOAT, "
-		+ "deductedCash FLOAT, cash2 FLOAT);";
+		+ "serviceDate TEXT NOT NULL, serviceType TEXT NOT NULL, cash DOUBLE NOT NULL, card DOUBLE NOT NULL, app DOUBLE, visa DOUBLE, "
+		+ "mastercard DOUBLE, maestro DOUBLE, amex DOUBLE, rupay DOUBLE, others DOUBLE, difference DOUBLE DEFAULT (null), reason TEXT, "
+		+ "total DOUBLE NOT NULL, clearance TEXT, zomato DOUBLE DEFAULT (null), swiggy DOUBLE DEFAULT (null), dineOut DOUBLE DEFAULT (null), "
+		+ "mswipe DOUBLE, paytm DOUBLE, complimentary DOUBLE, section TEXT, foodiloo DOUBLE, uberEats DOUBLE, foodPanda DOUBLE, "
+		+ "deductedCash DOUBLE, cash2 DOUBLE, zomatoPay DOUBLE, nearBy DOUBLE, swiggyPop DOUBLE, googlePay DOUBLE, magicPin DOUBLE, "
+		+ "zomatoPickup DOUBLE, wallet DOUBLE);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Tables ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId text NOT NULL, state integer, "
-		+ "hotelId TEXT NOT NULL, section TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Tables ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, tableId TEXT NOT NULL UNIQUE, orderId TEXT, isInBilling TEXT DEFAULT 'true', "
+		+	"section TEXT, type TEXT, showTableView TEXT DEFAULT 'true', waiterId TEXT, subTables TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Taxes ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value DOUBLE NOT NULL, "
-				+ "type TEXT NOT NULL, isActive TEXT NOT NULL DEFAULT 'true', hotelId TEXT NOT NULL )";
+		sql = "CREATE TABLE IF NOT EXISTS Taxes ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name INTEGER NOT NULL, value INTEGER NOT NULL, type TEXT NOT NULL, "
+		+	"isActive TEXT NOT NULL DEFAULT 'true', applicableOn TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Flags ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, "
-				+ "groupId INTEGER NOT NULL, hotelId TEXT NOT NULL )";
+		+ "groupId INTEGER NOT NULL, hotelId TEXT NOT NULL );";
 		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Tiers ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, value DOUBLE NOT NULL, "
-				+ "chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, hotelId TEXT NOT NULL )";
+		+	"chargeAlwaysApplicable TEXT NOT NULL DEFAULT 'true', minBillAmount DOUBLE, outletId TEXT NOT NULL,"
+		+	"systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 		
-		sql = "CREATE TABLE IF NOT EXISTS Charges ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, "
-				+ "value DOUBLE NOT NULL, isActive TEXT NOT NULL DEFAULT 'false', applicableOn TEXT, isAlwaysApplicable INTEGER DEFAULT 'false', "
-				+ "minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, hotelId TEXT NOT NULL )";
+		sql = "CREATE TABLE IF NOT EXISTS Charges ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, type TEXT NOT NULL, value DOUBLE NOT NULL, "
+		+	"isActive TEXT NOT NULL DEFAULT 'false', isAlwaysApplicable TEXT DEFAULT 'false', isApplicableOnline TEXT DEFAULT 'false', isApplicableOn TEXT DEFAULT '[]', "
+		+	"chargeLevel TEXT, orderType TEXT, minBillAmount DOUBLE, hasTierWiseValues TEXT, taxesOnCharge TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS StockLog ( Id INTEGER NOT NULL, sku TEXT NOT NULL DEFAULT (null), crud TEXT NOT NULL, quantity FLOAT NOT NULL, "
-		+ "amount FLOAT NOT NULL, hotelId TEXT, PRIMARY KEY(Id));";
-		db.executeUpdate(sql, hotelId, false);
-
-		sql = "CREATE TABLE IF NOT EXISTS Stock ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku TEXT NOT NULL, doc TEXT NOT NULL, doe TEXT, "
-		+ "quantity INTEGER NOT NULL, hotelId text NOT NULL,"
-	 	+ "FOREIGN KEY(sku) REFERENCES Material(sku));";
+		sql = "CREATE TABLE IF NOT EXISTS InventoryLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, sku INTEGER NOT NULL, type TEXT NOT NULL, "
+		+ "quantity DOUBLE NOT NULL, ratePerUnit DOUBLE NOT NULL, amount DOUBLE NOT NULL, outletId TEXT, orderId TEXT, menuId TEXT, balanceQuantity INTEGER, "
+		+ "gst DOUBLE, gstValue INTEGER, discount DOUBLE, totalAmount DOUBLE, purchaseId INTEGER, logId TEXT DEFAULT '[]', dateTime TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Stations ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, station text NOT NULL,"
 	 	+ "UNIQUE(hotelId,station));";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Specifications ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, specification TEXT NOT NULL, category TEXT, "
-		+ "type INTEGER NOT NULL);";
+		sql = "CREATE TABLE IF NOT EXISTS Specifications ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, specification TEXT NOT NULL, station TEXT, "
+		+ "type INTEGER NOT NULL, isDisplayable TEXT DEFAULT 'true', outletId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS ServiceLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, serviceDate TEXT NOT NULL, "
-		+ "startTimeStamp TEXT NOT NULL, endTimeStamp TEXT NOT NULL, serviceType TEXT NOT NULL, isCurrent INTEGER NOT NULL, cashInHand INTEGER, smsEmailSent TEXT);";
+		+ "startTimeStamp TEXT NOT NULL, endTimeStamp TEXT NOT NULL, serviceType TEXT NOT NULL, isCurrent INTEGER NOT NULL, cashInHand INTEGER, smsEmailSent TEXT,"
+		+ " deductionState INTEGER, reportForEmail TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, lastUpdateTime TEXT, hotelId TEXT, status INTEGER);";
+		sql =  "CREATE TABLE ServerLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, updateTime TEXT, systemId TEXT, "
+		+ "isActive TEXT DEFAULT 'true', isTransactionLogged TEXT DEFAULT 'false', isDataDeleted TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Roles ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, role TEXT, clearanceLevel INTEGER, hotelId TEXT);";
@@ -297,74 +1983,85 @@ public class AccessManager {
 		+ "write INTEGER, deleteAccess INTEGER, hotelId INTEGER);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Recipe ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku TEXT NOT NULL, menuId TEXT NOT NULL, "
-		+ "quantity INTEGER NOT NULL, hotelId TEXT NOT NULL, unit TEXT NOT NULL DEFAULT GRAM,"
-	 	+ "FOREIGN KEY(menuId) REFERENCES MenuItems(menuId),"
-	 	+ "FOREIGN KEY(sku) REFERENCES Stock(sku));";
+		sql = "CREATE TABLE IF NOT EXISTS Recipe ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, sku INTEGER NOT NULL, menuId TEXT NOT NULL, "
+		+ "quantity INTEGER NOT NULL, hotelId TEXT NOT NULL, unit TEXT NOT NULL DEFAULT GRAM, processedMaterialSku INTEGER, "
+		+ "FOREIGN KEY(menuId) REFERENCES MenuItems(menuId), FOREIGN KEY(sku) REFERENCES Stock(sku))";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Payment ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, billNo TEXT NOT NULL DEFAULT (null), "
-		+ "orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL DEFAULT (null), foodBill FLOAT NOT NULL, barBill FLOAT NOT NULL, "
-		+ "foodDiscount FLOAT DEFAULT (0), barDiscount FLOAT, total FLOAT NOT NULL, serviceCharge FLOAT DEFAULT (0), serviceTax FLOAT DEFAULT (0), "
-		+ "VATFOOD FLOAT DEFAULT (0), VATBAR FLOAT DEFAULT (0), sbCess FLOAT DEFAULT (0), kkCess FLOAT DEFAULT (0), tip FLOAT DEFAULT (0), "
-		+ "cashPayment FLOAT DEFAULT (0), cardPayment FLOAT DEFAULT (0), appPayment FLOAT DEFAULT (0), discountName text, cardType TEXT, gst FLOAT, loyaltyAmount FLOAT, "
-		+ "complimentary FLOAT, section TEXT, billNo2 TEXT, FOREIGN KEY(orderId) REFERENCES Orders(orderId));";
+		sql = "CREATE TABLE IF NOT EXISTS Payments ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, billNo TEXT NOT NULL, orderId text NOT NULL UNIQUE, orderDate DATETIME NOT NULL, "
+		+	"foodBill DOUBLE NOT NULL, barBill DOUBLE NOT NULL, discountCodes TEXT, foodDiscount DOUBLE DEFAULT 0.0, barDiscount DOUBLE DEFAULT 0.0, "
+		+	"total DOUBLE DEFAULT 0.0, gst DOUBLE DEFAULT 0.0, vat DOUBLE DEFAULT 0.0, serviceCharge DOUBLE DEFAULT 0.0, packagingCharge DOUBLE DEFAULT 0.0, "
+		+	"deliveryCharge DOUBLE DEFAULT 0.0, paymentType TEXT, cashPayment DOUBLE DEFAULT 0.0, cardPayment DOUBLE DEFAULT 0.0, appPayment DOUBLE DEFAULT 0.0, "
+		+	"walletPayment DOUBLE DEFAULT 0.0, creditAmount DOUBLE DEFAULT 0.0, promotionalCash DOUBLE DEFAULT 0.0, loyaltyAmount DOUBLE DEFAULT 0.0, "
+		+	"complimentary DOUBLE DEFAULT 0.0, roundOff DOUBLE DEFAULT 0.0, tip DOUBLE DEFAULT 0.0, billNo2 TEXT, section TEXT, outletId TEXT NOT NULL, "
+		+	"systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Orders ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, orderId text NOT NULL UNIQUE, "
-		+ "orderDate text NOT NULL, customerName text, customerAddress text, customerNumber text, rating_ambiance integer, rating_qof integer, "
-		+ "rating_service integer, rating_hygiene integer, waiterId text, numberOfGuests integer, state integer NOT NULL, inhouse integer NOT NULL, takeAwayType integer, "
-		+ "tableId text, reviewSuggestions TEXT, serviceType TEXT NOT NULL, foodBill FLOAT DEFAULT (null), barBill FLOAT DEFAULT (null), "
-		+ "billNo INTEGER, reason TEXT, authId TEXT, printCount INTEGER DEFAULT (0), discountCode TEXT, isSmsSent INTEGER, completeTimestamp TEXT, "
-		+ "loyaltyId INTEGER, loyaltyPaid INTEGER, section TEXT, customerGst TEXT, reference TEXT, remarks TEXT, deliveryBoy TEXT, deliveryTimeStamp TEXT, billNo2 TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Orders (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL UNIQUE, orderDate TEXT NOT NULL, orderDateTime TEXT, "
+		+	"serviceType TEXT NOT NULL, state INTEGER NOT NULL, orderType INTEGER NOT NULL, takeAwaytype INTEGER, tableId TEXT, billNo INTEGER, "
+		+	"billNo2 INTEGER, printCount INTEGER DEFAULT 0, completeTimestamp TEXT, section TEXT, reference TEXT, remarks TEXT, loyaltyId INTEGER, "
+		+	"loyaltyPaid INTEGER DEFAULT 0, loyaltyEarned DOUBLE DEFAULT 0.0, eWards TEXT DEFAULT '{}', waiterId TEXT, deliveryBoy TEXT, deliveryTimeStamp TEXT, externalOrderId TEXT, "
+		+	"isFoodReady TEXT DEFAULT 'false', riderName TEXT, riderNumber TEXT, riderStatus TEXT, amountReceivable DOUBLE DEFAULT 0.0, cashToBeCollected TEXT,"
+		+ 	" orderPreparationTime INTEGER DEFAULT 0, onlineOrderData TEXT DEFAULT '{}', discountCodes TEXT DEFAULT '[]', "
+		+	"fixedRupeeDiscount DOUBLE DEFAULT 0.0, zomatoVoucherAmount DOUBLE DEFAULT 0.0, piggyBank DOUBLE DEFAULT 0.0, goldDiscount DOUBLE DEFAULT 0.0, "
+		+   "walletTransactionId INTEGER DEFAULT 0, promotionalCash DOUBLE DEFAULT 0.0, "
+		+	"excludedCharges TEXT DEFAULT '[]', excludedTaxes TEXT DEFAULT '[]', customerName TEXT, customerAddress TEXT, customerNumber TEXT, "
+		+	"customerGST TEXT, numberOfGuests INTEGER DEFAULT 1, isSmsSent TEXT DEFAULT 'false', reason TEXT, authId TEXT, ratingAmbiance INTEGER, ratingQof INTEGER, "
+		+	"ratingService INTEGER, ratingHygiene INTEGER, reviewSuggestions TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS OrderTables ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, orderId text NOT NULL, "
 		+ "tableId text NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderSpecifications ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, specification TEXT NOT NULL, hotelId TEXT NOT NULL);";
+		sql = "CREATE TABLE IF NOT EXISTS OrderSpecifications ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, subOrderId TEXT NOT NULL, "
+		+	"menuId TEXT NOT NULL, itemId INTEGER, specification TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderItems ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, subOrderId text NOT NULL, "
-		+ "subOrderDate text NOT NULL, orderId text NOT NULL, menuId text NOT NULL, qty int NOT NULL, rate real NOT NULL, specs text, state integer, "
-		+ "billNo TEXT, isKotPrinted INTEGER, waiterId TEXT, billNo2 TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS OrderItems ( id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId text NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, rate DOUBLE NOT NULL, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+		+	"subOrderDate TEXT NOT NULL, specs TEXT, billNo TEXT, billNo2 TEXT, isKotPrinted INTEGER, kotNumber INTEGER, botNumber INTEGER, "
+		+	"waiterId TEXT, itemIsMoved TEXT DEFAULT 'false', outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderItemLog ( Id INTEGER NOT NULL, hotelId TEXT NOT NULL, orderId TEXT NOT NULL DEFAULT (null), "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, state INTEGER NOT NULL, reason TEXT, dateTime TEXT, quantity INTEGER, rate INTEGER, "
-		+ "itemId INTEGER, subOrderDate TEXT,"
-	 	+ "PRIMARY KEY(Id));";
+		sql = "CREATE TABLE IF NOT EXISTS OrderItemLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, itemId INTEGER, rate DOUBLE, quantity INTEGER NOT NULL, state INTEGER NOT NULL, "
+		+	"subOrderDate TEXT NOT NULL, waiterId TEXT, userId TEXT, reason TEXT, dateTime TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderAddOns ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
-		+ "subOrderId INTEGER NOT NULL, qty INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId INTEGER NOT NULL, rate INTEGER NOT NULL, itemId INTEGER, "
-		+ "state TEXT, subOrderDate TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS OrderAddOns ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, orderId TEXT NOT NULL, "
+		+	"subOrderId INTEGER NOT NULL, menuId TEXT NOT NULL, addOnId TEXT, itemId INTEGER, rate DOUBLE NOT NULL,"
+		+	"quantity INTEGER NOT NULL, state INTEGER NOT NULL, subOrderDate TEXT NOT NULL, outletId TEXT NOT NULL, systemId TEXT NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS OrderAddOnLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
-		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, quantity INTEGER NOT NULL, rate INTEGER NOT NULL, state TEXT, "
-		+ "addOnId INTEGER, subOrderDate TEXT);";
+		sql = "CREATE TABLE OrderAddOnLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, orderId TEXT NOT NULL, "
+		+ "subOrderId TEXT NOT NULL, menuId TEXT NOT NULL, itemId INTEGER NOT NULL, quantity INTEGER NOT NULL, rate INTEGER NOT NULL, "
+		+ "state TEXT, addOnId TEXT, subOrderDate TEXT );";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS OnlineOrders ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT, restaurantId INTEGER, "
-		+ "orderId TEXT, externalOrderId INTEGER, data TEXT, status INTEGER, dateTime INTEGER, portalId INTEGER);";
+		+ "orderId TEXT, orderNumber INTEGER, externalOrderId INTEGER, data TEXT, status INTEGER, dateTime INTEGER, portalId INTEGER, riderName TEXT, riderNumber TEXT, riderStatus TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Notification ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, orderId text NOT NULL, "
 		+ "notId int NOT NULL, msg text NOT NULL);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS MenuItems ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId TEXT NOT NULL, station TEXT NOT NULL, "
-		+ "menuId text NOT NULL UNIQUE, title text NOT NULL, description text, category text NOT NULL, flags text, preparationTime integer, "
-		+ "rate FLOAT NOT NULL, costPrice FLOAT DEFAULT Null, inhouseRate FLOAT NOT NULL DEFAULT 0, onlineRate FLOAT NOT NULL DEFAULT 0, vegType int NOT NULL, method TEXT, "
-		+ "state INTEGER NOT NULL, shortForm TEXT, addOns TEXT, img text, hasIncentive INTEGER, incentive INTEGER, isTaxable INTEGER NOT NULL);";
+		sql = "CREATE TABLE IF NOT EXISTS MenuItems ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, menuId TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, "
+		+	"code TEXT, collection TEXT NOT NULL, subCollection TEXT, station TEXT NOT NULL, dineInRate DOUBLE DEFAULT 0.0, dineInNonAcRate DOUBLE DEFAULT 0.0,"
+		+	"deliveryRate DOUBLE DEFAULT 0.0, onlineRate DOUBLE DEFAULT 0.0, onlineRate1 DOUBLE DEFAULT 0.0, onlineRate2 DOUBLE DEFAULT 0.0, "
+		+	"onlineRate3 DOUBLE DEFAULT 0.0, onlineRate4 DOUBLE DEFAULT 0.0, onlineRate5 DOUBLE DEFAULT 0.0, isCombo TEXT DEFAULT 'false', "
+		+	"comboPrice DOUBLE DEFAULT 0.0, comboReducedPrice DOUBLE DEFAULT 0.0, costPrice DOUBLE DEFAULT 0.0, discountType TEXT, discountValue DOUBLE DEFAULT 0.0, "
+		+	"flags TEXT DEFAULT '[]', inStock TEXT DEFAULT 'true', imgUrl TEXT, coverImgUrl TEXT, incentiveQuantity INTEGER DEFAULT '0', incentiveAmount INTEGER DEFAULT 0, "
+		+	"groups TEXT DEFAULT '[]', taxes TEXT DEFAULT '[]', charges TEXT DEFAULT '[]', gstInclusive TEXT DEFAULT 'false', syncOnZomato TEXT DEFAULT 'true', "
+		+	"isRecomended TEXT DEFAULT 'false', isTreats TEXT DEFAULT 'false', isDefault TEXT DEFAULT 'false', isBogo TEXT DEFAULT 'false', "
+		+	"preparationTime INTEGER DEFAULT 0, method TEXT, outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Material ( sku TEXT NOT NULL PRIMARY KEY UNIQUE, name TEXT NOT NULL, unit TEXT NOT NULL, "
-		+ "ratePerUnit FLOAT NOT NULL DEFAULT (null), wastage INTEGER, minQuantity INTEGER NOT NULL DEFAULT (null), hotelId TEXT, "
-		+ "displayableUnit TEXT NOT NULL DEFAULT GRAM);";
+		sql = "CREATE TABLE IF NOT EXISTS Materials ( sku INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, displayableUnit TEXT NOT NULL DEFAULT 'GRAM'," + 
+		"quantity DOUBLE, measurableUnit TEXT NOT NULL DEFAULT 'GRAM', isCountable TEXT DEFAULT 'false', countableUnit TEXT, countableConversion DOUBLE, " + 
+		"ratePerUnit DOUBLE NOT NULL DEFAULT 0.0, minQuantity INTEGER NOT NULL DEFAULT 1, outletId TEXT NOT NULL, materialType TEXT DEFAULT 'RAW'," + 
+		"subType TEXT, state TEXT DEFAULT '1', isActive TEXT DEFAULT 'true', category TEXT DEFAULT 'RECIPE MANAGED', tax TEXT DEFAULT '[]');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS LoyaltySettings ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, userType TEXT NOT NULL UNIQUE, "
@@ -381,13 +2078,17 @@ public class AccessManager {
 		+ "employeeId TEXT NOT NULL, date TEXT NOT NULL, salaryMonth TEXT NOT NULL, bonus INTEGER, hotelId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS 'Hotel' ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, hotelCode text NOT NULL, "
-				+ "hotelName text NOT NULL, isEnabled int NOT NULL, hotelAddress TEXT, hotelContact TEXT, taxFlags TEXT, GSTNumber TEXT DEFAULT (null), "
-				+ "hotelType TEXT, description TEXT, website TEXT, smsEnabled INTEGER, serverEnabled INTEGER, hasCashDrawer INTEGER, hasLoyalty INTEGER, "
-				+ "hasIncentiveScheme INTEGER, billType INTEGER, printMethod TEXT, sections TEXT, integrations TEXT, onlinePlatforms TEXT, "
-				+ "kotIHTBNSZSUF TEXT, kotSettings TEXT, hasKds TEXT, hasKot TEXT, hasDirectCheckout TEXT, hasNC TEXT, hasBar TEXT, loadCustomerDb TEXT, "
-				+ "isMenuIdCategorySpecific TEXT, allowItemCancellationOnPhone TEXT, kotFontFamily TEXT, kotFontSize TEXT, kotFontWeight TEXT, hasEod TEXT "
-				+ ", version TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS System ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE , version TEXT , systemId TEXT NOT NULL, systemCode TEXT, isEnabled TEXT DEFAULT 'true' , "
+		+	"hotelType TEXT DEFAULT 'POSTPAID' , theme TEXT DEFAULT '0' , smsEnabled TEXT DEFAULT 'true' , deliverySmsEnabled TEXT DEFAULT 'false' , "
+		+	"serverEnabled TEXT DEFAULT 'false' , hasCashDrawer TEXT DEFAULT 'false' , hasLoyalty INTEGER DEFAULT 0 , hasIncentiveScheme TEXT DEFAULT 'false' , "
+		+	"hasKot TEXT DEFAULT 'true' , kotIHTBNSZSUF TEXT DEFAULT '1:1:1:1:1:0:1:1:1' , kotSettings TEXT DEFAULT '600:455:2' , kotFontFamily TEXT DEFAULT 'Arial' , "
+		+	"kotFontSize TEXT DEFAULT '15px' , kotFontWeight TEXT DEFAULT 'bold' , hasKds TEXT DEFAULT 'false' , hasDirectCheckout TEXT DEFAULT 'false' , "
+		+	"hasNC TEXT DEFAULT 'true' , hasBar TEXT DEFAULT 'false' , loadCustomerDb TEXT DEFAULT 'true' , allowItemCancellationOnPhone TEXT DEFAULT 'false' , "
+		+	"hasEod TEXT DEFAULT 'false' , hasNewOrderScreen TEXT DEFAULT 'true' , isCaptainBasedOrdering TEXT DEFAULT 'true' , showOccupiedTablesOnly TEXT DEFAULT 'true' , "
+		+	"deductionType TEXT, isWalletOnline TEXT DEFAULT 'false' , isWalletOffline TEXT DEFAULT 'false' , isCreditActive TEXT DEFAULT 'false' , "
+		+	"billType TEXT DEFAULT 'YEARLY' , printLogo TEXT DEFAULT 'false' , hasConciseBill TEXT DEFAULT 'false' , zomatoApiKey TEXT , smsAPIKey TEXT , smsId TEXT, senderId TEXT , "
+		+	"eWardsCredentials TEXT DEFAULT '{}', hasFullRounding TEXT DEFAULT 'false' , capturePayments TEXT DEFAULT 'false' , downloadReports TEXT DEFAULT 'true', "
+		+ 	"isLiteApp TEXT DEFAULT 'true', isOnlineBilling TEXT DEFAULT 'false', appSettings TEXT, isInternetAvailable TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Expenses ( id INTEGER NOT NULL DEFAULT (0) PRIMARY KEY AUTOINCREMENT UNIQUE, type TEXT NOT NULL, "
@@ -397,89 +2098,309 @@ public class AccessManager {
 		db.executeUpdate(sql, hotelId, false);
 
 		sql = "CREATE TABLE IF NOT EXISTS Employee ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, employeeId text NOT NULL, "
-		+ "firstName text NOT NULL, surName text NOT NULL, address text NOT NULL DEFAULT (null), contactNumber text DEFAULT (null), dob text, sex text, "
-		+ "hiringDate text, designation text DEFAULT (null), department text, salary int, bonus int, image TEXT DEFAULT (Null), middleName TEXT, "
-		+ "email TEXT, accountBalance INTEGER);";
+		+ "firstName text NOT NULL, surName text NOT NULL, address text, contactNumber text, dob text, sex text, hiringDate text, designation text DEFAULT (null), "
+		+ "salary int, bonus int, image TEXT DEFAULT (Null), middleName TEXT, email TEXT, accountBalance INTEGER , "
+		+ "sendOperationalEmail TEXT DEFAULT false, sendEODEmail TEXT DEFAULT false, sendSMS TEXT DEFAULT 'false', sendEODSMS TEXT DEFAULT 'false');";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Discount ( name text NOT NULL UNIQUE, hotelId text NOT NULL, description text NOT NULL, type text NOT NULL, "
-		+ "value integer NOT NULL, startDate text NOT NULL, expiryDate text, usageLimit text NOT NULL, validCollections TEXT,"
-	 	+ "PRIMARY KEY(name));";
+		sql = "CREATE TABLE IF NOT EXISTS Discounts ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, type TEXT NOT NULL, foodValue INTEGER DEFAULT 0, barValue INTEGER DEFAULT 0,"
+		+	"startDate TEXT NOT NULL, expiryDate TEXT, usageLimit TEXT NOT NULL, validCollections TEXT, offerType TEXT, "
+		+	"applicableOnZomato TEXT DEFAULT 'false', isActive TEXT DEFAULT 'true', offerQuantity INTEGER DEFAULT 0, bogoItems TEXT DEFAULT '[]', "
+		+	"startTime TEXT, endTime TEXT, firstorderOnly TEXT DEFAULT 'false', minOrderAmount INTEGER DEFAULT 0, "
+		+	"maxFoodDiscountAmount DOUBLE DEFAULT 0.0, maxBarDiscountAmount DOUBLE DEFAULT 0.0, "
+		+	"outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT);";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Customers ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, mobileNo text NOT NULL UNIQUE, "
-		+ "customer text NOT NULL, address text NOT NULL, birthdate TEXT, anniversary TEXT, userType TEXT, remarks TEXT, allergyInfo TEXT, points INTEGER, "
-		+ "wantsPromotion TEXT, visitCount TEXT, dateOfLastVisit TEXT);";
+		sql = "CREATE TABLE IF NOT EXISTS Customers ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, mobileNumber text NOT NULL UNIQUE, "
+		+ "firstName text, surName TEXT, address text, birthdate TEXT, anniversary TEXT, userType TEXT, remarks TEXT, allergyInfo TEXT, points INTEGER, "
+		+ "wantsPromotion TEXT, visitCount TEXT, dateOfLastVisit TEXT, isPriority TEXT, emailId TEXT, reference TEXT, password BLOB, salt BLOB, authToken TEXT, "
+		+ "timeStamp TEXT, isLoggedIn TEXT, corporateId TEXT, referalCode TEXT, wallet INTEGER, promotionalCash INTEGER, amountEarned DOUBLE, amountSpent DOUBLE, communicationMode TEXT DEFAULT '[]', "
+		+ "otp INTEGER, otpCount INTEGER, isVerified TEXT DEFAULT 'false', isBlocked TEXT DEFAULT 'false', pinGenTime TEXT, address2 TEXT, address3 TEXT, sex TEXT"
+		+ ", joiningDate TEXT, lastVisitDate TEXT, lastRechargeDate TEXT, sendSMS TEXT, otpAuthRequired TEXT DEFAULT 'true')";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS PromoCode ( name text NOT NULL UNIQUE, corporateId text NOT NULL, "
+		+ "description text NOT NULL, offerType text NOT NULL, rechargeAmount integer NOT NULL, offerAmount integer NOT NULL, startDate text NOT NULL, expiryDate text, "
+		+ "isActive TEXT DEFAULT 'true', firstTimeOnly TEXT DEFAULT 'false', PRIMARY KEY(name) );";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Collections ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, collection text NOT NULL, "
-				+ "image TEXT DEFAULT (null), collectionOrder INTEGER NOT NULL, hasSubCollection TEXT NOT NULL, isActive TEXT NOT NULL );";
+		sql = "CREATE TABLE IF NOT EXISTS Corporation ( corporateId text NOT NULL UNIQUE, businessName text NOT NULL, referrerBonus INTEGER NOT NULL DEFAULT 0, refereeBonus INTEGER NOT NULL DEFAULT 0)";
 		db.executeUpdate(sql, hotelId, false);
 
-		sql = "CREATE TABLE IF NOT EXISTS Bank ( accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
-		+ "balance INTEGER NOT NULL DEFAULT 0, hotelId TEXT, section TEXT,"
-	 	+ "PRIMARY KEY(accountNumber));";
+		sql = "CREATE TABLE Collections ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, description TEXT, "
+		+	"imgUrl TEXT, collectionOrder INTEGER NOT NULL, kotOrder INTEGER DEFAULT 0, hasSubCollection TEXT NOT NULL, scheduleIds TEXT, isSpecialCombo TEXT, tags TEXT, "
+		+	"isActive TEXT NOT NULL, isActiveOnZomato TEXT, outletId TEXT NOT NULL, systemId TEXT, restaurantId TEXT, corporateId TEXT, UNIQUE(name, outletId));";
 		db.executeUpdate(sql, hotelId, false);
 
+		sql = "CREATE TABLE IF NOT EXISTS Bank (accountNumber INTEGER NOT NULL UNIQUE, bankName TEXT, accountName TEXT NOT NULL UNIQUE, "
+		+	"balance INTEGER NOT NULL DEFAULT 0, section TEXT, outletId TEXT, systemId TEXT, restaurantId TEXT, corporateId TEXT, PRIMARY KEY(accountNumber));";
+		db.executeUpdate(sql, hotelId, false);
+				
 		sql = "CREATE TABLE IF NOT EXISTS Attendance ( Id integer NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, hotelId text NOT NULL, employeeId text NOT NULL, "
 		+ "checkInTime text NOT NULL, checkOutTime text, checkInDate text NOT NULL, checkOutDate text, reason text, authorisation INTEGER, isPresent INTEGER, shift INTEGER,"
 	 	+ "FOREIGN KEY(employeeId) REFERENCES Employee(employeeId));";
 		db.executeUpdate(sql, hotelId, false);
-
-		sql = "CREATE TABLE IF NOT EXISTS AddOns ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, inhouseRate INTEGER, onlineRate INTEGER, "
-		+ "deliveryRate INTEGER, hotelId TEXT);";
-		db.executeUpdate(sql, hotelId, false);
 		
 		sql = "CREATE TABLE IF NOT EXISTS Reservations ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, "
-				+ "customerId INTEGER NOT NULL, maleCount INTEGER NOT NULL, femaleCount INTEGER NOT NULL, "
-				+ "childrenCount INTEGER NOT NULL, bookingTime TEXT NOT NULL, bookingDate TEXT NOT NULL, timeStamp TEXT NOT NULL, state INTEGER NOT NULL, "
-				+ "type INTEGER NOT NULL, orderId TEXT UNIQUE, hotelId TEXT NOT NULL, foreign key(customerId) references Customers(id) )";
+		+ "customerId INTEGER NOT NULL, maleCount INTEGER NOT NULL, femaleCount INTEGER NOT NULL, "
+		+ "childrenCount INTEGER NOT NULL, bookingTime TEXT NOT NULL, bookingDate TEXT NOT NULL, timeStamp TEXT NOT NULL, state INTEGER NOT NULL, "
+		+ "type INTEGER NOT NULL, orderId TEXT UNIQUE, hotelId TEXT NOT NULL, foreign key(customerId) references Customers(id) );";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS OnlineOrderingPortals ( id INTEGER NOT NULL UNIQUE, portal TEXT NOT NULL, name TEXT NOT NULL, requiresLogistics TEXT NOT NULL, "
+		+ "commisionValue DOUBLE, commisionType TEXT, hasIntegration TEXT, hotelId TEXT, paymentCycleDay TEXT, discountsApplied TEXT, "
+		+ "menuAssociation INTEGER, PRIMARY KEY(id));";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS Sections (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, kitchenPrinter TEXT, barPrinter TEXT, summaryPrinter TEXT, beveragePrinter TEXT, outdoorPrinter TEXT, cashierPrinter INTEGER, hotelId TEXT );";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS TransactionLog ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId TEXT NOT NULL, outletId TEXT NOT NULL, "
+		+ "transDate TEXT NOT NULL, transTime TEXT NOT NULL, mobileNumber TEXT NOT NULL, state TEXT NOT NULL, userId TEXT, rechargeAmount INTEGER NOT NULL, "
+		+ "offerAmount INTEGER, transAmount INTEGER NOT NULL, referralCode TEXT, promoCode INTEGER, transType TEXT NOT NULL, gst DOUBLE, transCharge DOUBLE, "
+		+ "paymentId TEXT, paymentStatus TEXT, paymentRequestId TEXT, transactionId INTEGER NOT NULL UNIQUE, paymentType TEXT, orderId TEXT, "
+		+ "authorizer TEXT, reason TEXT, serviceDate TEXT , cashAmount DOUBLE DEFAULT 0.0, cardAmount DOUBLE DEFAULT 0.0, appAmount DOUBLE DEFAULT 0.0);";
 		db.executeUpdate(sql, hotelId, false);
 		// Create all other tables here...
+		
+		sql = "CREATE TABLE IF NOT EXISTS CustomerCreditLog ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, amount DOUBLE NOT NULL, "
+		+ "mobileNumber TEXT NOT NULL, outletId TEXT NOT NULL, state TEXT NOT NULL, transDate TEXT NOT NULL, "
+		+ "settlementDate TEXT NOT NULL, orderId TEXT NOT NULL, paymentType TEXT);";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS Vendors (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, corporateId TEXT, outletId TEXT, name TEXT,"
+		+ " address TEXT, poc TEXT, emailId TEXT, GSTNumber TEXT, balance DOUBLE)";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS Outlets ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, address TEXT, contact TEXT, "
+		+	"GSTNumber TEXT, VATNumber TEXT, code TEXT NOT NULL, website TEXT, imageLocation TEXT, schedule TEXT DEFAULT '[]', "
+		+	"location TEXT DEFAULT '{\"place\":\"\"}', links TEXT DEFAULT '{}', companyName TEXT, carouselImages TEXT DEFAULT '[]', menuBanner TEXT, "
+		+	"featuredItemId TEXT, closedDates TEXT DEFAULT '[]', outletId TEXT NOT NULL, systemId TEXT NOT NULL, restaurantId TEXT, corporateId TEXT);";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS PurchaseLog (purchaseId TEXT NOT NULL PRIMARY KEY UNIQUE, billNo TEXT, challanNo TEXT, "
+		+ "vendorId INTEGER, outletId TEXT, additionalDiscount DOUBLE, totalDiscount DOUBLE, charge DOUBLE, roundOff DOUBLE, "
+		+ "totalGst DOUBLE, grandTotal DOUBLE, purchaseDate TEXT, dateTime TEXT, paymentType TEXT NOT NULL DEFAULT 'CASH', "
+		+ "account TEXT NOT NULL DEFAULT 'CASH_DRAWER', remark TEXT, creditBalance DOUBLE);";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS VendorTransactions ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, "
+		+ "vendorId INTEGER NOT NULL, transType TEXT NOT NULL, transAmount DOUBLE NOT NULL, paymentType TEXT NOT NULL, account TEXT NOT NULL, "
+		+ "dateTime TEXT NOT NULL, paymentDate TEXT NOT NULL, userId TEXT NOT NULL, corporateId TEXT, outletId TEXT)";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS InventoryCheckLog (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, dateTime TEXT NOT NULL, "
+		+ "serviceDate TEXT NOT NULL, materialData TEXT NOT NULL, userId TEXT NOT NULL, outletId TEXT );";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS PromotionalCampaign ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT NOT NULL, "
+		+ "messageContent TEXT NOT NULL, usageDetails TEXT, totalSMSSent INTEGER, outletId TEXT, outletIds TEXT DEFAULT '[]', "
+		+ "userTypes TEXT DEFAULT '[]', sex TEXT DEFAULT 'BOTH', ageGroup TEXT DEFAULT '[]', status TEXT);";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS DBTransactions (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, transactions TEXT);";
+		db.executeUpdate(sql, hotelId, false);
+		
+		sql = "CREATE TABLE IF NOT EXISTS ReportBuffer ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, smsText TEXT, "
+		+ "subject TEXT, emailText TEXT, mobileNumbers TEXT DEFAULT '{}', emailIds TEXT DEFAULT '{}', eWardsSettleBill TEXT, "
+		+ "outletId TEXT, serviceInfo TEXT DEFAULT '{}')";
+		db.executeUpdate(sql, hotelId, false);
 	}
 	
-	public void restaurantSetup(String hotelId) {
+	public JSONObject restaurantSetup(String corporateId, String hotelName, String systemCode, String systemId, String version) {
 		
-		Hotel hotel = this.getHotelById(hotelId);
+		systemCode = escapeString(systemCode);
+		systemId = escapeString(systemId);
+		hotelName = escapeString(hotelName);
 		
-		String sql = "INSERT INTO BANK (accountNumber, bankName, accountName, balance, hotelId) VALUES "
-			+ "(1, 'CASH', 'CASH_DRAWER', 0, '"+hotelId+"')";
-		db.executeUpdate(sql, hotelId, false);
-		
-		sql = "INSERT INTO Employee "
-			+ "(hotelId, employeeId, firstName, surName, address, contactNumber, dob, sex, hiringDate, designation, department"
-			+ ", salary, bonus, image, middleName, email) VALUES('" + hotelId 
-			+ "', '"+hotel.getHotelCode()+"01', 'Martin', 'Fernandes', ' ', '9867334779', '08/08/1992', 'Male', "
-			+ "'01/01/2018', 'ADMINISTRATOR', 'BACKOFFICE', 0,0,'','','');";
-		db.executeUpdate(sql, hotelId, false);
-		
-		sql = "INSERT INTO LoyaltySettings (hotelId, userType, requiredPoints, pointToRupee) VALUES ('" 
-			+ hotelId + "', 'Prime', 0, 10), ('" + hotelId + "', 'Premium', 20000, 10), ('" + hotelId + "', 'Elite', 40000, 10), ('"
-			+ hotelId + "', 'All', 0, 0);";
-		db.executeUpdate(sql, hotelId, false);
-		
-		sql = "INSERT INTO SERVERLOG (hotelId, status) VALUES "
-				+ "('"+hotelId+"', 0)";
-		db.executeUpdate(sql, hotelId, false);
+		JSONObject outObj = new JSONObject();
+		try {
+			
+			JSONObject appSettings = new JSONObject();
+			appSettings.put("canStartService", false);
+			appSettings.put("canStopService", false);
+			appSettings.put("canSettleBill", false);
+			appSettings.put("authorizeProcessOrder", true);
+			appSettings.put("authorizeMoveItem", true);
+			appSettings.put("authorizeTransferTable", true);
+			appSettings.put("hasTables", true);
+			appSettings.put("hasHomeDelivery", true);
 
-		sql = "INSERT INTO STATIONS (hotelId, station) VALUES "
-				+ "('"+hotelId+"', 'Kitchen'), "
-				+ "('"+hotelId+"', 'Bar Non-Alcoholic'), "
-				+ "('"+hotelId+"', 'Beverage');";
-		db.executeUpdate(sql, hotelId, false);
+			outObj.put("status", false);
+			String sql = "INSERT INTO System (systemId, systemCode, version, appSettings) "
+					+ "VALUES ('" + systemId + "', '" + systemCode + "', '" + version + "', '"+appSettings+"');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Outlets (outletId, systemId, code, name, restaurantId, corporateId) "
+					+ "VALUES ('', '" + systemId + "', '" + systemCode + "', '" + hotelName + "', '', '"+corporateId+"');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO BANK (accountNumber, bankName, accountName, balance, outletId, systemId, corporateId) VALUES "
+				+ "(1, 'CASH', 'CASH_DRAWER', 0, '', '"+systemId+"', '"+corporateId+"'), "
+				+ "(2, 'BANK1', 'BANK1', 0, '', '"+systemId+"', '"+corporateId+"'), "
+				+ "(3, 'BANK2', 'BANK2', 0, '', '"+systemId+"', '"+corporateId+"');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Employee "
+				+ "(hotelId, employeeId, firstName, surName, address, contactNumber, dob, sex, hiringDate, designation"
+				+ ", salary, bonus, image, middleName, email) VALUES"
+				+ "('" + systemId + "', '"+systemCode+"001', 'Order', 'On', ' ', '', '01/01/1992', 'Male', '01/01/2018', 'ADMINISTRATOR', 0,0,'','',''),"
+				+ "('" + systemId + "', '"+systemCode+"002', 'Staff', ' ', ' ', '', '', '', '', 'CAPTAIN', 0,0,'','',''),"
+				+ "('" + systemId + "', '"+systemCode+"003', 'Delivery', ' ', ' ', '', '', '', '', 'DELIVERYBOY', 0,0,'','','');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO LoyaltySettings (hotelId, userType, requiredPoints, pointToRupee) VALUES ('" 
+				+ systemId + "', 'Prime', 0, 10), ('" + systemId + "', 'Premium', 20000, 10), ('" + systemId + "', 'Elite', 40000, 10), ('"
+				+ systemId + "', 'All', 0, 0);";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO SERVERLOG (hotelId, status) VALUES "
+					+ "('"+systemId+"', 0);";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO STATIONS (hotelId, station) VALUES "
+					+ "('"+systemId+"', 'Kitchen'), "
+					+ "('"+systemId+"', 'Beverage');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Designations (Id, hotelId, designation, hasIncentive) VALUES "
+					+ "(0, '"+systemId+"', 'WAITER', 'false'), "
+					+ "(1, '"+systemId+"', 'MANAGER', 'false'), "
+					+ "(2, '"+systemId+"', 'ADMINISTRATOR', 'false'), "
+					+ "(3, '"+systemId+"', 'CHEF', 'false'), "
+					+ "(4, '"+systemId+"', 'RECEPTIONIST', 'false'), "
+					+ "(5, '"+systemId+"', 'RETAILASSCOCIATE', 'false'), "
+					+ "(6, '"+systemId+"', 'BACKOFFICE', 'false'), "
+					+ "(7, '"+systemId+"', 'DELIVERYBOY', 'false'), "
+					+ "(8, '"+systemId+"', 'OWNER', 'false'), "
+					+ "(9, '"+systemId+"', 'CAPTAIN', 'false'), "
+					+ "(10, '"+systemId+"', 'CASHIER', 'false'),"
+					+ "(11, '"+systemId+"', 'HELPER', 'false'),"
+					+ "(12, '"+systemId+"', 'CLEANER', 'false'),"
+					+ "(13, '"+systemId+"', 'EXEC_CHEF', 'false'),"
+					+ "(14, '"+systemId+"', 'COMMI_1', 'false'),"
+					+ "(15, '"+systemId+"', 'COMMI_2', 'false'),"
+					+ "(16, '"+systemId+"', 'COMMI_3', 'false');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Flags (Id, hotelId, name, groupId) VALUES "
+					+ "(1, '"+systemId+"', 'Vegetarian', 1), "
+					+ "(2, '"+systemId+"', 'Non-Vegetarian', 1), "
+					+ "(3, '"+systemId+"', 'Beverage', 5), "
+					+ "(24, '"+systemId+"', 'Egg', 1), "
+					+ "(5, '"+systemId+"', 'Alcoholic Beverage', 5), "
+					+ "(4, '"+systemId+"', 'Spicy', 2), "
+					+ "(7, '"+systemId+"', 'Seasonal', 3), "
+					+ "(10, '"+systemId+"', 'Chef Special', 4), "
+					+ "(11, '"+systemId+"', 'Grilled', 5), "
+					+ "(12, '"+systemId+"', 'Fried', 5), "
+					+ "(13, '"+systemId+"', ' Platter', 6), "
+					+ "(14, '"+systemId+"', 'Wheat Free', 7), "
+					+ "(15, '"+systemId+"', 'Gluten Free', 8), "
+					+ "(16, '"+systemId+"', 'Vegan', 9), "
+					+ "(17, '"+systemId+"', 'Age Restriction', 10), "
+					+ "(20, '"+systemId+"', 'Treat Available', 11), "
+					+ "(22, '"+systemId+"', 'Meal', 12), "
+					+ "(23, '"+systemId+"', 'Cake', 13), "
+					+ "(19, '"+systemId+"', 'Choice Item', 14), "
+					+ "(41, '"+systemId+"', 'Breakfast', 16), "
+					+ "(42, '"+systemId+"', 'Lunch', 17), "
+					+ "(43, '"+systemId+"', 'Dinner', 18), "
+					+ "(44, '"+systemId+"', 'SNACKS', 19), "
+					+ "(45, '"+systemId+"', 'NORTH_INDIAN', 20), "
+					+ "(46, '"+systemId+"', 'Snack', 21), "
+					+ "(47, '"+systemId+"', 'CHINESE', 22), "
+					+ "(48, '"+systemId+"', 'SOUTH_INDIAN', 23), "
+					+ "(49, '"+systemId+"', 'BURGER', 24), "
+					+ "(50, '"+systemId+"', 'BIRYANI', 25), "
+					+ "(51, '"+systemId+"', 'FAST_FOOD', 26), "
+					+ "(53, '"+systemId+"', 'PARTY COMBOS', 27),"
+					+ "(54, '"+systemId+"', 'BEVERAGES', 28), "
+					+ "(55, '"+systemId+"', 'SNACKS', 29), "
+					+ "(56, '"+systemId+"', 'BREADS', 30), "
+					+ "(57, '"+systemId+"', 'DESSERTS', 31), "
+					+ "(58, '"+systemId+"', 'RICE', 32), "
+					+ "(59, '"+systemId+"', 'SIDES', 33), "
+					+ "(60, '"+systemId+"', 'NEW', 34), "
+					+ "(500, '"+systemId+"', 'Late Night', 35);";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Taxes (Id, systemId, name, value, type, isActive) VALUES "
+					+ "(1, '"+systemId+"', 'CGST', 2.5, 'PERCENTAGE', 'true'), "
+					+ "(2, '"+systemId+"', 'SGST', 2.5, 'PERCENTAGE', 'true'); ";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO OnlineOrderingPortals (id, portal, name, requiresLogistics, commisionValue, commisionType, hasIntegration,"
+					+ " hotelId, paymentCycleDay, discountsApplied) VALUES "
+					+ "(0 , 'NONE', 'none', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(1 , 'ZOMATO', 'Zomato', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(2 , 'SWIGGY', 'Swiggy', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(3 , 'FOODPANDA', 'Food Panda', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(4 , 'UBEREATS', 'Uber Eats', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(5 , 'FOODILOO', 'Foodiloo', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(6 , 'ZOMATO PICKUP', 'Zomato Pickup', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]'), "
+					+ "(100 , 'COUNTER', 'Counter Parcel', 'false', 0.0, 'PERCENTAGE', 'false', '"+systemId+"', '', '[]');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'ZOMATO_VOUCHER', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'FIXED_RUPEE_DISCOUNT', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'PIGGYBANK', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'GOLD', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+	
+			sql = "INSERT INTO Discounts (outletId, systemId, corporateId, name, description, type, foodValue, barValue, startDate, expiryDate, "
+					+ "usageLimit, validCollections, offerType, applicableOnZomato, offerQuantity, bogoItems, startTime, "
+					+ "endTime, minOrderAmount, firstOrderOnly) VALUES('', '"+systemId+"', '"+corporateId+"', 'DISH', '', '1', 0, 0, '01/02/2019', "
+					+ "'31/12/3000', 'Unlimited', '', 'DISCOUNT', 'false', 1, '[]', '00:00:00', '23:59:45', 0, 'false');";
+			db.executeUpdate(sql, systemId, false);
+			
+			sql = "INSERT INTO Sections (id, name, kitchenPrinter, barPrinter, summaryPrinter, beveragePrinter, outdoorPrinter, cashierPrinter, hotelId) VALUES "
+					+ "(1 , 'DEFAULT', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', 'Kitchen', '"+systemId+"');";
+			db.executeUpdate(sql, systemId, false);
+			
+			IUser userDao = new UserManager(false);
+			userDao.addUser(systemId, "OrderOn", systemCode+"001", 2, "9867334");
+			userDao.addUser(systemId, "staff", systemCode+"002", 10, "1111");
+			userDao.addUser(systemId, "Zomato", systemCode+"001", 10, "zomato");
+			outObj.put("status", false);
 
-		this.addUser(hotelId, "Admin", hotel.getHotelCode()+"01", 2, "9867334");
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return outObj;
 	}
 
 	public static class Recipe implements Database.OrderOnEntity {
 
-		public String sku;
-		public String menuId;
-		public int quantity;
-		public String hotelId;
-		public String unit;
+		private int sku;
+		private String menuId;
+		private BigDecimal quantity;
+		private String hotelId;
+		private String measurableUnit;
+		private String displayableUnit;
+		private String name;
+		private int processedMaterialSku;
 
-		public String getSku() {
+		public int getSku() {
 			return sku;
 		}
 
@@ -487,7 +2408,7 @@ public class AccessManager {
 			return menuId;
 		}
 
-		public int getQuantity() {
+		public BigDecimal getQuantity() {
 			return quantity;
 		}
 
@@ -495,35 +2416,60 @@ public class AccessManager {
 			return hotelId;
 		}
 
-		public String getUnit() {
-			return unit;
+		public String getMeasurableUnit() {
+			return measurableUnit;
+		}
+
+		public String getDisplayableUnit() {
+			return displayableUnit;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public BigDecimal getDisplayableQuantity() {
+			MeasurableUnit unit = MeasurableUnit.valueOf(displayableUnit);
+			return unit.convertToDisplayableUnit(quantity);
+		}
+		
+		public int getProcessedMaterialSku() {
+			return processedMaterialSku;
 		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			this.sku = Database.readRsString(rs, "sku");
+			this.sku = Database.readRsInt(rs, "sku");
 			this.menuId = Database.readRsString(rs, "menuId");
-			this.quantity = Database.readRsInt(rs, "quantity");
+			this.quantity = Database.readRsBigDecimal(rs, "quantity");
 			this.hotelId = Database.readRsString(rs, "hotelId");
-			this.unit = Database.readRsString(rs, "unit");
+			this.measurableUnit = Database.readRsString(rs, "measurableUnit");
+			this.displayableUnit = Database.readRsString(rs, "displayableUnit");
+			this.name = Database.readRsString(rs, "name");
+			this.processedMaterialSku = Database.readRsInt(rs, "processedMaterialSku");
 		}
 	}
 
-	public static class Stock implements Database.OrderOnEntity {
+	public static class Material implements Database.OrderOnEntity {
 
-		public String sku;
-		public String name;
-		public String unit;
-		public String displayableUnit;
-		public BigDecimal ratePerUnit;
-		public BigDecimal wastage;
-		public BigDecimal minQuantity;
-		public String hotelId;
-		public BigDecimal quantity;
-		public String doc;
-		public String doe;
-		public String method;
-
+		private String sku;
+		private String name;
+		private String measurableUnit;
+		private String displayableUnit;
+		private BigDecimal countableConversion;
+		private String isCountable;
+		private String countableUnit;
+		private BigDecimal ratePerUnit;
+		private String materialType;
+		private String subType;
+		private String category;
+		private BigDecimal minQuantity;
+		private BigDecimal quantity;
+		private String outletId;
+		private String state;
+		private String isActive;
+		private String tax;
+		
 		public String getSku() {
 			return sku;
 		}
@@ -532,60 +2478,544 @@ public class AccessManager {
 			return name;
 		}
 
-		public String getUnit() {
-			return unit;
+		public String getMeasurableUnit() {
+			return measurableUnit;
 		}
 
 		public String getDisplayableUnit() {
-			return displayableUnit;
+			return filterUnitToDisplay(displayableUnit);
 		}
 
-		public BigDecimal getRatePerUnit() {
+		public BigDecimal getCountableConversion() {
+			return countableConversion;
+		}
+
+		public Boolean getIsCountable() {
+			return Boolean.valueOf(isCountable);
+		}
+
+		public String getCountableUnit() {
+			return Boolean.valueOf(isCountable)?countableUnit:"-";
+		}
+
+		public BigDecimal getRatePerUnitInternal() {
 			return ratePerUnit;
 		}
 
-		public BigDecimal getWastage() {
-			return wastage;
+		public BigDecimal getRatePerUnit() {
+			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
+			return measurableUnit.convertToDisplayableRate(ratePerUnit).setScale(2, RoundingMode.HALF_UP);
+		}
+
+		public BigDecimal getCountableRatePerUnit() {
+			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
+			if(Boolean.valueOf(isCountable)) {
+				ratePerUnit = ratePerUnit.multiply(countableConversion);
+				return measurableUnit.convertToDisplayableRate(ratePerUnit).setScale(2, RoundingMode.HALF_UP);
+			}else
+				return new BigDecimal("0");
+		}
+
+		public String getMaterialType() {
+			return materialType;
+		}
+
+		public String getSubType() {
+			return subType;
+		}
+
+		public String getCategory() {
+			return category;
 		}
 
 		public BigDecimal getMinQuantity() {
-			return minQuantity;
-		}
-
-		public String getHotelId() {
-			return hotelId;
+			MeasurableUnit unit = MeasurableUnit.valueOf(displayableUnit);
+			return unit.convertToDisplayableUnit(minQuantity);
 		}
 
 		public BigDecimal getQuantity() {
 			return quantity;
 		}
 
-		public String getDOC() {
-			return doc;
+		public BigDecimal getDisplayableQuantity() {
+			MeasurableUnit unit = MeasurableUnit.valueOf(displayableUnit);
+			return unit.convertToDisplayableUnit(quantity);
 		}
 
-		public String getDOE() {
-			return doe;
+		public String getOutletId() {
+			return outletId;
 		}
 
-		public String getMethod() {
-			return method;
+		public String getState() {
+			return state;
+		}
+
+		public Boolean getIsActive() {
+			return Boolean.valueOf(isActive);
+		}
+
+		public JSONArray getTaxes(){
+			try {
+				return new JSONArray(tax);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.name = Database.readRsString(rs, "name");
 			this.sku = Database.readRsString(rs, "sku");
+			this.measurableUnit = Database.readRsString(rs, "measurableUnit");
+			this.displayableUnit = Database.readRsString(rs, "displayableUnit");
+			this.countableUnit = Database.readRsString(rs, "countableUnit");
+			this.countableConversion = Database.readRsBigDecimal(rs, "countableConversion");
+			this.isCountable = Database.readRsString(rs, "isCountable");
+			this.ratePerUnit = Database.readRsBigDecimal(rs, "ratePerUnit");
+			this.materialType = Database.readRsString(rs, "materialType");
+			this.subType = Database.readRsString(rs, "subType");
+			this.category = Database.readRsString(rs, "category");
+			this.minQuantity = Database.readRsBigDecimal(rs, "minQuantity");
+			this.quantity = Database.readRsBigDecimal(rs, "quantity");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.state = Database.readRsString(rs, "state");
+			this.isActive = Database.readRsString(rs, "isActive");
+			this.tax = Database.readRsString(rs, "tax");
+		}
+	}
+
+	public static class Inventory implements Database.OrderOnEntity {
+
+		private int id;
+		private int sku;
+		private String materialName;
+		private String type;
+		private BigDecimal quantity;
+		private BigDecimal amount;
+		private BigDecimal ratePerUnit;
+		private String outletId;
+		private String orderId;
+		private String menuId;
+		private BigDecimal balanceQuantity;
+		private BigDecimal gst;
+		private BigDecimal gstValue;
+		private BigDecimal discount;
+		private BigDecimal totalAmount;
+		private int purchaseId;
+		private String logId;
+		private String dateTime;
+		private String method;
+		private String countableUnit;
+		private String isCountable;
+		private BigDecimal countableConversion;
+		private String displayableUnit;
+		
+		public String getMethod() {
+			return method;
+		}
+
+		public int getId() {
+			return id;
+		}
+
+		public int getSku() {
+			return sku;
+		}
+
+		public String getMaterialName() {
+			return materialName;
+		}
+		public String getType() {
+			return type;
+		}
+
+		public BigDecimal getQuantity() {
+			return quantity;
+		}
+
+		public BigDecimal getAmount() {
+			return amount;
+		}
+
+		public BigDecimal getRatePerUnitInternal() {
+			return ratePerUnit;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getOrderId() {
+			return orderId;
+		}
+
+		public String getMenuId() {
+			return menuId;
+		}
+
+		public BigDecimal getBalanceQuantity() {
+			return balanceQuantity;
+		}
+
+		public BigDecimal getGst() {
+			return gst;
+		}
+
+		public BigDecimal getGstValue() {
+			return gstValue;
+		}
+
+		public BigDecimal getDiscount() {
+			return discount;
+		}
+
+		public BigDecimal getTotalAmount() {
+			return totalAmount;
+		}
+
+		public int getPurchaseId() {
+			return purchaseId;
+		}
+
+		public String getLogId() {
+			return logId;
+		}
+
+		public String getDateTime() {
+			return dateTime;
+		}
+
+		public BigDecimal getRatePerUnit() {
+			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
+			return measurableUnit.convertToDisplayableRate(ratePerUnit);
+		}
+
+		public BigDecimal getCountableRatePerUnit() {
+			MeasurableUnit measurableUnit = MeasurableUnit.valueOf(displayableUnit);
+			if(Boolean.valueOf(isCountable)) {
+				ratePerUnit = ratePerUnit.multiply(countableConversion);
+				return measurableUnit.convertToDisplayableRate(ratePerUnit);
+			}else
+				return new BigDecimal("0");
+		}
+
+		public BigDecimal getCountableConversion() {
+			return countableConversion;
+		}
+
+		public Boolean getIsCountable() {
+			return Boolean.valueOf(isCountable);
+		}
+
+		public String getCountableUnit() {
+			return Boolean.valueOf(isCountable)?countableUnit:"-";
+		}
+		
+		public String getDisplayableUnit() {
+			return displayableUnit;
+		}
+
+		public BigDecimal getDisplayableQuantity() {
+			MeasurableUnit unit = MeasurableUnit.valueOf(displayableUnit);
+			return unit.convertToDisplayableUnit(quantity);
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.sku = Database.readRsInt(rs, "sku");
+			this.materialName = Database.readRsString(rs, "materialName");
+			this.type = Database.readRsString(rs, "type");
+			this.quantity = Database.readRsBigDecimal(rs, "quantity");
+			this.amount = Database.readRsBigDecimal(rs, "amount");
+			this.ratePerUnit = Database.readRsBigDecimal(rs, "ratePerUnit");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.orderId = Database.readRsString(rs, "orderId");
+			this.menuId = Database.readRsString(rs, "menuId");
+			this.balanceQuantity = Database.readRsBigDecimal(rs, "balanceQuantity");
+			this.gst = Database.readRsBigDecimal(rs, "gst");
+			this.gstValue = Database.readRsBigDecimal(rs, "gstValue");
+			this.discount = Database.readRsBigDecimal(rs, "discount");
+			this.totalAmount = Database.readRsBigDecimal(rs, "totalAmount");
+			this.purchaseId = Database.readRsInt(rs, "purchaseId");
+			this.logId = Database.readRsString(rs, "logId");
+			this.dateTime = Database.readRsString(rs, "dateTime");
+			this.displayableUnit = Database.readRsString(rs, "displayableUnit");
+			this.isCountable = Database.readRsString(rs, "isCountable");
+			this.countableConversion = Database.readRsBigDecimal(rs, "countableConversion");
+			this.countableUnit = Database.readRsString(rs, "countableUnit");
+		}
+	}
+	
+	public static class InventoryCheckLog implements Database.OrderOnEntity{
+		private int id;
+		private String dateTime;
+		private String serviceDate;
+		private String userId;
+		private String materialData;
+		private String outletId;
+		
+		public int getId() {
+			return id;
+		}
+		public String getDateTime() {
+			return dateTime;
+		}
+		public String getServiceDate() {
+			return serviceDate;
+		}
+		public String getUserId() {
+			return userId;
+		}
+		public JSONArray getMaterialData() {
+			try {
+				if(materialData.length()>0) {
+					return new JSONArray(materialData);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		public String getOutletId() {
+			return outletId;
+		}
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.dateTime = Database.readRsString(rs, "dateTime");
+			this.serviceDate = Database.readRsString(rs, "serviceDate");
+			this.userId = Database.readRsString(rs, "userId");
+			this.materialData = Database.readRsString(rs, "materialData");
+			this.outletId = Database.readRsString(rs, "outletId");
+		}
+		
+	}
+
+	public static class Purchase implements Database.OrderOnEntity {
+		private String purchaseId;
+		private String billNo;
+		private String challanNo;
+		private int vendorId;
+		private String vendorName;
+		private String outletId;
+		private BigDecimal additionalDiscount;
+		private BigDecimal totalDiscount;
+		private BigDecimal charge;
+		private BigDecimal roundOff;
+		private BigDecimal totalGst;
+		private BigDecimal grandTotal;
+		private String purchaseDate;
+		private String dateTime;
+		private String paymentType;
+		private String account;
+		private String remark;
+		private String outletName;
+		private BigDecimal creditBalance;
+		
+		public String getPurchaseId() {
+			return purchaseId;
+		}
+		public String getBillNo() {
+			return billNo;
+		}
+		public String getChallanNo() {
+			return challanNo;
+		}
+		public int getVendorId() {
+			return vendorId;
+		}
+		public String getVendorName() {
+			return vendorName;
+		}
+		public String getOutletId() {
+			return outletId;
+		}
+		public BigDecimal getAdditionalDiscount() {
+			return additionalDiscount;
+		}
+		public BigDecimal getTotalDiscount() {
+			return totalDiscount;
+		}
+		public BigDecimal getCharge() {
+			return charge;
+		}
+		public BigDecimal getRoundOff() {
+			return roundOff;
+		}
+		public BigDecimal getTotalGst() {
+			return totalGst;
+		}
+		public BigDecimal getGrandTotal() {
+			return grandTotal;
+		}
+		public String getPurchaseDate() {
+			return purchaseDate;
+		}
+		public String getDateTime() {
+			return dateTime;
+		}
+		public String getPaymentType() {
+			return paymentType;
+		}
+		public String getAccount() {
+			return account;
+		}
+		public String getRemark() {
+			return remark;
+		}
+		public String getOutletName() {
+			return outletName;
+		}
+		public BigDecimal getCreditBalance() {
+			return creditBalance;
+		}
+		
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.purchaseId = Database.readRsString(rs, "purchaseId");
+			this.billNo = Database.readRsString(rs, "billNo");
+			this.challanNo = Database.readRsString(rs, "challanNo");
+			this.vendorId = Database.readRsInt(rs, "vendorId");
+			this.vendorName = Database.readRsString(rs, "vendorName");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.additionalDiscount = Database.readRsBigDecimal(rs, "additionalDiscount");
+			this.totalDiscount = Database.readRsBigDecimal(rs, "totalDiscount");
+			this.charge = Database.readRsBigDecimal(rs, "charge");
+			this.roundOff = Database.readRsBigDecimal(rs, "roundOff");
+			this.totalGst = Database.readRsBigDecimal(rs, "totalGst");
+			this.grandTotal = Database.readRsBigDecimal(rs, "grandTotal");
+			this.purchaseDate = Database.readRsString(rs, "purchaseDate");
+			this.dateTime = Database.readRsString(rs, "dateTime");
+			this.paymentType = Database.readRsString(rs, "paymentType");
+			this.account = Database.readRsString(rs, "account");
+			this.remark = Database.readRsString(rs, "remark");
+			this.outletName = Database.readRsString(rs, "outletName");
+			this.creditBalance = Database.readRsBigDecimal(rs, "creditBalance");
+		}
+	}
+	
+	public static class Vendor implements Database.OrderOnEntity {
+
+		public int id;
+		public String corporateId;
+		public String outletId;
+		public String name;
+		public String address;
+		public String poc;
+		public String GSTNumber;
+		public String emailId;
+		public BigDecimal balance;
+
+		public int getId() {
+			return id;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getAddress() {
+			return address;
+		}
+
+		public JSONArray getPoc() {
+			try {
+				return new JSONArray(poc);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getGSTNumber() {
+			return GSTNumber;
+		}
+
+		public String getEmailId() {
+			return emailId;
+		}
+
+		public BigDecimal getBalance() {
+			return balance;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.name = Database.readRsString(rs, "name");
+			this.corporateId = Database.readRsString(rs, "corporateId");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.address = Database.readRsString(rs, "address");
+			this.poc = Database.readRsString(rs, "poc");
+			this.GSTNumber = Database.readRsString(rs, "GSTNumber");
+			this.emailId = Database.readRsString(rs, "emailId");
+			this.balance = Database.readRsBigDecimal(rs, "balance");
+		}
+	}
+	
+	public static class InventoryReport implements Database.OrderOnEntity {
+
+		public String sku;
+		public String materialName;
+		public String unit;
+		public String displayableUnit;
+		public String hotelId;
+		public Double quantity;
+		public String orderId;
+		public String menuId;
+		public String itemName;
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.materialName = Database.readRsString(rs, "materialName");
+			this.itemName = Database.readRsString(rs, "itemName");
+			this.sku = Database.readRsString(rs, "sku");
 			this.unit = Database.readRsString(rs, "unit");
 			this.displayableUnit = Database.readRsString(rs, "displayableUnit");
-			this.ratePerUnit = Database.readRsBigDecimal(rs, "ratePerUnit");
-			this.wastage = Database.readRsBigDecimal(rs, "wastage");
-			this.minQuantity = Database.readRsBigDecimal(rs, "minQuantity");
 			this.hotelId = Database.readRsString(rs, "hotelId");
-			this.quantity = Database.readRsBigDecimal(rs, "quantity");
-			this.doc = Database.readRsString(rs, "doc");
-			this.doe = Database.readRsString(rs, "doe");
-			this.method = Database.readRsString(rs, "method");
+			this.quantity = Database.readRsDouble(rs, "quantity");
+			this.orderId = Database.readRsString(rs, "orderId");
+			this.menuId = Database.readRsString(rs, "menuId");
+		}
+		public String getSku() {
+			return sku;
+		}
+		public String getMaterialName() {
+			return materialName;
+		}
+		public String getUnit() {
+			return unit;
+		}
+		public String getDisplayableUnit() {
+			return displayableUnit;
+		}
+		public String getHotelId() {
+			return hotelId;
+		}
+		public Double getQuantity() {
+			return quantity;
+		}
+		public String getOrderId() {
+			return orderId;
+		}
+		public String getMenuId() {
+			return menuId;
+		}
+		public String getItemName() {
+			return itemName;
 		}
 	}
 
@@ -622,8 +3052,8 @@ public class AccessManager {
 
 	public static class User implements Database.OrderOnEntity {
 		
-		public byte[] getPasswd() {
-			return mPasswd;
+		public byte[] getPassword() {
+			return mPassword;
 		}
 
 		public String getHotelId() {
@@ -658,7 +3088,7 @@ public class AccessManager {
 		}
 
 		private String mHotelId;
-		private byte[] mPasswd;
+		private byte[] mPassword;
 		private String mUserId;
 		private String mEmployeeId;
 		private Integer mUserType;
@@ -671,7 +3101,7 @@ public class AccessManager {
 		public void readFromDB(ResultSet rs) {
 			this.mHotelId = Database.readRsString(rs, "hotelId");
 			this.mUserId = Database.readRsString(rs, "userId");
-			this.mPasswd = Database.readRsBytes(rs, "userPasswd");
+			this.mPassword = Database.readRsBytes(rs, "userPasswd");
 			this.mEmployeeId = Database.readRsString(rs, "employeeId");
 			this.mUserType = Database.readRsInt(rs, "userType");
 			this.mAuthToken = Database.readRsString(rs, "authToken");
@@ -706,6 +3136,19 @@ public class AccessManager {
 			this.mId = Database.readRsBigDecimal(rs, "entityId");
 		}
 	}
+
+	public static class EntityDouble implements Database.OrderOnEntity {
+		public Double getId() {
+			return mId;
+		}
+
+		private Double mId;
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.mId = Database.readRsDouble(rs, "entityId");
+		}
+	}
 	
 	public static class KitchenStation implements Database.OrderOnEntity {
 		public String getStation() {
@@ -720,42 +3163,16 @@ public class AccessManager {
 		}
 	}
 
-	public static class Hotel implements Database.OrderOnEntity {
-		public String getHotelName() {
-			return mHotelName;
+	public static class Settings implements Database.OrderOnEntity {
+		
+		public String getSystemId() {
+			return systemId;
 		}
-		public String getHotelId() {
-			return mHotelId;
+		public String getSystemCode() {
+			return systemCode;
 		}
-		public Integer getIsEnabled() {
-			return mIsEnabled;
-		}
-		public String getHotelCode() {
-			return mHotelCode;
-		}
-		public String getHotelAddress() {
-			return hotelAddress;
-		}
-		public String getHotelContact() {
-			return hotelContact;
-		}
-		public String getFlags() {
-			return flags;
-		}
-		public String getGstNumber() {
-			return gstNumber;
-		}
-		public String getmHotelName() {
-			return mHotelName;
-		}
-		public String getmHotelId() {
-			return mHotelId;
-		}
-		public Integer getmIsEnabled() {
-			return mIsEnabled;
-		}
-		public String getmHotelCode() {
-			return mHotelCode;
+		public boolean getIsEnabled() {
+			return Boolean.valueOf(isEnabled);
 		}
 		public String[] getKotPrintCount() {
 			return kotPrintCount;
@@ -793,56 +3210,32 @@ public class AccessManager {
 		public boolean getAllowItemCancellationOnPhone() {
 			return Boolean.valueOf(allowItemCancellationOnPhone);
 		}
-		public String getDescription() {
-			return description;
-		}
-		public String getWebsite() {
-			return website;
-		}
-		public int getIsSmsEnabled() {
-			return isSmsEnabled;
-		}
 		public boolean getHasSms() {
-			return isSmsEnabled==1?true:false;
+			return Boolean.valueOf(isSmsEnabled);
 		}
-		public int getIsServerEnabled() {
-			return isServerEnabled;
+		public boolean getHasDeliverySms() {
+			return Boolean.valueOf(deliverySmsEnabled);
+		}
+		public boolean getIsServerEnabled() {
+			return Boolean.valueOf(isServerEnabled);
 		}
 		public boolean getHasServer() {
-			return isServerEnabled==1?true:false;
-		}
-		public String getServerUpdateTime() {
-			return serverUpdateTime;
+			return Boolean.valueOf(isServerEnabled);
 		}
 		public boolean getHasCashDrawer() {
-			return hasCashDrawer==0?false:true;
+			return Boolean.valueOf(hasCashDrawer);
 		}
 		public int getHasLoyalty() {
 			return hasLoyalty;
 		}
-		public int getHasIncentiveScheme() {
-			return hasIncentiveScheme;
+		public boolean getHasIncentiveScheme() {
+			return Boolean.valueOf(hasIncentiveScheme);
 		}
-		public int getBillType() {
+		public String getBillType() {
 			return billType;
 		}
-		public String getPrintMethod() {
-			return printMethod;
-		}
-		public String[] getIntegrations() {
-			return integrations.split(";");
-		}
-		public String[] getOnlinePlatforms() {
-			return onlinePlatforms.split(";");
-		}
-		public String[] getSections() {
-			return sections.split(";");
-		}
-		public String getSection() {
-			return sections;
-		}
-		public boolean hasSection() {
-			return sections.length()==0?false:true;
+		public String getBillGenerationType() {
+			return billType.contains(":")?billType.split(":")[1]:GENERATE_BILL_PRE_ORDERING;
 		}
 		public int getKOTCountInhouse() {
 			return Integer.parseInt(kotPrintCount[0]);
@@ -895,28 +3288,115 @@ public class AccessManager {
 		public String getVersion() {
 			return version;
 		}
+		public boolean getHasNewOrderScreen() {
+			return Boolean.valueOf(hasNewOrderScreen);
+		}
+		public boolean getIsCaptainBasedOrdering() {
+			return Boolean.valueOf(isCaptainbasedOrdering);
+		}
+		public boolean getShowOccupiedTablesOnly() {
+			return Boolean.valueOf(showOccupiedTablesOnly);
+		}
+		public String getIsCaptainbasedOrdering() {
+			return isCaptainbasedOrdering;
+		}
+		public String getDeductionType() {
+			return deductionType;
+		}
+		public Boolean getIsWalletOnline() {
+			return Boolean.valueOf(isWalletOnline);
+		}
+		public Boolean getIsWalletOffline() {
+			return Boolean.valueOf(isWalletOffline);
+		}
+		public Boolean getIsCreditActive() {
+			return Boolean.valueOf(isCreditActive);
+		}
+		public Boolean getPrintLogo() {
+			return Boolean.valueOf(printLogo);
+		}
+		public String getZomatoApiKey() {
+			return zomatoApiKey;
+		}
+		public Boolean getHasConciseBill() {
+			return Boolean.valueOf(hasConciseBill);
+		}
+		public String getTheme() {
+			return theme;
+		}
+		public boolean getHasFullRounding() {
+			return Boolean.valueOf(hasFullRounding);
+		}
+		public boolean getCapturePayments() {
+			return Boolean.valueOf(capturePayments);
+		}
+		public String getSmsAPIKey() {
+			return smsAPIKey;
+		}
+		public String getSmsId() {
+			return smsId;
+		}
+		public String getSenderId() {
+			return senderId;
+		}
+		public boolean getDownloadReports() {
+			return Boolean.valueOf(downloadReports);
+		}
 
-		private String mHotelName;
-		private String mHotelId;
-		private Integer mIsEnabled;
-		private String mHotelCode;
-		private String hotelAddress;
-		private String hotelContact;
-		private String flags;
-		private String gstNumber;
-		private String description;
-		private String website;
-		private int isSmsEnabled;
-		private int isServerEnabled;
-		private int hasCashDrawer;
+		public String getCorporateId() {
+			return corporateId;
+		}
+		public JSONObject getEWardsCredentials() {
+			try {
+				if(!eWardsCredentials.isEmpty())
+					return new JSONObject(eWardsCredentials);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		public Boolean getIsLiteApp() {
+			return Boolean.valueOf(isLiteApp);
+		}
+		public String getBillSize() {
+			return billSize;
+		}
+		public String getBillFont() {
+			return billFont;
+		}
+		public JSONObject getAppSettings() {
+			try {
+				if(!appSettings.isEmpty())
+					return new JSONObject(appSettings);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		public Boolean getIsOnlineBilling() {
+			return Boolean.valueOf(isOnlineBilling);
+		}
+		public Boolean getIsInternetAvailable() {
+			return Boolean.valueOf(isInternetAvailable);
+		}
+
+		private String corporateId;
+		private String systemId;
+		private String systemCode;
+		private String isEnabled;
+		private String version;
+		private String theme;
+		private String isSmsEnabled;
+		private String deliverySmsEnabled;
+		private String isServerEnabled;
+		private String hasCashDrawer;
 		private int hasLoyalty;
-		private int hasIncentiveScheme;
-		private String serverUpdateTime;
-		private int billType;
-		private String printMethod;
-		private String integrations;
-		private String onlinePlatforms;
-		private String sections;
+		private String hasIncentiveScheme;
+		private String billType;
+		private String printLogo;
+		private String hasConciseBill;
 		private String[] kotPrintCount;
 		private String[] kotSettings;
 		private String hotelType;
@@ -932,31 +3412,42 @@ public class AccessManager {
 		private String kotFontSize;
 		private String kotFontWeight;
 		private String hasEod;
-		private String version;
-
+		private String hasNewOrderScreen;
+		private String isCaptainbasedOrdering;
+		private String showOccupiedTablesOnly;
+		private String deductionType;
+		private String isWalletOnline;
+		private String isWalletOffline;
+		private String isCreditActive;
+		private String zomatoApiKey;
+		private String smsAPIKey;
+		private String smsId;
+		private String senderId;
+		private String hasFullRounding;
+		private String capturePayments;
+		private String downloadReports;
+		private String eWardsCredentials;
+		private String isLiteApp;
+		private String billSize;
+		private String billFont;
+		private String appSettings;
+		private String isOnlineBilling;
+		private String isInternetAvailable;
+		
 		@Override
 		public void readFromDB(ResultSet rs) {
-			this.mHotelName = Database.readRsString(rs, "hotelName");
-			this.mHotelId = Database.readRsString(rs, "hotelId");
-			this.mIsEnabled = Database.readRsInt(rs, "isEnabled");
-			this.mHotelCode = Database.readRsString(rs, "hotelCode");
-			this.hotelAddress = Database.readRsString(rs, "hotelAddress");
-			this.hotelContact = Database.readRsString(rs, "hotelContact");
-			this.flags = Database.readRsString(rs, "taxFlags");
+			this.corporateId = Database.readRsString(rs, "corporateId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.systemCode = Database.readRsString(rs, "systemCode");
+			this.isEnabled = Database.readRsString(rs, "isEnabled");
 			this.hotelType = Database.readRsString(rs, "hotelType");
-			this.website = Database.readRsString(rs, "website");
-			this.description = Database.readRsString(rs, "description");
-			this.gstNumber = Database.readRsString(rs, "GSTNumber");
-			this.isSmsEnabled = Database.readRsInt(rs, "smsEnabled");
-			this.isServerEnabled = Database.readRsInt(rs, "serverEnabled");
-			this.hasCashDrawer = Database.readRsInt(rs, "hasCashDrawer");
+			this.isSmsEnabled = Database.readRsString(rs, "smsEnabled");
+			this.deliverySmsEnabled = Database.readRsString(rs, "deliverySmsEnabled");
+			this.isServerEnabled = Database.readRsString(rs, "serverEnabled");
+			this.hasCashDrawer = Database.readRsString(rs, "hasCashDrawer");
 			this.hasLoyalty = Database.readRsInt(rs, "hasLoyalty");
-			this.hasIncentiveScheme = Database.readRsInt(rs, "hasIncentiveScheme");
-			this.billType = Database.readRsInt(rs, "billType");
-			this.printMethod = Database.readRsString(rs, "printMethod");
-			this.integrations = Database.readRsString(rs, "integrations");
-			this.onlinePlatforms = Database.readRsString(rs, "onlinePlatforms");
-			this.sections = Database.readRsString(rs, "sections");
+			this.hasIncentiveScheme = Database.readRsString(rs, "hasIncentiveScheme");
+			this.billType = Database.readRsString(rs, "billType");
 			this.kotPrintCount = Database.readRsString(rs, "kotIHTBNSZSUF").split(":");
 			this.kotSettings = Database.readRsString(rs, "kotSettings").split(":");
 			this.hasKds = Database.readRsString(rs, "hasKds");
@@ -972,12 +3463,203 @@ public class AccessManager {
 			this.kotFontSize = Database.readRsString(rs, "kotFontSize");
 			this.kotFontWeight = Database.readRsString(rs, "kotFontWeight");
 			this.version = Database.readRsString(rs, "version");
+			this.hasNewOrderScreen = Database.readRsString(rs, "hasNewOrderScreen");
+			this.isCaptainbasedOrdering = Database.readRsString(rs, "isCaptainbasedOrdering");
+			this.showOccupiedTablesOnly = Database.readRsString(rs, "showOccupiedTablesOnly");
+			this.deductionType = Database.readRsString(rs, "deductionType");
+			this.isWalletOnline = Database.readRsString(rs, "isWalletOnline");
+			this.isWalletOffline = Database.readRsString(rs, "isWalletOffline");
+			this.isCreditActive = Database.readRsString(rs, "isCreditActive");
+			this.printLogo = Database.readRsString(rs, "printLogo");
+			this.zomatoApiKey = Database.readRsString(rs, "zomatoApiKey");
+			this.hasConciseBill = Database.readRsString(rs, "hasConciseBill");
+			this.theme = Database.readRsString(rs, "theme");
+			this.hasFullRounding = Database.readRsString(rs, "hasFullRounding");
+			this.capturePayments = Database.readRsString(rs, "capturePayments");
+			this.smsAPIKey = Database.readRsString(rs, "smsAPIKey");
+			this.downloadReports = Database.readRsString(rs, "downloadReports");
+			this.smsId = Database.readRsString(rs, "smsId");
+			this.senderId = Database.readRsString(rs, "senderId");
+			this.eWardsCredentials = Database.readRsString(rs, "eWardsCredentials");
+			this.isLiteApp = Database.readRsString(rs, "isLiteApp");
+			this.appSettings = Database.readRsString(rs, "appSettings");
+			this.isOnlineBilling = Database.readRsString(rs, "isOnlineBilling");
+			this.billSize = Database.readRsString(rs, "billSize");
+			this.billFont = Database.readRsString(rs, "billFont");
+			this.isInternetAvailable = Database.readRsString(rs, "isInternetAvailable");
 		}
 	}
 
+	public static class Outlet implements Database.OrderOnEntity {
+
+		private int id;
+		private String corporateId;
+		private String restaurantId;
+		private String systemId;
+		private String outletId;
+		private String name;
+		private String companyName;
+		private String address;
+		private String contact;
+		private String gstNumber;
+		private String vatNumber;
+		private String outletCode;
+		private String imageLocation;
+		private String schedules;
+		private String closedDates;
+		private String links;
+		private String location;
+		private String carouselImages;
+		private String menuBanner;
+		private String featuredItemId;
+		private String website;
+		
+		public int getId() {
+			return id;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getCompanyName() {
+			return companyName;
+		}
+
+		public String getAddress() {
+			return address;
+		}
+
+		public String getContact() {
+			return contact;
+		}
+
+		public String getGstNumber() {
+			return gstNumber;
+		}
+
+		public String getVatNumber() {
+			return vatNumber;
+		}
+
+		public String getOutletCode() {
+			return outletCode;
+		}
+
+		public String getImageLocation() {
+			if(imageLocation.equals(""))
+				return imageLocation;
+			return "Images/Wallet/" + corporateId + "/Outlets/" + imageLocation;
+		}
+		
+		public JSONArray getSchedules() {
+			try {
+				return new JSONArray(schedules);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		
+		public JSONArray getClosedDates() {
+			try {
+				return new JSONArray(closedDates);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		
+		public JSONObject getLocation() {
+			try {
+				return new JSONObject(location);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		
+		public JSONObject getLinks() {
+			try {
+				return new JSONObject(links);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		
+		public JSONArray getCarouselImages() {
+			try {
+				if(carouselImages.length()>0)
+					return new JSONArray(carouselImages);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getMenuBanner() {
+			return menuBanner;
+		}
+
+		public String getFeaturedItemId() {
+			return featuredItemId;
+		}
+
+		public String getWebsite() {
+			return website;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.corporateId = Database.readRsString(rs, "corporateId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.name = Database.readRsString(rs, "name");
+			this.companyName = Database.readRsString(rs, "companyName");
+			this.address = Database.readRsString(rs, "address");
+			this.contact = Database.readRsString(rs, "contact");
+			this.gstNumber = Database.readRsString(rs, "GSTNumber");
+			this.vatNumber = Database.readRsString(rs, "VATNumber");
+			this.outletCode = Database.readRsString(rs, "code");
+			this.imageLocation = Database.readRsString(rs, "imageLocation");
+			this.schedules = Database.readRsString(rs, "schedule");
+			this.closedDates = Database.readRsString(rs, "closedDates");
+			this.location = Database.readRsString(rs, "location");
+			this.links = Database.readRsString(rs, "links");
+			this.carouselImages = Database.readRsString(rs, "carouselImages");
+			this.menuBanner = Database.readRsString(rs, "menuBanner");
+			this.featuredItemId = Database.readRsString(rs, "featuredItemId");
+			this.website = Database.readRsString(rs, "website");
+		}
+	}
+	
+
 	public static class Table implements Database.OrderOnEntity {
 		public String getTableId() {
-			return mTableId;
+			return tableId;
 		}
 
 		public String getOrderId() {
@@ -988,15 +3670,35 @@ public class AccessManager {
 			return waiterId;
 		}
 
-		private String mTableId;
+		public String getType() {
+			return type;
+		}
+		
+		public JSONArray getSubTables() {
+			try {
+				if(!subTables.isEmpty()) {
+					return new JSONArray(subTables);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		
+		private String tableId;
 		private String orderId;
 		private String waiterId;
+		private String type;
+		private String subTables;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			this.mTableId = Database.readRsString(rs, "tableId");
+			this.tableId = Database.readRsString(rs, "tableId");
 			this.orderId = Database.readRsString(rs, "orderId");
 			this.waiterId = Database.readRsString(rs, "waiterId");
+			this.type = Database.readRsString(rs, "type");
+			this.subTables = Database.readRsString(rs, "subTables");
 		}
 	}
 
@@ -1014,48 +3716,98 @@ public class AccessManager {
 	}
 	
 	public static class Customer implements Database.OrderOnEntity {
+
+		private int id;
+		private String firstName;
+		private String surName;
+		private String mobileNumber;
+		private String address;
+		private String address2;
+		private String address3;
+		private String birthdate;
+		private String anniversary;
+		private String userType;
+		private int isSmsSent;
+		private String remarks;
+		private String allergyInfo;
+		private int points;
+		private String wantsPromotion;
+		private int visitCount;
+		private String emailId;
+		private String reference;
+		private String hotelId;
+		private String corporateId;
+		private byte[] password;
+		private String authToken;
+		private String timeStamp;
+		private byte[] salt;
+		private String referalCode;
+		private int wallet;
+		private int promotionalCash;
+		private int amountEarned;
+		private int amountSpent;
+		private int otp;
+		private String pinGenTime;
+		private int otpCount;
+		private String isVerified;
+		private String isBlocked;
+		private String communicationModes;
+		private String imageLocation;
+		private String sex;
+		private String completeTimestamp;
+		private String orderId;
+		private String lastVisitDate;
+		private String lastRechargeDate;
+		private String joiningDate;
+		private String sendSMS;
+		private String otpAuthRequired;
+		
 		public int getId() {
 			return id;
 		}
+
+		public String getFirstName() {
+			return firstName;
+		}
+
+		public String getSurName() {
+			return surName;
+		}
 		
-		public String getCustomer() {
-			return mCustomer;
+		public String getFullName() {
+			return (firstName + " " +surName).trim();
+		}
+
+		public String getMobileNumber() {
+			return mobileNumber;
 		}
 
 		public String getAddress() {
-			return mAddress;
+			return address;
 		}
 
-		public String getMobileNo() {
-			return mMobileNo;
+		public String getAddress2() {
+			return address2;
+		}
+
+		public String getAddress3() {
+			return address3;
 		}
 
 		public String getBirthdate() {
-			return mBirthdate;
+			return birthdate;
 		}
 
 		public String getAnniversary() {
-			return mAnniversary;
+			return anniversary;
 		}
 
-		public String getUserType() {
-			return userType;
+		protected int getIsSmsSent() {
+			return isSmsSent;
 		}
 
 		public String getRemarks() {
 			return remarks;
-		}
-
-		public int getIsSmsSent() {
-			return isSmsSent;
-		}
-
-		public String getCompleteTimestamp() {
-			return completeTimestamp;
-		}
-
-		public String getOrderId() {
-			return orderId;
 		}
 
 		public String getAllergyInfo() {
@@ -1066,52 +3818,249 @@ public class AccessManager {
 			return points;
 		}
 
-		public int getVisitCount() {
-			return visitCount;
-		}
-
 		public Boolean getWantsPromotion() {
 			return Boolean.valueOf(wantsPromotion);
 		}
 
-		private int id;
-		private String mCustomer;
-		private String mMobileNo;
-		private String mAddress;
-		private String mBirthdate;
-		private String mAnniversary;
-		private String userType;
-		private int isSmsSent;
-		private String remarks;
-		private String completeTimestamp;
-		private String orderId;
-		private String allergyInfo;
-		private int points;
-		private String wantsPromotion;
-		private int visitCount;
+		public int getVisitCount() {
+			return visitCount;
+		}
+
+		public String getEmailId() {
+			return emailId;
+		}
+
+		public String getReference() {
+			return reference;
+		}
+		
+		public String getHotelId() {
+			return hotelId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
+
+		protected byte[] getPassword() {
+			return password;
+		}
+
+		protected String getAuthToken() {
+			return authToken;
+		}
+
+		protected String getTimeStamp() {
+			return timeStamp;
+		}
+
+		protected byte[] getSalt() {
+			return salt;
+		}
+		
+		public String getUserType() {
+			return userType;
+		}
+
+		public String getReferalCode() {
+			return referalCode;
+		}
+
+		public int getWallet() {
+			return wallet;
+		}
+
+		public int getPromotionalCash() {
+			return promotionalCash;
+		}
+
+		public int getAmountEarned() {
+			return amountEarned;
+		}
+
+		public int getAmountSpent() {
+			return amountSpent;
+		}
+
+		public int getOtp() {
+			return otp;
+		}
+
+		protected String getPinGenTime() {
+			return pinGenTime;
+		}
+
+		public int getOtpCount() {
+			return otpCount;
+		}
+
+		public Boolean getIsVerified() {
+			return Boolean.valueOf(isVerified);
+		}
+
+		public Boolean getIsBlocked() {
+			return Boolean.valueOf(isBlocked);
+		}
+		
+		public JSONArray getCommunicationModes() {
+			try {
+				if(communicationModes.length()>0)
+					return new JSONArray(communicationModes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getImageLocation() {
+			return imageLocation;
+		}
+
+		public String getSex() {
+			return sex;
+		}
+		
+		public String getCompleteTimestamp() {
+			return completeTimestamp;
+		}
+
+		public String getOrderId() {
+			return orderId;
+		}
+
+		public String getLastVisitDate() {
+			return lastVisitDate;
+		}
+
+		public String getLastRechargeDate() {
+			return lastRechargeDate;
+		}
+
+		public String getJoiningDate() {
+			return joiningDate;
+		}
+
+		public boolean getSendSMS() {
+			return Boolean.valueOf(sendSMS);
+		}
+
+		public boolean getOtpAuthRequired() {
+			return Boolean.valueOf(otpAuthRequired);
+		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.id = Database.readRsInt(rs, "id");
-			this.mCustomer = Database.readRsString(rs, "customer");
-			this.mMobileNo = Database.readRsString(rs, "mobileNo");
-			this.mAddress = Database.readRsString(rs, "address");
-			this.mBirthdate = Database.readRsString(rs, "birthdate");
-			this.mAnniversary = Database.readRsString(rs, "anniversary");
+			this.firstName = Database.readRsString(rs, "firstName");
+			this.surName = Database.readRsString(rs, "surName");
+			this.mobileNumber = Database.readRsString(rs, "mobileNumber");
+			this.address = Database.readRsString(rs, "address");
+			this.address2 = Database.readRsString(rs, "address2");
+			this.address3 = Database.readRsString(rs, "address3");
+			this.birthdate = Database.readRsString(rs, "birthdate");
+			this.anniversary = Database.readRsString(rs, "anniversary");
 			this.userType = Database.readRsString(rs, "userType");
 			this.remarks = Database.readRsString(rs, "remarks");
 			this.isSmsSent = Database.readRsInt(rs, "isSmsSent");
-			this.completeTimestamp = Database.readRsString(rs, "completeTimestamp");
-			this.orderId = Database.readRsString(rs, "orderId");
 			this.allergyInfo = Database.readRsString(rs, "allergyInfo");
 			this.points = Database.readRsInt(rs, "points");
 			this.wantsPromotion = Database.readRsString(rs, "wantsPromotion");
 			this.visitCount = Database.readRsInt(rs, "visitCount");
+			this.emailId = Database.readRsString(rs, "emailId");
+			this.reference = Database.readRsString(rs, "reference");
+			this.hotelId = Database.readRsString(rs, "hotelId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
+			this.mobileNumber = Database.readRsString(rs, "mobileNumber");
+			this.password = Database.readRsBytes(rs, "password");
+			this.authToken = Database.readRsString(rs, "authToken");
+			this.timeStamp = Database.readRsString(rs, "timeStamp");
+			this.salt = Database.readRsBytes(rs, "salt");
+			this.referalCode = Database.readRsString(rs, "referalCode");
+			this.wallet = Database.readRsInt(rs, "wallet");
+			this.promotionalCash = Database.readRsInt(rs, "promotionalCash");
+			this.amountEarned = Database.readRsInt(rs, "amountEarned");
+			this.amountSpent = Database.readRsInt(rs, "amountSpent");
+			this.otp = Database.readRsInt(rs, "otp");
+			this.pinGenTime = Database.readRsString(rs, "pinGenTime");
+			this.otpCount = Database.readRsInt(rs, "otpCount");
+			this.isBlocked = Database.readRsString(rs, "isBlocked");
+			this.isVerified = Database.readRsString(rs, "isVerified");
+			this.communicationModes = Database.readRsString(rs, "communicationMode");
+			this.imageLocation = Database.readRsString(rs, "imageLocation");
+			this.sex = Database.readRsString(rs, "sex");
+			this.completeTimestamp = Database.readRsString(rs, "completeTimestamp");
+			this.orderId = Database.readRsString(rs, "orderId");
+			this.lastVisitDate = Database.readRsString(rs, "lastVisitDate");
+			this.lastRechargeDate = Database.readRsString(rs, "lastRechargeDate");
+			this.joiningDate = Database.readRsString(rs, "joiningDate");
+			this.sendSMS = Database.readRsString(rs, "sendSMS");
+			this.otpAuthRequired = Database.readRsString(rs, "otpAuthRequired");
+		}
+	}
+	
+	public static class CustomerForOrdering implements Database.OrderOnEntity {
+
+		private int id;
+		private String firstName;
+		private String surName;
+		private String mobileNumber;
+		private String address;
+		private String emailId;
+		
+		public int getId() {
+			return id;
+		}
+
+		public String getFirstName() {
+			return firstName;
+		}
+
+		public String getSurName() {
+			return surName;
+		}
+		
+		public String getFullName() {
+			return (firstName + " " +surName).trim();
+		}
+
+		public String getMobileNumber() {
+			return mobileNumber;
+		}
+
+		public String getAddress() {
+			return address;
+		}
+
+		public String getEmailId() {
+			return emailId;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.firstName = Database.readRsString(rs, "firstName");
+			this.surName = Database.readRsString(rs, "surName");
+			this.mobileNumber = Database.readRsString(rs, "mobileNumber");
+			this.address = Database.readRsString(rs, "address");
+			this.emailId = Database.readRsString(rs, "emailId");
 		}
 	}
 
 	public static class CustomerReport implements Database.OrderOnEntity {
 
+		public String getFullName() {
+			return (firstName + " " +surName).trim();
+		}
+		
+		public String getFirstName() {
+			return firstName;
+		}
+		
+		public String getSurName() {
+			return surName;
+		}
+		
 		public String getCustomerName() {
 			return customerName;
 		}
@@ -1168,6 +4117,8 @@ public class AccessManager {
 			return billNo;
 		}
 
+		private String firstName;
+		private String surName;
 		private String customerName;
 		private String mobileNumber;
 		private BigDecimal spentPerPax;
@@ -1185,8 +4136,10 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
+			this.firstName = Database.readRsString(rs, "firstName");
+			this.surName = Database.readRsString(rs, "surName");
 			this.customerName = Database.readRsString(rs, "customerName");
-			this.mobileNumber = Database.readRsString(rs, "mobileNo");
+			this.mobileNumber = Database.readRsString(rs, "mobileNumber");
 			this.spentPerPax = Database.readRsBigDecimal(rs, "spentPerPax");
 			this.spentPerWalkin = Database.readRsBigDecimal(rs, "spentPerWalkin");
 			this.totalSpent = Database.readRsBigDecimal(rs, "totalSpent");
@@ -1202,6 +4155,60 @@ public class AccessManager {
 		}
 	}
 
+	public static class CustomerCreditLog implements Database.OrderOnEntity{
+		
+		private int id;
+		private Double amount;
+		private String mobileNumber;
+		private String outletId;
+		private String state;
+		private String transDate;
+		private String settlementDate;
+		private String orderId;
+		private String paymentType;
+		public int getId() {
+			return id;
+		}
+		public Double getAmount() {
+			return amount;
+		}
+		public String getMobileNumber() {
+			return mobileNumber;
+		}
+		public String getOutletId() {
+			return outletId;
+		}
+		public String getState() {
+			return state;
+		}
+		public String getTransDate() {
+			return transDate;
+		}
+		public String getSettlementDate() {
+			return settlementDate;
+		}
+		public String getOrderId() {
+			return orderId;
+		}
+		public String getPaymentType() {
+			return paymentType;
+		}
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.amount = Database.readRsDouble(rs, "amount");
+			this.mobileNumber  = Database.readRsString(rs, "mobileNumber");
+			this.outletId  = Database.readRsString(rs, "outletId");
+			this.state  = Database.readRsString(rs, "state");
+			this.transDate  = Database.readRsString(rs, "transDate");
+			this.settlementDate  = Database.readRsString(rs, "settlementDate");
+			this.orderId  = Database.readRsString(rs, "orderId");
+			this.paymentType = Database.readRsString(rs, "paymentType");
+		}
+		
+	}
+	
 	public static class HomeDelivery implements Database.OrderOnEntity {
 		public String getCustomer() {
 			return mCustomer;
@@ -1211,8 +4218,8 @@ public class AccessManager {
 			return mAddress;
 		}
 
-		public String getMobileNo() {
-			return mMobileNo;
+		public String getMobileNumber() {
+			return mMobileNumber;
 		}
 
 		public String getOrderId() {
@@ -1242,9 +4249,38 @@ public class AccessManager {
 		public int getTakeAwayType() {
 			return takeAwayType;
 		}
+		
+		public boolean getIsFoodReady() {
+			return Boolean.valueOf(isFoodReady);
+		}
+		
+		public int getOrderNumber() {
+			return orderNumber;
+		}
+		
+		public String getOrderDateTime() {
+			return orderDateTime;
+		}
+		
+		public int getOrderPreparationTime() {
+			return orderPreparationTime;
+		}
+		
+		public JSONObject getOnlineOrderData() {
+			try {
+				if(onlineOrderData.isEmpty()) {
+					return new JSONObject();
+				}
+				return new JSONObject(onlineOrderData);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
 
 		private String mCustomer;
-		private String mMobileNo;
+		private String mMobileNumber;
 		private String mAddress;
 		private String mOrderId;
 		private Integer mState;
@@ -1253,11 +4289,16 @@ public class AccessManager {
 		private String reference;
 		private String remarks;
 		private int takeAwayType;
+		private String isFoodReady;
+		private int orderNumber;
+		private String orderDateTime;
+		private int orderPreparationTime;
+		private String onlineOrderData;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.mCustomer = Database.readRsString(rs, "customer");
-			this.mMobileNo = Database.readRsString(rs, "mobileNo");
+			this.mMobileNumber = Database.readRsString(rs, "mobileNumber");
 			this.mAddress = Database.readRsString(rs, "address");
 			this.mState = Database.readRsInt(rs, "state");
 			this.mOrderId = Database.readRsString(rs, "orderId");
@@ -1266,6 +4307,11 @@ public class AccessManager {
 			this.reference = Database.readRsString(rs, "reference");
 			this.remarks = Database.readRsString(rs, "remarks");
 			this.takeAwayType = Database.readRsInt(rs, "takeAwayType");
+			this.isFoodReady = Database.readRsString(rs, "isFoodReady");
+			this.orderNumber = Database.readRsInt(rs, "orderNumber");
+			this.orderDateTime = Database.readRsString(rs, "orderDateTime");
+			this.orderPreparationTime = Database.readRsInt(rs, "orderPreparationTime");
+			this.onlineOrderData = Database.readRsString(rs, "onlineOrderData");
 		}
 	}
 	
@@ -1275,10 +4321,14 @@ public class AccessManager {
 		private int restaurantId;
 		private int portalId;
 		private String orderId;
+		private int orderNumber;
 		private int externalOrderId;
 		private String data;
 		private int status;
 		private String dateTime;
+		private String riderName;
+		private String riderNumber;
+		private String riderStatus;
 		
 		public String getHotelId() {
 			return hotelId;
@@ -1289,26 +4339,32 @@ public class AccessManager {
 		public String getOrderId() {
 			return orderId;
 		}
+		public int getOrderNumber() {
+			return orderNumber;
+		}
 		public int getPortalId() {
 			return portalId;
 		}
 		public int getExternalOrderId() {
 			return externalOrderId;
 		}
-		public JSONObject getData() {
-			try {
-				return new JSONObject(data);
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			return new JSONObject();
+		public String getData() {
+			return data;
 		}
 		public int getStatus() {
 			return status;
 		}
 		public String getDateTime() {
 			return dateTime;
+		}
+		public String getRiderName() {
+			return riderName;
+		}
+		public String getRiderNumber() {
+			return riderNumber;
+		}
+		public String getRiderStatus() {
+			return riderStatus;
 		}
 		
 		@Override
@@ -1319,8 +4375,71 @@ public class AccessManager {
 			this.restaurantId = Database.readRsInt(rs, "restaurantId");
 			this.externalOrderId = Database.readRsInt(rs, "externalOrderId");
 			this.orderId = Database.readRsString(rs, "orderId");
+			this.orderNumber = Database.readRsInt(rs, "orderNumber");
 			this.status = Database.readRsInt(rs, "status");
 			this.dateTime = Database.readRsString(rs, "dateTime");
+			this.riderName = Database.readRsString(rs, "riderName");
+			this.riderNumber = Database.readRsString(rs, "riderNumber");
+			this.riderStatus = Database.readRsString(rs, "riderStatus");
+		}
+	}
+	
+	public static class OnlineOrderingPortal implements Database.OrderOnEntity {
+
+		private int id;
+		private String hotelId;
+		private String name;
+		private String portal;
+		private String requiresLogistics;
+		private double commisionValue;
+		private String commisionType;
+		private String hasIntegration;
+		private String paymentCycleDay;
+		private int menuAssociation;
+		
+		public int getId() {
+			return id;
+		}
+		public String getHotelId() {
+			return hotelId;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getPortal() {
+			return portal;
+		}
+		public Boolean getRequiresLogistics() {
+			return Boolean.valueOf(requiresLogistics);
+		}
+		public double getCommisionValue() {
+			return commisionValue;
+		}
+		public String getCommisionType() {
+			return commisionType;
+		}
+		public Boolean getHasIntegration() {
+			return Boolean.valueOf(hasIntegration);
+		}
+		public String getPaymentCycleDay() {
+			return paymentCycleDay;
+		}
+		public int getMenuAssociation() {
+			return menuAssociation;
+		}
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.name = Database.readRsString(rs, "name");
+			this.portal = Database.readRsString(rs, "portal");
+			this.hotelId = Database.readRsString(rs, "hotelId");
+			this.requiresLogistics = Database.readRsString(rs, "requiresLogistics");
+			this.commisionValue = Database.readRsInt(rs, "commisionValue");
+			this.commisionType = Database.readRsString(rs, "commisionType");
+			this.paymentCycleDay = Database.readRsString(rs, "paymentCycleDay");
+			this.menuAssociation = Database.readRsInt(rs, "menuAssociation");
+			this.hasIntegration = Database.readRsString(rs, "hasIntegration");
 		}
 	}
 
@@ -1334,7 +4453,7 @@ public class AccessManager {
 			return orderNumber;
 		}
 
-		public Date getOrderDate() {
+		public String getOrderDate() {
 			return orderDate;
 		}
 
@@ -1354,20 +4473,8 @@ public class AccessManager {
 			return customerGst;
 		}
 
-		public Integer getAmbianceRating() {
-			return rating_ambiance;
-		}
-
-		public Integer getQoFRating() {
-			return rating_qof;
-		}
-
-		public Integer getServiceRating() {
-			return rating_service;
-		}
-
-		public Integer getHygieneRating() {
-			return rating_hygiene;
+		public BigDecimal getLoyaltyEarned() {
+			return loyaltyEarned;
 		}
 
 		public String getWaiterId() {
@@ -1381,9 +4488,9 @@ public class AccessManager {
 		public Integer getState() {
 			return state;
 		}
-
-		public Integer getInHouse() {
-			return inHouse;
+		
+		public Integer getOrderType() {
+			return orderType;
 		}
 
 		public Integer getTakeAwayType() {
@@ -1396,30 +4503,6 @@ public class AccessManager {
 
 		public String getServiceType() {
 			return serviceType;
-		}
-
-		public BigDecimal getFoodBill() {
-			return foodBill;
-		}
-
-		public BigDecimal getBarBill() {
-			return barBill;
-		}
-
-		public Integer getRating_ambiance() {
-			return rating_ambiance;
-		}
-
-		public Integer getRating_qof() {
-			return rating_qof;
-		}
-
-		public Integer getRating_service() {
-			return rating_service;
-		}
-
-		public Integer getRating_hygiene() {
-			return rating_hygiene;
 		}
 
 		public BigDecimal getFoodDiscount() {
@@ -1454,8 +4537,37 @@ public class AccessManager {
 			return printCount;
 		}
 
-		public String getDiscountCode() {
-			return discountCode;
+		public JSONArray getDiscountCodes() {
+			try {
+				if(discountCodes.length()>0)
+					return new JSONArray(discountCodes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public JSONArray getExcludedCharges() {
+			try {
+				if(excludedCharges.length()>0)
+					return new JSONArray(excludedCharges);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public JSONArray getExcludedTaxes() {
+			try {
+				if(excludedTaxes.length()>0)
+					return new JSONArray(excludedTaxes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
 		public Integer getLoyaltyId() {
@@ -1471,7 +4583,7 @@ public class AccessManager {
 		}
 		
 		public boolean hasTakenReview() {
-			if(rating_ambiance == 0 && rating_ambiance == 0 && rating_ambiance == 0 && rating_ambiance == 0)
+			if(ratingHygiene == 0 && ratingAmbiance == 0 && ratingQof == 0 && ratingService== 0)
 				return false;
 			else
 				return true;
@@ -1520,22 +4632,188 @@ public class AccessManager {
 		public BigDecimal getAppPayment() {
 			return appPayment;
 		}
+		
+		public BigDecimal getWalletPayment() {
+			return walletPayment;
+		}
 
+		public void setWalletPayment(BigDecimal walletPayment) {
+			this.walletPayment = walletPayment;
+		}
+
+		public BigDecimal getCreditAmount() {
+			return creditAmount;
+		}
+
+		public void setCreditAmount(BigDecimal creditAmount) {
+			this.creditAmount = creditAmount;
+		}
+
+		public BigDecimal getCashToBeCollected() {
+			return cashToBeCollected;
+		}
+		
+		public BigDecimal getZomatoVoucherAmount() {
+			return zomatoVoucherAmount;
+		}
+		
+		public BigDecimal getGoldDiscount() {
+			return goldDiscount;
+		}
+		
+		public BigDecimal getPiggyBankAmount() {
+			return piggyBank;
+		}
+		
+		public BigDecimal getFixedRupeeDiscount() {
+			return fixedRupeeDiscount;
+		}
+
+		public String getExternalOrderId() {
+			return externalOrderId;
+		}
+
+		public boolean getIsIntegrationOrder() {
+			return externalOrderId.equals("")?false:true;
+		}
+
+		public String getRiderName() {
+			return riderName;
+		}
+		
+		public String getRiderNumber() {
+			return riderNumber;
+		}
+		
+		public String getRiderStatus() {
+			return riderStatus;
+		}
+
+		public boolean getIsSmsSent() {
+			return isSMSSent==0?false:true;
+		}
+		
+		public BigDecimal getAmountReceivable() {
+			return amountReceivable;
+		}
+
+		public boolean getIsFoodReady() {
+			return Boolean.valueOf(isFoodReady);
+		}
+		public int getWalletTransactionId() {
+			return walletTransactionId;
+		}
+		public BigDecimal getPromotionalCash() {
+			return promotionalCash;
+		}
+		public JSONObject getEWards() {
+			try {
+				if(eWards.isEmpty()) {
+					return new JSONObject();
+				}
+				return new JSONObject(eWards);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		public JSONObject getOnlineOrderData() {
+			try {
+				if(onlineOrderData.isEmpty()) {
+					return new JSONObject();
+				}
+				return new JSONObject(onlineOrderData);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
+		}
+		
+		public long getOrderDateTime() {
+			return orderDateTime;
+		}
+
+		public Integer getRatingAmbiance() {
+			return ratingAmbiance;
+		}
+
+		public Integer getRatingQof() {
+			return ratingQof;
+		}
+
+		public Integer getRatingService() {
+			return ratingService;
+		}
+
+		public Integer getRatingHygiene() {
+			return ratingHygiene;
+		}
+
+		public BigDecimal getFoodBill() {
+			return foodBill;
+		}
+
+		public BigDecimal getBarBill() {
+			return barBill;
+		}
+
+		public BigDecimal getPiggyBank() {
+			return piggyBank;
+		}
+
+		public int getIsSMSSent() {
+			return isSMSSent;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getOutletName() {
+			return outletName;
+		}
+
+		public int getOrderPreparationTime() {
+			return orderPreparationTime;
+		}
+
+		public String getEBillUrl() {
+			return eBillUrl;
+		}
+		
+		public String getOrderTypeStr() {
+			if(orderType.equals(AccessManager.DINE_IN)) {
+				return "DINEIN";
+			}else if(orderType.equals(AccessManager.HOME_DELIVERY)) {
+				return "DELIVERY";
+			}else if(orderType.equals(AccessManager.TAKE_AWAY)) {
+				return "TAKEAWAY";
+			}else if(orderType.equals(AccessManager.BAR)) {
+				return "BAR";
+			}
+			return "NONCHARGEABLE";
+		}
+		
+		private String outletId;
+		private String outletName;
 		private String orderId;
 		private int orderNumber;
-		private Date orderDate;
+		private String orderDate;
 		private String customerName;
 		private String customerAddress;
 		private String customerNumber;
 		private String customerGst;
-		private Integer rating_ambiance;
-		private Integer rating_qof;
-		private Integer rating_service;
-		private Integer rating_hygiene;
+		private BigDecimal loyaltyEarned;
+		private Integer ratingAmbiance;
+		private Integer ratingQof;
+		private Integer ratingService;
+		private Integer ratingHygiene;
 		private String waiterId;
 		private Integer numberOfGuests;
 		private Integer state;
-		private Integer inHouse;
+		private Integer orderType;
 		private int takeAwayType;
 		private String tableId;
 		private String serviceType;
@@ -1549,7 +4827,7 @@ public class AccessManager {
 		private String reason;
 		private String authId;
 		private Integer printCount;
-		private String discountCode;
+		private String discountCodes;
 		private Integer loyaltyId;
 		private Integer loyaltyPaid;
 		private String reviewSuggestions;
@@ -1564,24 +4842,49 @@ public class AccessManager {
 		private BigDecimal cashPayment;
 		private BigDecimal cardPayment;
 		private BigDecimal appPayment;
+		private BigDecimal walletPayment;
+		private BigDecimal creditAmount;
+		private String excludedCharges;
+		private String excludedTaxes;
+		private String externalOrderId;
+		private String riderName;
+		private String riderNumber;
+		private String riderStatus;
+		private BigDecimal cashToBeCollected;
+		private BigDecimal zomatoVoucherAmount;
+		private BigDecimal goldDiscount;
+		private BigDecimal piggyBank;
+		private int isSMSSent;
+		private BigDecimal fixedRupeeDiscount;
+		private BigDecimal amountReceivable;
+		private String isFoodReady;
+		private int walletTransactionId;
+		private BigDecimal promotionalCash;
+		private String eWards;
+		private long orderDateTime;
+		private int orderPreparationTime;
+		private String onlineOrderData;
+		private String eBillUrl;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.outletName = Database.readRsString(rs, "outletName");
 			this.orderId = Database.readRsString(rs, "orderId");
-			this.orderNumber = Database.readRsInt(rs, "Id");
-			this.orderDate = Database.readRsDate(rs, "orderDate");
+			this.orderNumber = Database.readRsInt(rs, "id");
+			this.orderDate = Database.readRsString(rs, "orderDate");
 			this.customerName = Database.readRsString(rs, "customerName");
 			this.customerAddress = Database.readRsString(rs, "customerAddress");
 			this.customerNumber = Database.readRsString(rs, "customerNumber");
 			this.customerGst = Database.readRsString(rs, "customerGst");
-			this.rating_ambiance = Database.readRsInt(rs, "rating_ambiance");
-			this.rating_qof = Database.readRsInt(rs, "rating_qof");
-			this.rating_service = Database.readRsInt(rs, "rating_service");
-			this.rating_hygiene = Database.readRsInt(rs, "rating_hygiene");
+			this.ratingAmbiance = Database.readRsInt(rs, "ratingAmbiance");
+			this.ratingQof = Database.readRsInt(rs, "ratingQof");
+			this.ratingService = Database.readRsInt(rs, "ratingService");
+			this.ratingHygiene = Database.readRsInt(rs, "ratingHygiene");
 			this.waiterId = Database.readRsString(rs, "waiterId");
 			this.numberOfGuests = Database.readRsInt(rs, "numberOfGuests");
 			this.state = Database.readRsInt(rs, "state");
-			this.inHouse = Database.readRsInt(rs, "inhouse");
+			this.orderType = Database.readRsInt(rs, "orderType");
 			this.takeAwayType = Database.readRsInt(rs, "takeAwayType");
 			this.tableId = Database.readRsString(rs, "tableId");
 			this.serviceType = Database.readRsString(rs, "serviceType");
@@ -1595,7 +4898,7 @@ public class AccessManager {
 			this.reason = Database.readRsString(rs, "reason");
 			this.authId = Database.readRsString(rs, "authId");
 			this.printCount = Database.readRsInt(rs, "printCount");
-			this.discountCode = Database.readRsString(rs, "discountCode");
+			this.discountCodes = Database.readRsString(rs, "discountCodes");
 			this.loyaltyId = Database.readRsInt(rs, "loyaltyId");
 			this.loyaltyPaid = Database.readRsInt(rs, "loyaltyPaid");
 			this.reviewSuggestions = Database.readRsString(rs, "reviewSuggestions");
@@ -1610,12 +4913,36 @@ public class AccessManager {
 			this.cashPayment = Database.readRsBigDecimal(rs, "cashPayment");
 			this.cardPayment = Database.readRsBigDecimal(rs, "cardPayment");
 			this.appPayment = Database.readRsBigDecimal(rs, "appPayment");
+			this.walletPayment = Database.readRsBigDecimal(rs, "walletPayment");
+			this.creditAmount = Database.readRsBigDecimal(rs, "creditAmount");
+			this.excludedCharges = Database.readRsString(rs, "excludedCharges");
+			this.excludedTaxes = Database.readRsString(rs, "excludedTaxes");
+			this.externalOrderId = Database.readRsString(rs, "externalOrderId");
+			this.riderName = Database.readRsString(rs, "riderName");
+			this.riderNumber = Database.readRsString(rs, "riderNumber");
+			this.riderStatus = Database.readRsString(rs, "riderStatus");
+			this.cashToBeCollected = Database.readRsBigDecimal(rs, "cashToBeCollected");
+			this.zomatoVoucherAmount = Database.readRsBigDecimal(rs, "zomatoVoucherAmount");
+			this.goldDiscount = Database.readRsBigDecimal(rs, "goldDiscount");
+			this.piggyBank = Database.readRsBigDecimal(rs, "piggyBank");
+			this.isSMSSent = Database.readRsInt(rs, "isSmsSent");
+			this.loyaltyEarned = Database.readRsBigDecimal(rs, "loyaltyEarned");
+			this.fixedRupeeDiscount = Database.readRsBigDecimal(rs, "fixedRupeeDiscount");
+			this.amountReceivable = Database.readRsBigDecimal(rs, "amountReceivable");
+			this.isFoodReady = Database.readRsString(rs, "isFoodReady");
+			this.walletTransactionId = Database.readRsInt(rs, "walletTransactionId");
+			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
+			this.eWards = Database.readRsString(rs, "eWards");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
+			this.orderPreparationTime = Database.readRsInt(rs, "orderPreparationTime");
+			this.onlineOrderData = Database.readRsString(rs, "onlineOrderData");
+			this.eBillUrl = Database.readRsString(rs, "eBillUrl");
 		}
 	}
 
 	public static class TableUsage implements Database.OrderOnEntity {
 
-		public int getTableId() {
+		public String getTableId() {
 			return mTableId;
 		}
 
@@ -1631,33 +4958,108 @@ public class AccessManager {
 			return waiterId;
 		}
 
-		public int getState() {
-			return state;
+		public boolean getIsInBilling() {
+			return Boolean.valueOf(isInBilling);
 		}
 
 		public String getSection() {
 			return section;
 		}
 
-		private int mTableId;
+		public String getType() {
+			return type;
+		}
+
+		public Boolean getShowTableView() {
+			return Boolean.valueOf(showTableView);
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public long getOrderDateTime() {
+			return orderDateTime;
+		}
+
+		private String mTableId;
 		private String mUserId;
 		private String mOrderId;
 		private String waiterId;
-		private int state;
+		private String isInBilling;
 		private String section;
+		private String type;
+		private String showTableView;
+		private String outletId;
+		private long orderDateTime;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			this.mTableId = Database.readRsInt(rs, "tableId");
+			this.mTableId = Database.readRsString(rs, "tableId");
 			this.mUserId = Database.readRsString(rs, "userId");
 			this.mOrderId = Database.readRsString(rs, "orderId");
 			this.waiterId = Database.readRsString(rs, "waiterId");
-			this.state = Database.readRsInt(rs, "state");
+			this.isInBilling = Database.readRsString(rs, "isInBilling");
 			this.section = Database.readRsString(rs, "section");
+			this.type = Database.readRsString(rs, "type");
+			this.showTableView = Database.readRsString(rs, "showTableView");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 		}
 	}
 
 	public static class MenuItem implements Database.OrderOnEntity {
+
+		private int id;
+		private String station;
+		private String menuId;
+		private String title;
+		private String description;
+		private String collection;
+		private String subCollection;
+		private String flags;
+		private int preparationTime;
+		private BigDecimal dineInRate;
+		private BigDecimal deliveryRate;
+		private BigDecimal dineInNonAcRate;
+		private BigDecimal onlineRate;
+		private BigDecimal onlineRate1;
+		private BigDecimal onlineRate2;
+		private BigDecimal onlineRate3;
+		private BigDecimal onlineRate4;
+		private BigDecimal onlineRate5;
+		private BigDecimal costPrice;
+		private String method;
+		private String inStock;
+		private String imgUrl;
+		private String coverImgUrl;
+		private String code;
+		private int incentiveQuantity;
+		private int incentiveAmount;
+		private String groups;
+		private String taxes;
+		private String charges;
+		private String isRecomended;
+		private String isTreats;
+		private String isDefault;
+		private String isBogo;
+		private String isCombo;
+		private BigDecimal comboReducedPrice;
+		private BigDecimal comboPrice;
+		private String isAddOn;
+		private String syncOnZomato;
+		private String gstInclusive;
+		private String discountType;
+		private BigDecimal discountValue;
+
+		public int getId() {
+			return id;
+		}
+
+		public String getStation() {
+			return station;
+		}
+
 		public String getMenuId() {
 			return menuId;
 		}
@@ -1670,126 +5072,218 @@ public class AccessManager {
 			return description;
 		}
 
-		public String getStation() {
-			return station;
+		public String getCollection() {
+			return collection;
 		}
 
-		public BigDecimal getRate() {
-			return rate;
+		public String getSubCollection() {
+			return subCollection;
 		}
 
-		public BigDecimal getInhouseRate() {
-			return inhouseRate;
-		}
-
-		public BigDecimal getOnlineRate() {
-			return onlineRate;
-		}
-
-		public BigDecimal getCostPrice() {
-			return costPrice;
-		}
-
-		public String getCategory() {
-			return category;
-		}
-
-		public String getFlags() {
-			return flags;
-		}
-
-		public int getVegType() {
-			return vegType;
+		public JSONArray getFlags() {
+			try {
+				if(!flags.isEmpty())
+					return new JSONArray(flags);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
 		public int getPreparationTime() {
 			return preparationTime;
 		}
 
-		public String getImage() {
-			return img;
+		public BigDecimal getDeliveryRate() {
+			return deliveryRate;
 		}
 
-		public String getShortForm() {
-			return shortForm;
+		public BigDecimal getDineInRate() {
+			return dineInRate;
 		}
 
-		public int getState() {
-			return state;
+		public BigDecimal getDineInNonAcRate() {
+			return dineInNonAcRate;
 		}
 
-		public int getIsTaxable() {
-			return isTaxable;
+		public BigDecimal getOnlineRate() {
+			return onlineRate;
 		}
 
-		public String getAddOns() {
-			return addOns;
+		public BigDecimal getOnlineRate1() {
+			return onlineRate1;
 		}
 
-		public int getHasIncentive() {
-			return hasIncentive;
+		public BigDecimal getOnlineRate2() {
+			return onlineRate2;
 		}
 
-		public int getIncentive() {
-			return incentive;
+		public BigDecimal getOnlineRate3() {
+			return onlineRate3;
 		}
 
-		public ArrayList<Integer> getAddOnIds() {
-			ArrayList<Integer> addOn = new ArrayList<Integer>();
-			if (addOns.equals(""))
-				return null;
-			String[] temp = addOns.split(",");
-			for (String t : temp) {
-				addOn.add(Integer.parseInt(t.trim()));
+		public BigDecimal getOnlineRate4() {
+			return onlineRate4;
+		}
+
+		public BigDecimal getOnlineRate5() {
+			return onlineRate5;
+		}
+
+		public BigDecimal getCostPrice() {
+			return costPrice;
+		}
+
+		public String getMethod() {
+			return method;
+		}
+
+		public boolean getInStock() {
+			return Boolean.valueOf(inStock);
+		}
+		
+		public String getImgUrl() {
+			return imgUrl;
+		}
+
+		public String getCoverImgUrl() {
+			return coverImgUrl;
+		}
+
+		public String getCode() {
+			return code;
+		}
+
+		public int getIncentiveQuantity() {
+			return incentiveQuantity;
+		}
+
+		public int getIncentiveAmount() {
+			return incentiveAmount;
+		}
+		
+		public JSONArray getGroups() {
+			try {
+				return new JSONArray(groups);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			return addOn;
+			return new JSONArray();
 		}
 
-		public String getAddOnString() {
-			return addOns;
+		public JSONArray getTaxes() {
+			try {
+				return new JSONArray(taxes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
-		private String menuId;
-		private String title;
-		private String description;
-		private String station;
-		private BigDecimal rate;
-		private BigDecimal inhouseRate;
-		private BigDecimal onlineRate;
-		private BigDecimal costPrice;
-		private String category;
-		private String flags;
-		private int vegType;
-		private String img;
-		private int preparationTime;
-		private String shortForm;
-		private int state;
-		private int isTaxable;
-		private String addOns;
-		private int hasIncentive;
-		private int incentive;
+		public JSONArray getCharges() {
+			try {
+				return new JSONArray(charges);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public Boolean getIsRecomended() {
+			return Boolean.valueOf(isRecomended);
+		}
+
+		public Boolean getIsTreats() {
+			return Boolean.valueOf(isTreats);
+		}
+
+		public Boolean getIsDefault() {
+			return Boolean.valueOf(isDefault);
+		}
+
+		public Boolean getIsBogo() {
+			return Boolean.valueOf(isBogo);
+		}
+
+		public Boolean getIsCombo() {
+			return Boolean.valueOf(isCombo);
+		}
+
+		public BigDecimal getComboReducedPrice() {
+			return comboReducedPrice;
+		}
+
+		public BigDecimal getComboPrice() {
+			return comboPrice;
+		}
+
+		public Boolean getIsAddOn(){
+			return Boolean.valueOf(isAddOn);
+		}
+
+		public Boolean getSyncOnZomato(){
+			return Boolean.valueOf(syncOnZomato);
+		}
+
+		public Boolean getGstInclusive(){
+			return Boolean.valueOf(gstInclusive);
+		}
+
+		public String getDiscountType() {
+			return discountType;
+		}
+
+		public BigDecimal getDiscountValue() {
+			return discountValue;
+		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.station = Database.readRsString(rs, "station");
 			this.menuId = Database.readRsString(rs, "menuId");
 			this.title = Database.readRsString(rs, "title");
 			this.description = Database.readRsString(rs, "description");
-			this.station = Database.readRsString(rs, "station");
-			this.rate = Database.readRsBigDecimal(rs, "rate");
-			this.inhouseRate = Database.readRsBigDecimal(rs, "inhouseRate");
-			this.onlineRate = Database.readRsBigDecimal(rs, "onlineRate");
-			this.costPrice = Database.readRsBigDecimal(rs, "costPrice");
-			this.category = Database.readRsString(rs, "category");
+			this.collection = Database.readRsString(rs, "collection");
+			this.subCollection = Database.readRsString(rs, "subCollection");
 			this.flags = Database.readRsString(rs, "flags");
-			this.vegType = Database.readRsInt(rs, "vegType");
-			this.img = Database.readRsString(rs, "img");
 			this.preparationTime = Database.readRsInt(rs, "preparationTime");
-			this.shortForm = Database.readRsString(rs, "shortForm");
-			this.state = Database.readRsInt(rs, "state");
-			this.isTaxable = Database.readRsInt(rs, "isTaxable");
-			this.addOns = Database.readRsString(rs, "addOns");
-			this.hasIncentive = Database.readRsInt(rs, "hasIncentive");
-			this.incentive = Database.readRsInt(rs, "incentive");
+			this.deliveryRate = Database.readRsBigDecimal(rs, "deliveryRate");
+			this.dineInRate = Database.readRsBigDecimal(rs, "dineInRate");
+			this.dineInNonAcRate = Database.readRsBigDecimal(rs, "dineInNonAcRate");
+			this.onlineRate = Database.readRsBigDecimal(rs, "onlineRate");
+			this.onlineRate1 = Database.readRsBigDecimal(rs, "onlineRate1");
+			this.onlineRate2 = Database.readRsBigDecimal(rs, "onlineRate2");
+			this.onlineRate3 = Database.readRsBigDecimal(rs, "onlineRate3");
+			this.onlineRate4 = Database.readRsBigDecimal(rs, "onlineRate4");
+			this.onlineRate5 = Database.readRsBigDecimal(rs, "onlineRate5");
+			this.costPrice = Database.readRsBigDecimal(rs, "costPrice");
+			this.method = Database.readRsString(rs, "method");
+			this.inStock = Database.readRsString(rs, "inStock");
+			this.code = Database.readRsString(rs, "code");
+			this.imgUrl = Database.readRsString(rs, "imgUrl");
+			this.coverImgUrl = Database.readRsString(rs, "coverImgUrl");
+			this.incentiveQuantity = Database.readRsInt(rs, "incentiveQuantity");
+			this.incentiveAmount = Database.readRsInt(rs, "incentiveAmount");
+			this.groups = Database.readRsString(rs, "groups");
+			this.taxes = Database.readRsString(rs, "taxes");
+			this.charges = Database.readRsString(rs, "charges");
+			this.isRecomended = Database.readRsString(rs, "isRecomended");
+			this.isDefault = Database.readRsString(rs, "isDefault");
+			this.isBogo = Database.readRsString(rs, "isBogo");
+			this.isCombo = Database.readRsString(rs, "isCombo");
+			this.isTreats = Database.readRsString(rs, "isTreats");
+			this.comboReducedPrice = Database.readRsBigDecimal(rs, "comboReducedPrice");
+			this.comboPrice = Database.readRsBigDecimal(rs, "comboPrice");
+			this.isAddOn = Database.readRsString(rs, "isAddOn");
+			this.syncOnZomato = Database.readRsString(rs, "syncOnZomato");
+			this.gstInclusive = Database.readRsString(rs, "gstInclusive");
+			this.discountType = Database.readRsString(rs, "discountType");
+			this.discountValue = Database.readRsBigDecimal(rs, "discountValue");
 		}
 	}
 
@@ -1822,20 +5316,16 @@ public class AccessManager {
 			return title;
 		}
 
-		public String getCategory() {
-			return category;
-		}
-
-		public String getVegType() {
-			return vegType;
+		public String getCollection() {
+			return collection;
 		}
 
 		public int getState() {
 			return state;
 		}
 
-		public int getQty() {
-			return qty;
+		public int getQuantity() {
+			return quantity;
 		}
 
 		public String getSpecifications() {
@@ -1844,6 +5334,14 @@ public class AccessManager {
 
 		public BigDecimal getRate() {
 			return rate;
+		}
+
+		public void setRate(BigDecimal rate) {
+			this.rate = rate;
+		}
+
+		public BigDecimal getSubTotal() {
+			return subTotal;
 		}
 
 		public int getItemId() {
@@ -1862,6 +5360,10 @@ public class AccessManager {
 			return reason;
 		}
 
+		public void setReason(String reason) {
+			this.reason = reason;
+		}
+
 		public String getStation() {
 			return station;
 		}
@@ -1870,34 +5372,100 @@ public class AccessManager {
 			return isKOTPrinted;
 		}
 
-		public int getIsTaxable() {
-			return isTaxable;
+		public void setQuantity(int quantity) {
+			this.quantity = quantity;
 		}
 
-		public void setQuantity(int qty) {
-			this.qty = qty;
+		public JSONArray getTaxes() {
+			try {
+				return new JSONArray(taxes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public JSONArray getCharges() {
+			try {
+				return new JSONArray(charges);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public int getKotNumber() {
+			return kotNumber;
+		}
+
+		public int getBotNumber() {
+			return botNumber;
+		}
+		
+		public BigDecimal getFinalAmount() {
+			return finalAmount;
+		}
+		
+		public void setFinalAmount(BigDecimal finalAmount) {
+			this.finalAmount = finalAmount;
+		}
+		
+		public Boolean getItemIsMoved() {
+			return Boolean.valueOf(itemIsMoved);
+		}
+
+		public String getDiscountType() {
+			return discountType;
+		}
+
+		public BigDecimal getDiscountValue() {
+			return discountValue;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getUserId() {
+			return userId;
 		}
 
 		private int id;
+		private String outletId;
+		private String systemId;
 		private String orderId;
 		private String subOrderId;
 		private String subOrderDate;
 		private String logTime;
 		private String menuId;
-		private String vegType;
 		private String title;
-		private String category;
+		private String collection;
 		private String waiterId;
+		private String userId;
 		private String specs;
 		private BigDecimal rate;
+		private BigDecimal subTotal;
 		private int state;
-		private int qty;
+		private int quantity;
 		private String billNo;
 		private String reason;
 		private String station;
 		private int isKOTPrinted;
-		private int isTaxable;
 		private int itemId;
+		private String taxes;
+		private String charges;
+		private int kotNumber;
+		private int botNumber;
+		private BigDecimal finalAmount;
+		private String itemIsMoved;
+		private String discountType;
+		private BigDecimal discountValue;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -1906,21 +5474,29 @@ public class AccessManager {
 			this.subOrderId = Database.readRsString(rs, "subOrderId");
 			this.subOrderDate = Database.readRsString(rs, "subOrderDate");
 			this.menuId = Database.readRsString(rs, "menuId");
-			this.vegType = Database.readRsString(rs, "vegType");
 			this.title = Database.readRsString(rs, "title");
-			this.category = Database.readRsString(rs, "category");
+			this.collection = Database.readRsString(rs, "collection");
 			this.waiterId = Database.readRsString(rs, "waiterId");
+			this.userId = Database.readRsString(rs, "userId");
 			this.state = Database.readRsInt(rs, "state");
 			this.rate = Database.readRsBigDecimal(rs, "rate");
-			this.qty = Database.readRsInt(rs, "qty");
+			this.subTotal = Database.readRsBigDecimal(rs, "subTotal");
+			this.quantity = Database.readRsInt(rs, "quantity");
 			this.specs = Database.readRsString(rs, "specs");
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.reason = Database.readRsString(rs, "reason");
 			this.station = Database.readRsString(rs, "station");
 			this.isKOTPrinted = Database.readRsInt(rs, "isKotPrinted");
-			this.isTaxable = Database.readRsInt(rs, "isTaxable");
 			this.itemId = Database.readRsInt(rs, "itemId");
 			this.logTime = Database.readRsString(rs, "time");
+			this.taxes = Database.readRsString(rs, "taxes");
+			this.charges = Database.readRsString(rs, "charges");
+			this.kotNumber = Database.readRsInt(rs, "kotNumber");
+			this.botNumber = Database.readRsInt(rs, "botNumber");
+			this.finalAmount = Database.readRsBigDecimal(rs, "finalAmount");
+			this.itemIsMoved = Database.readRsString(rs, "itemIsMoved");
+			this.discountType = Database.readRsString(rs, "discountType");
+			this.discountValue = Database.readRsBigDecimal(rs, "discountValue");
 		}
 	}
 
@@ -1933,7 +5509,7 @@ public class AccessManager {
 			return subOrderId;
 		}
 
-		public int getAddOnId() {
+		public String getAddOnId() {
 			return addOnId;
 		}
 
@@ -1949,12 +5525,12 @@ public class AccessManager {
 			return name;
 		}
 
-		public int getQty() {
-			return qty;
+		public int getQuantity() {
+			return quantity;
 		}
 
-		public void setQty(int qty) {
-			this.qty = qty;
+		public void setQty(int quantity) {
+			this.quantity = quantity;
 		}
 
 		public BigDecimal getRate() {
@@ -1965,27 +5541,69 @@ public class AccessManager {
 			return state;
 		}
 
+		public String getStation() {
+			return station;
+		}
+
+		public JSONArray getTaxes() {
+			try {
+				return new JSONArray(taxes);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public JSONArray getCharges() {
+			try {
+				return new JSONArray(charges);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
 		private String orderId;
 		private String subOrderId;
-		private int addOnId;
+		private String addOnId;
 		private int itemId;
 		private String menuId;
 		private String name;
 		private BigDecimal rate;
-		private int qty;
+		private int quantity;
 		private int state;
+		private String taxes;
+		private String charges;
+		private String station;
+		private String outletId;
+		private String systemId;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.orderId = Database.readRsString(rs, "orderId");
 			this.subOrderId = Database.readRsString(rs, "subOrderId");
-			this.addOnId = Database.readRsInt(rs, "addOnId");
+			this.addOnId = Database.readRsString(rs, "addOnId");
 			this.itemId = Database.readRsInt(rs, "itemId");
 			this.menuId = Database.readRsString(rs, "menuId");
-			this.name = Database.readRsString(rs, "name");
+			this.name = Database.readRsString(rs, "title");
 			this.rate = Database.readRsBigDecimal(rs, "rate");
-			this.qty = Database.readRsInt(rs, "qty");
+			this.quantity = Database.readRsInt(rs, "quantity");
 			this.state = Database.readRsInt(rs, "state");
+			this.taxes = Database.readRsString(rs, "taxes");
+			this.charges = Database.readRsString(rs, "charges");
+			this.station = Database.readRsString(rs, "station");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
 		}
 	}
 
@@ -2040,8 +5658,8 @@ public class AccessManager {
 			return pax;
 		}
 
-		public int getInhouse() {
-			return inhouse;
+		public int getOrderType() {
+			return orderType;
 		}
 
 		public String getTableId() {
@@ -2067,7 +5685,7 @@ public class AccessManager {
 		private String customerNumber;
 		private int orderNumber;
 		private int pax;
-		private int inhouse;
+		private int orderType;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -2078,7 +5696,7 @@ public class AccessManager {
 			this.orderId = Database.readRsString(rs, "orderId");
 			this.orderNumber = Database.readRsInt(rs, "id");
 			this.pax = Database.readRsInt(rs, "pax");
-			this.inhouse = Database.readRsInt(rs, "inhouse");
+			this.orderType = Database.readRsInt(rs, "orderType");
 		}
 	}
 
@@ -2121,7 +5739,7 @@ public class AccessManager {
 		}
 
 		public int getQty() {
-			return qty;
+			return quantity;
 		}
 
 		public int getVegType() {
@@ -2144,8 +5762,8 @@ public class AccessManager {
 			return customerName;
 		}
 
-		public int getInhouse() {
-			return inhouse;
+		public int getOrderType() {
+			return orderType;
 		}
 
 		public String getBillNo() {
@@ -2160,13 +5778,13 @@ public class AccessManager {
 		private String station;
 		private int state;
 		private int orderState;
-		private int qty;
+		private int quantity;
 		private String specs;
 		private int prepTime;
 		private String menuId;
 		private String customerAddress;
 		private String customerName;
-		private int inhouse;
+		private int orderType;
 		private String billNo;
 		private int vegType;
 
@@ -2178,7 +5796,7 @@ public class AccessManager {
 			this.subOrderId = Database.readRsString(rs, "subOrderId");
 			this.station = Database.readRsString(rs, "station");
 			this.title = Database.readRsString(rs, "title");
-			this.qty = Database.readRsInt(rs, "qty");
+			this.quantity = Database.readRsInt(rs, "quantity");
 			this.specs = Database.readRsString(rs, "specs");
 			this.state = Database.readRsInt(rs, "state");
 			this.orderState = Database.readRsInt(rs, "orderState");
@@ -2187,13 +5805,43 @@ public class AccessManager {
 			this.customerAddress = Database.readRsString(rs, "customerAddress");
 			this.customerName = Database.readRsString(rs, "customerName");
 			this.billNo = Database.readRsString(rs, "billNo");
-			this.inhouse = Database.readRsInt(rs, "inhouse");
+			this.orderType = Database.readRsInt(rs, "orderType");
 			this.vegType = Database.readRsInt(rs, "vegType");
 		}
 	}
 
 	public static class Discount implements Database.OrderOnEntity {
 
+		private int id;
+		private String name;
+		private String description;
+		private int type;
+		private int barValue;
+		private int foodValue;
+		private String startDate;
+		private String expiryDate;
+		private String usageLimit;
+		private String validCollections;
+		private String offerType;
+		private String applicableOnZomato;
+		private int offerQuantity;
+		private String bogoItems;
+		private String startTime;
+		private String endTime;
+		private int minOrderAmount;
+		private String firstOrderOnly;
+		private String isActive;
+		private int maxFoodDiscountAmount;
+		private int maxBarDiscountAmount;
+		private String outletId;
+		private String systemId;
+		private String restaurantId;
+		private String corporateId;
+		
+		public int getId() {
+			return id;
+		}
+		
 		public String getName() {
 			return name;
 		}
@@ -2255,18 +5903,79 @@ public class AccessManager {
 			return validCollections.length() > 0;
 		}
 
-		private String name;
-		private String description;
-		private int type;
-		private int barValue;
-		private int foodValue;
-		private String startDate;
-		private String expiryDate;
-		private String usageLimit;
-		private String validCollections;
+		public String getOfferType() {
+			return offerType;
+		}
+
+		public Boolean getApplicableOnZomato() {
+			return Boolean.valueOf(applicableOnZomato);
+		}
+
+		public int getOfferQuantity() {
+			return offerQuantity;
+		}
+
+		public JSONArray getBogoItems() {
+			try {
+				return new JSONArray(bogoItems);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getStartTime() {
+			return startTime;
+		}
+
+		public String getEndTime() {
+			return endTime;
+		}
+
+		public int getMinOrderAmount() {
+			return minOrderAmount;
+		}
+
+		public Boolean getFirstOrderOnly() {
+			return Boolean.valueOf(firstOrderOnly);
+		}
+		
+		public Boolean getIsActive() {
+			return Boolean.valueOf(isActive);
+		}
+
+		public void setFoodValue(int foodValue) {
+			this.foodValue = foodValue;
+		}
+
+		public int getMaxFoodDiscountAmount() {
+			return maxFoodDiscountAmount;
+		}
+
+		public int getMaxBarDiscountAmount() {
+			return maxBarDiscountAmount;
+		}
+		
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
+		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
 			this.name = Database.readRsString(rs, "name");
 			this.description = Database.readRsString(rs, "description");
 			this.type = Database.readRsInt(rs, "type");
@@ -2276,6 +5985,21 @@ public class AccessManager {
 			this.expiryDate = Database.readRsString(rs, "expiryDate");
 			this.usageLimit = Database.readRsString(rs, "usageLimit");
 			this.validCollections = Database.readRsString(rs, "validCollections");
+			this.offerType = Database.readRsString(rs, "offerType");
+			this.applicableOnZomato = Database.readRsString(rs, "applicableOnZomato");
+			this.offerQuantity = Database.readRsInt(rs, "offerQuantity");
+			this.bogoItems = Database.readRsString(rs, "bogoItems");
+			this.startTime = Database.readRsString(rs, "startTime");
+			this.endTime = Database.readRsString(rs, "endTime");
+			this.minOrderAmount = Database.readRsInt(rs, "minOrderAmount");
+			this.firstOrderOnly = Database.readRsString(rs, "firstOrderOnly");
+			this.isActive = Database.readRsString(rs, "isActive");
+			this.maxFoodDiscountAmount = Database.readRsInt(rs, "maxFoodDiscountAmount");
+			this.maxBarDiscountAmount = Database.readRsInt(rs, "maxBarDiscountAmount");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 		}
 	}
 	
@@ -2283,7 +6007,7 @@ public class AccessManager {
 		
 		private String name;
 		private String type;
-		private String category;
+		private String collection;
 		private BigDecimal value;
 		private BigDecimal amount;
 		private String code;
@@ -2300,8 +6024,8 @@ public class AccessManager {
 		public String getType() {
 			return type;
 		}
-		public String getCategory() {
-			return category;
+		public String getCollection() {
+			return collection;
 		}
 		public BigDecimal getValue() {
 			return value;
@@ -2335,9 +6059,9 @@ public class AccessManager {
 			// TODO Auto-generated method stub
 			this.name = Database.readRsString(rs, "name");
 			this.code = Database.readRsString(rs, "code");
-			this.category = Database.readRsString(rs, "category");
+			this.collection = Database.readRsString(rs, "collection");
 			this.type = Database.readRsString(rs, "type");
-			this.isTaxed = Database.readRsString(rs, "isTexed");
+			this.isTaxed = Database.readRsString(rs, "isTaxed");
 			this.isRestaurantDiscount = Database.readRsString(rs, "isRestaurantDiscount");
 			this.isDeliveryDiscount = Database.readRsString(rs, "isDeliveryDiscount");
 			this.orderId = Database.readRsString(rs, "orderId");
@@ -2372,8 +6096,8 @@ public class AccessManager {
 			return total;
 		}
 
-		public int getQty() {
-			return qty;
+		public int getQuantity() {
+			return quantity;
 		}
 
 		public String getBillNo() {
@@ -2388,8 +6112,8 @@ public class AccessManager {
 			return waiterId;
 		}
 
-		public int getInhouse() {
-			return inhouse;
+		public int getOrderType() {
+			return orderType;
 		}
 
 		public String getReturnTime() {
@@ -2405,12 +6129,12 @@ public class AccessManager {
 		private String orderDate;
 		private String title;
 		private int rate;
-		private int qty;
+		private int quantity;
 		private int total;
 		private String billNo;
 		private String reason;
 		private String waiterId;
-		private int inhouse;
+		private int orderType;
 		private String returnTime;
 		private String authorizer;
 
@@ -2424,10 +6148,10 @@ public class AccessManager {
 			this.waiterId = Database.readRsString(rs, "waiterId");
 			this.rate = Database.readRsInt(rs, "rate");
 			this.total = Database.readRsInt(rs, "total");
-			this.qty = Database.readRsInt(rs, "quantity");
+			this.quantity = Database.readRsInt(rs, "quantity");
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.reason = Database.readRsString(rs, "reason");
-			this.inhouse = Database.readRsInt(rs, "inhouse");
+			this.orderType = Database.readRsInt(rs, "orderType");
 			this.authorizer = Database.readRsString(rs, "auth");
 		}
 	}
@@ -2637,14 +6361,24 @@ public class AccessManager {
 
 	// GrossSaleReport-ap
 	public static class GrossSaleReport implements Database.OrderOnEntity {
+		private BigDecimal foodBill;
+		private BigDecimal barBill;
 		private BigDecimal grossTotal;
-		private BigDecimal grossDiscount;
+		private BigDecimal foodDiscount;
+		private BigDecimal barDiscount;
+		private BigDecimal totalDiscount;
 		private BigDecimal grossLoyalty;
 		private BigDecimal grossComplimentary;
 		private BigDecimal grossGst;
+		private BigDecimal grossVatBar;
+		private BigDecimal grossPackagingCharge;
+		private BigDecimal grossDeliveryCharge;
 		private BigDecimal appPayment;
 		private BigDecimal cardPayment;
 		private BigDecimal cashPayment;
+		private BigDecimal walletPayment;
+		private BigDecimal promotionalCash;
+		private BigDecimal creditAmount;
 		private BigDecimal grossServiceCharge;
 		private BigDecimal totalSale;
 		private BigDecimal NetSales;
@@ -2652,97 +6386,142 @@ public class AccessManager {
 		private BigDecimal grossPayIns;
 		private BigDecimal sumVoids;
 		private BigDecimal sumReturns;
+		private BigDecimal roundOffDifference;
+		private BigDecimal totalPayment;
+		private BigDecimal roundOff;
 		private Integer countVoids;
 		private Integer countReturns;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
+			this.foodBill = Database.readRsBigDecimal(rs, "foodBill");
+			this.barBill = Database.readRsBigDecimal(rs, "barBill");
 			this.grossTotal = Database.readRsBigDecimal(rs, "grossTotal");
-			this.grossDiscount = Database.readRsBigDecimal(rs, "grossDiscount");
+			this.foodDiscount = Database.readRsBigDecimal(rs, "foodDiscount");
+			this.barDiscount = Database.readRsBigDecimal(rs, "barDiscount");
+			this.totalDiscount = Database.readRsBigDecimal(rs, "totalDiscount");
 			this.grossLoyalty = Database.readRsBigDecimal(rs, "grossLoyalty");
 			this.grossComplimentary = Database.readRsBigDecimal(rs, "grossComplimentary");
 			this.grossGst = Database.readRsBigDecimal(rs, "grossGst"); 
+			this.grossVatBar = Database.readRsBigDecimal(rs, "grossVatBar"); 
+			this.grossPackagingCharge = Database.readRsBigDecimal(rs, "grossPackagingCharge"); 
+			this.grossDeliveryCharge = Database.readRsBigDecimal(rs, "grossDeliveryCharge"); 
 			this.appPayment = Database.readRsBigDecimal(rs, "appPayment");
 			this.cardPayment = Database.readRsBigDecimal(rs, "cardPayment");
 			this.cashPayment = Database.readRsBigDecimal(rs, "cashPayment");
+			this.walletPayment = Database.readRsBigDecimal(rs, "walletPayment");
+			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
+			this.creditAmount = Database.readRsBigDecimal(rs, "creditAmount");
 			this.grossServiceCharge = Database.readRsBigDecimal(rs, "grossServiceCharge");
-			this.NetSales = Database.readRsBigDecimal(rs, "NetSales");
+			this.NetSales = Database.readRsBigDecimal(rs, "netSales");
 			this.grossExpenses = Database.readRsBigDecimal(rs, "grossExpenses");
 			this.grossPayIns = Database.readRsBigDecimal(rs, "totalPayIns");
 			this.totalSale = Database.readRsBigDecimal(rs, "totalSale");
 			this.sumVoids = Database.readRsBigDecimal(rs, "sumVoids");
 			this.sumReturns = Database.readRsBigDecimal(rs, "sumReturns");
+			this.roundOffDifference = Database.readRsBigDecimal(rs, "roundOffDifference");
+			this.totalPayment = Database.readRsBigDecimal(rs, "totalPayment");
 			this.countVoids = Database.readRsInt(rs, "countVoids");
 			this.countReturns = Database.readRsInt(rs, "countReturns");
+			this.roundOff = Database.readRsBigDecimal(rs, "roundOff");
 
 		}
 
 		public BigDecimal getGrossLoyalty() {
 			return grossLoyalty;
 		}
-
 		public BigDecimal getGrossComplimentary() {
 			return grossComplimentary;
 		}
-
 		public BigDecimal getTotalSale() {
 			return totalSale;
 		}
-
 		public BigDecimal getGrossPayIns() {
 			return grossPayIns;
 		}
-
 		public BigDecimal getGrossTotal() {
 			return grossTotal;
 		}
-
-		public BigDecimal getGrossDiscount() {
-			return grossDiscount;
+		public BigDecimal getFoodDiscount() {
+			return foodDiscount;
 		}
-
+		public BigDecimal getBarDiscount() {
+			return barDiscount;
+		}
 		public BigDecimal getGrossGst() {
 			return grossGst;
 		}
-
+		public BigDecimal getGrossVatBar() {
+			return grossVatBar;
+		}
+		public BigDecimal getGrossPackagingCharge() {
+			return grossPackagingCharge;
+		}
+		public BigDecimal getGrossDeliveryCharge() {
+			return grossDeliveryCharge;
+		}
 		public BigDecimal getAppPayment() {
 			return appPayment;
 		}
-
 		public BigDecimal getCardPayment() {
 			return cardPayment;
 		}
-
 		public BigDecimal getCashPayment() {
 			return cashPayment;
 		}
-
 		public BigDecimal getGrossServiceCharge() {
 			return grossServiceCharge;
 		}
-
 		public BigDecimal getNetSales() {
 			return NetSales;
 		}
-
 		public BigDecimal getGrossExpenses() {
 			return grossExpenses;
 		}
-
 		public BigDecimal getSumVoids() {
 			return sumVoids;
 		}
-
 		public BigDecimal getSumReturns() {
 			return sumReturns;
 		}
-
 		public Integer getCountVoids() {
 			return countVoids;
 		}
-
 		public Integer getCountReturns() {
 			return countReturns;
+		}
+		public BigDecimal getFoodBill() {
+			return foodBill;
+		}
+		public BigDecimal getBarBill() {
+			return barBill;
+		}
+
+		public BigDecimal getWalletPayment() {
+			return walletPayment;
+		}
+
+		public BigDecimal getPromotionalCash() {
+			return promotionalCash;
+		}
+
+		public BigDecimal getCreditAmount() {
+			return creditAmount;
+		}
+
+		public BigDecimal getRoundOffDifference() {
+			return roundOffDifference;
+		}
+
+		public BigDecimal getTotalPayment() {
+			return totalPayment;
+		}
+
+		public BigDecimal getTotalDiscount() {
+			return totalDiscount;
+		}
+		public BigDecimal getRoundOff() {
+			return roundOff;
 		}
 	}
 
@@ -3038,9 +6817,10 @@ public class AccessManager {
 
 	// ItemWiseReport-ap (edited)
 	public static class ConsumptionReport implements Database.OrderOnEntity {
-		private String category;
+		private String collection;
+		private String station;
 		private String title;
-		private int qty;
+		private int quantity;
 		private BigDecimal rate;
 		private int compQty;
 		private BigDecimal total;
@@ -3054,14 +6834,17 @@ public class AccessManager {
 		private BigDecimal percentOfTotalSale;
 		private BigDecimal percentOfTotalQty;
 		
-		public String getCategory() {
-			return category;
+		public String getCollection() {
+			return collection;
+		}
+		public String getStation() {
+			return station;
 		}
 		public String getTitle() {
 			return title;
 		}
 		public int getQty() {
-			return qty;
+			return quantity;
 		}
 		public BigDecimal getRate() {
 			return rate;
@@ -3103,8 +6886,9 @@ public class AccessManager {
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.title = Database.readRsString(rs, "title");
-			this.qty = Database.readRsInt(rs, "qty");
-			this.category = Database.readRsString(rs, "category");
+			this.quantity = Database.readRsInt(rs, "quantity");
+			this.collection = Database.readRsString(rs, "collection");
+			this.station = Database.readRsString(rs, "station");
 			this.rate = Database.readRsBigDecimal(rs, "rate");
 			this.compQty = Database.readRsInt(rs, "compQty");
 			this.total = Database.readRsBigDecimal(rs, "total");
@@ -3121,17 +6905,18 @@ public class AccessManager {
 	}
 	// ItemWiseReport-ap (edited)
 	public static class ItemWiseReport implements Database.OrderOnEntity {
-		private String category; // Jason
-		private int qty;
+		private String collection; // Jason
+		private int quantity;
 		private String menuId;
 		private String title;
+		private String station;
 
-		public String getCategory() {
-			return category;
+		public String getCollection() {
+			return collection;
 		}
 
 		public int getQty() {
-			return qty;
+			return quantity;
 		}
 
 		public String getMenuId() {
@@ -3142,12 +6927,17 @@ public class AccessManager {
 			return title;
 		}
 
+		public String getStation() {
+			return station;
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.title = Database.readRsString(rs, "title");
 			this.menuId = Database.readRsString(rs, "menuId");
-			this.qty = Database.readRsInt(rs, "qty");
-			this.category = Database.readRsString(rs, "category");
+			this.quantity = Database.readRsInt(rs, "quantity");
+			this.collection = Database.readRsString(rs, "collection");
+			this.station = Database.readRsString(rs, "station");
 		}
 	}
 
@@ -3158,6 +6948,9 @@ public class AccessManager {
 		private BigDecimal total;
 		private BigDecimal cash;
 		private BigDecimal card;
+		private BigDecimal wallet;
+		private BigDecimal promotionalCash;
+		private BigDecimal credit;
 		private BigDecimal app;
 		private BigDecimal VISA;
 		private BigDecimal MASTERCARD;
@@ -3168,6 +6961,7 @@ public class AccessManager {
 		private BigDecimal OTHERS;
 		private BigDecimal ZOMATO;
 		private BigDecimal ZOMATO_PAY;
+		private BigDecimal ZOMATO_PICKUP;
 		private BigDecimal SWIGGY;
 		private BigDecimal PAYTM;
 		private BigDecimal DINE_OUT;
@@ -3175,7 +6969,10 @@ public class AccessManager {
 		private BigDecimal UBER_EATS;
 		private BigDecimal FOODILOO;
 		private BigDecimal NEARBY;
-		private int inhouse;
+		private BigDecimal SWIGGY_POP;
+		private BigDecimal GOOGLE_PAY;
+		private BigDecimal MAGIC_PIN;
+		private int orderType;
 		private int cover;
 
 		@Override
@@ -3183,10 +6980,13 @@ public class AccessManager {
 			this.foodBill = Database.readRsBigDecimal(rs, "foodBill");
 			this.barBill = Database.readRsBigDecimal(rs, "barBill");
 			this.total = Database.readRsBigDecimal(rs, "total");
-			this.inhouse = Database.readRsInt(rs, "inhouse");
+			this.orderType = Database.readRsInt(rs, "orderType");
 			this.cover = Database.readRsInt(rs, "cover");
 			this.cash = Database.readRsBigDecimal(rs, "cash");
 			this.card = Database.readRsBigDecimal(rs, "card");
+			this.wallet = Database.readRsBigDecimal(rs, "wallet");
+			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
+			this.credit = Database.readRsBigDecimal(rs, "credit");
 			this.app = Database.readRsBigDecimal(rs, "app");
 			this.VISA = Database.readRsBigDecimal(rs, "VISA");
 			this.MASTERCARD = Database.readRsBigDecimal(rs, "MASTERCARD");
@@ -3197,6 +6997,7 @@ public class AccessManager {
 			this.OTHERS = Database.readRsBigDecimal(rs, "OTHERS");
 			this.ZOMATO = Database.readRsBigDecimal(rs, "ZOMATO");
 			this.ZOMATO_PAY = Database.readRsBigDecimal(rs, "ZOMATOPAY");
+			this.ZOMATO_PICKUP = Database.readRsBigDecimal(rs, "ZOMATO_PICKUP");
 			this.SWIGGY = Database.readRsBigDecimal(rs, "SWIGGY");
 			this.PAYTM = Database.readRsBigDecimal(rs, "PAYTM");
 			this.DINE_OUT = Database.readRsBigDecimal(rs, "DINEOUT");
@@ -3204,6 +7005,29 @@ public class AccessManager {
 			this.UBER_EATS = Database.readRsBigDecimal(rs, "UBEREATS");
 			this.FOODILOO = Database.readRsBigDecimal(rs, "FOODILOO");
 			this.NEARBY = Database.readRsBigDecimal(rs, "NEARBY");
+			this.SWIGGY_POP = Database.readRsBigDecimal(rs, "SWIGGYPOP");
+			this.GOOGLE_PAY = Database.readRsBigDecimal(rs, "GOOGLEPAY");
+			this.MAGIC_PIN = Database.readRsBigDecimal(rs, "MAGICPIN");
+		}
+
+		public BigDecimal getWallet() {
+			return wallet;
+		}
+
+		public BigDecimal getCredit() {
+			return credit;
+		}
+
+		public BigDecimal getSWIGGY_POP() {
+			return SWIGGY_POP;
+		}
+
+		public BigDecimal getGOOGLE_PAY() {
+			return GOOGLE_PAY;
+		}
+
+		public BigDecimal getMAGIC_PIN() {
+			return MAGIC_PIN;
 		}
 
 		public BigDecimal getFoodBill() {
@@ -3222,8 +7046,8 @@ public class AccessManager {
 			return cover;
 		}
 
-		public int getInhouse() {
-			return inhouse;
+		public int getOrderType() {
+			return orderType;
 		}
 
 		public BigDecimal getCash() {
@@ -3286,6 +7110,10 @@ public class AccessManager {
 			return ZOMATO_PAY;
 		}
 
+		public BigDecimal getZOMATO_PICKUP() {
+			return ZOMATO_PICKUP;
+		}
+
 		public BigDecimal getFOOD_PANDA() {
 			return FOOD_PANDA;
 		}
@@ -3301,6 +7129,23 @@ public class AccessManager {
 		public BigDecimal getNEARBY() {
 			return NEARBY;
 		}
+
+		public BigDecimal getSWIGGYPOP() {
+			return SWIGGY_POP;
+		}
+
+		public BigDecimal getGOOGLEPAY() {
+			return GOOGLE_PAY;
+		}
+
+		public BigDecimal getMAGICPIN() {
+			return MAGIC_PIN;
+		}
+
+		public BigDecimal getPromotionalCash() {
+			return promotionalCash;
+		}
+		
 	}
 
 	public static class MonthReport implements Database.OrderOnEntity {
@@ -3430,11 +7275,11 @@ public class AccessManager {
 
 		@Override
 		public void readFromDB(ResultSet rs) {
-			this.incentive = Database.readRsBigDecimal(rs, "incentive");
+			this.incentive = Database.readRsBigDecimal(rs, "incentiveAmount");
 			this.sale = Database.readRsBigDecimal(rs, "sale");
 			this.userId = Database.readRsString(rs, "userId");
 			this.title = Database.readRsString(rs, "title");
-			this.quantity = Database.readRsInt(rs, "qty");
+			this.quantity = Database.readRsInt(rs, "incentiveQuantity");
 		}
 	}
 
@@ -3456,9 +7301,19 @@ public class AccessManager {
 			return total;
 		}
 
+		public String getCustomerName() {
+			return customerName;
+		}
+
+		public String getCustomerNumber() {
+			return customerNumber;
+		}
+
 		private String billNo;
 		private String deliveryBoy;
 		private String dispatchTime;
+		private String customerName;
+		private String customerNumber;
 		private BigDecimal total;
 
 		@Override
@@ -3466,6 +7321,8 @@ public class AccessManager {
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.deliveryBoy = Database.readRsString(rs, "deliveryBoy");
 			this.dispatchTime = Database.readRsString(rs, "dispatchTime");
+			this.customerName = Database.readRsString(rs, "customerName");
+			this.customerNumber = Database.readRsString(rs, "customerNumber");
 			this.total = Database.readRsBigDecimal(rs, "total");
 		}
 	}
@@ -3481,13 +7338,16 @@ public class AccessManager {
 		private String sex;
 		private String hiringDate;
 		private String designation;
-		private String department;
 		private int salary;
 		private int bonus;
 		private String image;
 		private String middleName;
 		private String email;
 		private BigDecimal accountBalance;
+		private String sendOperationalEmail;
+		private String sendEODEmail;
+		private String sendSMS;
+		private String sendEODSMS;
 
 		public String getEmployeeId() {
 			return employeeId;
@@ -3529,10 +7389,6 @@ public class AccessManager {
 			return designation;
 		}
 
-		public String getDepartment() {
-			return department;
-		}
-
 		public int getSalary() {
 			return salary;
 		}
@@ -3557,6 +7413,22 @@ public class AccessManager {
 			return accountBalance;
 		}
 
+		public boolean getSendOperationalEmail() {
+			return Boolean.valueOf(sendOperationalEmail);
+		}
+
+		public boolean getSendEODEmail() {
+			return Boolean.valueOf(sendEODEmail);
+		}
+
+		public boolean getSendSMS() {
+			return Boolean.valueOf(sendSMS);
+		}
+
+		public boolean getSendEODSMS() {
+			return Boolean.valueOf(sendEODSMS);
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			this.employeeId = Database.readRsString(rs, "employeeId");
@@ -3568,13 +7440,16 @@ public class AccessManager {
 			this.sex = Database.readRsString(rs, "sex");
 			this.hiringDate = Database.readRsString(rs, "hiringDate");
 			this.designation = Database.readRsString(rs, "designation");
-			this.department = Database.readRsString(rs, "department");
 			this.salary = Database.readRsInt(rs, "salary");
 			this.bonus = Database.readRsInt(rs, "bonus");
 			this.image = Database.readRsString(rs, "image");
 			this.middleName = Database.readRsString(rs, "middleName");
 			this.email = Database.readRsString(rs, "email");
 			this.accountBalance = Database.readRsBigDecimal(rs, "accountBalance");
+			this.sendEODEmail = Database.readRsString(rs, "sendEODEmail");
+			this.sendOperationalEmail = Database.readRsString(rs, "sendOperationalEmail");
+			this.sendSMS = Database.readRsString(rs, "sendSMS");
+			this.sendEODSMS = Database.readRsString(rs, "sendEODSMS");
 		}
 	}
 
@@ -3716,41 +7591,60 @@ public class AccessManager {
 		private String billNo;
 		private String orderId;
 		private String orderDate;
+		private String completeTime;
+		private String customerName;
+		private String remarks;
 		private int state;
 		private BigDecimal foodBill;
 		private BigDecimal barBill;
+		private BigDecimal foodGross;
+		private BigDecimal barGross;
+		private BigDecimal totalBill;
+		private BigDecimal foodSale;
+		private BigDecimal barSale;
+		private BigDecimal totalDiscount;
 		private BigDecimal foodDiscount;
 		private BigDecimal barDiscount;
 		private BigDecimal total;
+		private BigDecimal netSale;
 		private BigDecimal serviceCharge;
-		private BigDecimal serviceTax;
+		private BigDecimal packagingCharge;
+		private BigDecimal deliveryCharge;
+		private BigDecimal vat;
 		private BigDecimal gst;
-		private BigDecimal VATFood;
-		private BigDecimal VATBar;
-		private BigDecimal sbCess;
-		private BigDecimal kkCess;
 		private BigDecimal tip;
 		private BigDecimal cashPayment;
 		private BigDecimal cardPayment;
 		private BigDecimal appPayment;
+		private BigDecimal walletPayment;
 		private BigDecimal inhouseSales;
 		private BigDecimal homeDeliverySales;
 		private BigDecimal takeAwaySales;
-		private String cardType;
-		private int inhouse;
-		private int cover;
+		private BigDecimal zomatoSale;
+		private BigDecimal swiggySale;
+		private BigDecimal foodPandaSale;
+		private BigDecimal uberEatsSale;
+		private String paymentType;
+		private int orderType;
+		private int covers;
 		private int tableId;
 		private int checks;
 		private String discountName;
 		private int orderCount;
 		private int printCount;
 		private int reprints;
-		private int loyaltyAmount;
-		private int complimentary;
+		private BigDecimal loyaltyAmount;
+		private BigDecimal complimentary;
 		private String section;
 		private BigDecimal grossSale;
 		private BigDecimal nc;
 		private int takeAwayType;
+		private BigDecimal creditAmount;
+		private BigDecimal roundOff;
+		private BigDecimal promotionalCash;
+		private String externalOrderId;
+		private String reference;
+		private long orderDateTime;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -3758,41 +7652,60 @@ public class AccessManager {
 			this.billNo = Database.readRsString(rs, "billNo");
 			this.orderId = Database.readRsString(rs, "orderId");
 			this.orderDate = Database.readRsString(rs, "orderDate");
+			this.completeTime = Database.readRsString(rs, "completeTimestamp");
+			this.customerName = Database.readRsString(rs, "customerName");
+			this.remarks = Database.readRsString(rs, "remarks");
 			this.state = Database.readRsInt(rs, "state");
 			this.foodBill = Database.readRsBigDecimal(rs, "foodBill");
 			this.barBill = Database.readRsBigDecimal(rs, "barBill");
+			this.foodGross = Database.readRsBigDecimal(rs, "foodGross");
+			this.barGross = Database.readRsBigDecimal(rs, "barGross");
+			this.totalBill = Database.readRsBigDecimal(rs, "totalBill");
+			this.foodSale = Database.readRsBigDecimal(rs, "foodSale");
+			this.barSale = Database.readRsBigDecimal(rs, "barSale");
+			this.totalDiscount = Database.readRsBigDecimal(rs, "totalDiscount");
 			this.foodDiscount = Database.readRsBigDecimal(rs, "foodDiscount");
 			this.barDiscount = Database.readRsBigDecimal(rs, "barDiscount");
 			this.total = Database.readRsBigDecimal(rs, "total");
+			this.netSale = Database.readRsBigDecimal(rs, "netSale");
 			this.serviceCharge = Database.readRsBigDecimal(rs, "serviceCharge");
-			this.serviceTax = Database.readRsBigDecimal(rs, "serviceTax");
+			this.packagingCharge = Database.readRsBigDecimal(rs, "packagingCharge");
+			this.deliveryCharge = Database.readRsBigDecimal(rs, "deliveryCharge");
+			this.vat = Database.readRsBigDecimal(rs, "vat");
 			this.gst = Database.readRsBigDecimal(rs, "gst");
-			this.VATFood = Database.readRsBigDecimal(rs, "VATFOOD");
-			this.VATBar = Database.readRsBigDecimal(rs, "VATBAR");
-			this.sbCess = Database.readRsBigDecimal(rs, "sbCess");
-			this.kkCess = Database.readRsBigDecimal(rs, "kkCess");
 			this.tip = Database.readRsBigDecimal(rs, "tip");
 			this.cashPayment = Database.readRsBigDecimal(rs, "cashPayment");
 			this.cardPayment = Database.readRsBigDecimal(rs, "cardPayment");
 			this.appPayment = Database.readRsBigDecimal(rs, "appPayment");
-			this.inhouseSales = Database.readRsBigDecimal(rs, "inhouse");
+			this.walletPayment = Database.readRsBigDecimal(rs, "walletPayment");
+			this.inhouseSales = Database.readRsBigDecimal(rs, "inhouseSale");
 			this.homeDeliverySales = Database.readRsBigDecimal(rs, "homeDelivery");
 			this.takeAwaySales = Database.readRsBigDecimal(rs, "takeAway");
+			this.zomatoSale = Database.readRsBigDecimal(rs, "zomatoSale");
+			this.swiggySale = Database.readRsBigDecimal(rs, "swiggySale");
+			this.uberEatsSale = Database.readRsBigDecimal(rs, "uberEatsSale");
+			this.foodPandaSale = Database.readRsBigDecimal(rs, "foodPandaSale");
 			this.orderCount = Database.readRsInt(rs, "orderCount");
 			this.printCount = Database.readRsInt(rs, "printCount");
 			this.reprints = Database.readRsInt(rs, "reprints");
-			this.inhouse = Database.readRsInt(rs, "inhouse");
-			this.cover = Database.readRsInt(rs, "cover");
+			this.orderType = Database.readRsInt(rs, "orderType");
+			this.covers = Database.readRsInt(rs, "covers");
 			this.tableId = Database.readRsInt(rs, "tableId");
 			this.checks = Database.readRsInt(rs, "checks");
 			this.discountName = Database.readRsString(rs, "discountName");
-			this.cardType = Database.readRsString(rs, "cardType");
-			this.loyaltyAmount = Database.readRsInt(rs, "loyalty");
-			this.complimentary = Database.readRsInt(rs, "complimentary");
+			this.paymentType = Database.readRsString(rs, "paymentType");
+			this.loyaltyAmount = Database.readRsBigDecimal(rs, "loyaltyAmount");
+			this.complimentary = Database.readRsBigDecimal(rs, "complimentary");
 			this.section = Database.readRsString(rs, "section");
 			this.grossSale = Database.readRsBigDecimal(rs, "grossTotal");
 			this.nc = Database.readRsBigDecimal(rs, "nc");
 			this.takeAwayType = Database.readRsInt(rs, "takeAwayType");
+			this.creditAmount = Database.readRsBigDecimal(rs, "creditAmount");
+			this.roundOff = Database.readRsBigDecimal(rs, "roundOff");
+			this.promotionalCash = Database.readRsBigDecimal(rs, "promotionalCash");
+			this.externalOrderId = Database.readRsString(rs, "externalOrderId");
+			this.reference = Database.readRsString(rs, "reference");
+			this.orderDateTime = Database.readRsLong(rs, "orderDateTime");
 		}
 
 		public String getHotelId() {
@@ -3809,6 +7722,10 @@ public class AccessManager {
 
 		public String getOrderDate() {
 			return orderDate;
+		}
+
+		public String getCompleteTime() {
+			return completeTime;
 		}
 
 		public int getState() {
@@ -3831,8 +7748,20 @@ public class AccessManager {
 			return barBill;
 		}
 
-		public BigDecimal getTotalBill() {
-			return barBill.add(foodBill);
+		public BigDecimal getFoodGross() {
+			return foodGross;
+		}
+
+		public BigDecimal getBarGross() {
+			return barGross;
+		}
+
+		public BigDecimal getFoodSale() {
+			return foodSale;
+		}
+
+		public BigDecimal getBarSale() {
+			return barSale;
 		}
 
 		public BigDecimal getFoodDiscount() {
@@ -3847,36 +7776,24 @@ public class AccessManager {
 			return total;
 		}
 
+		public BigDecimal getNetSale() {
+			return netSale;
+		}
+
 		public BigDecimal getServiceCharge() {
 			return serviceCharge;
 		}
 
-		public BigDecimal getServiceTax() {
-			return serviceTax;
+		public BigDecimal getPackagingCharge() {
+			return packagingCharge;
 		}
 
-		public BigDecimal getGST() {
-			return gst;
+		public BigDecimal getDeliveryCharge() {
+			return deliveryCharge;
 		}
 
-		public BigDecimal getVATFood() {
-			return VATFood;
-		}
-
-		public BigDecimal getVATBar() {
-			return VATBar;
-		}
-
-		public BigDecimal getSbCess() {
-			return sbCess;
-		}
-
-		public BigDecimal getKkCess() {
-			return kkCess;
-		}
-
-		public BigDecimal getTotalTax() {
-			return gst.add(serviceCharge).add(serviceTax).add(VATFood).add(VATBar).add(sbCess).add(kkCess);
+		public BigDecimal getVat() {
+			return vat;
 		}
 
 		public BigDecimal getTip() {
@@ -3891,8 +7808,12 @@ public class AccessManager {
 			return cardPayment;
 		}
 
+		public BigDecimal getWalletPayment() {
+			return walletPayment;
+		}
+
 		public BigDecimal getTotalPayment() {
-			return cardPayment.add(cashPayment).add(appPayment);
+			return cardPayment.add(cashPayment).add(appPayment).add(walletPayment);
 		}
 
 		public BigDecimal getAppPayment() {
@@ -3911,6 +7832,22 @@ public class AccessManager {
 			return takeAwaySales;
 		}
 
+		public BigDecimal getZomatoSale() {
+			return zomatoSale;
+		}
+
+		public BigDecimal getSwiggySale() {
+			return swiggySale;
+		}
+
+		public BigDecimal getFoodPandaSale() {
+			return foodPandaSale;
+		}
+
+		public BigDecimal getUberEatsSale() {
+			return uberEatsSale;
+		}
+
 		public int getOrderCount() {
 			return orderCount;
 		}
@@ -3923,12 +7860,12 @@ public class AccessManager {
 			return reprints;
 		}
 
-		public int getInhouse() {
-			return inhouse;
+		public int getOrderType() {
+			return orderType;
 		}
 
-		public int getCover() {
-			return cover;
+		public int getCovers() {
+			return covers;
 		}
 
 		public int getTableId() {
@@ -3943,15 +7880,15 @@ public class AccessManager {
 			return discountName;
 		}
 
-		public String getCardType() {
-			return cardType;
+		public String getPaymentType() {
+			return paymentType;
 		}
 
-		public int getLoyaltyAmount() {
+		public BigDecimal getLoyaltyAmount() {
 			return loyaltyAmount;
 		}
 
-		public int getComplimentary() {
+		public BigDecimal getComplimentary() {
 			return complimentary;
 		}
 
@@ -3962,28 +7899,96 @@ public class AccessManager {
 		public int getTakeAwayType() {
 			return takeAwayType;
 		}
+
+		public String getCustomerName() {
+			return customerName;
+		}
+
+		public String getRemarks() {
+			return remarks;
+		}
+
+		public BigDecimal getGst() {
+			return gst;
+		}
+
+		public BigDecimal getNc() {
+			return nc;
+		}
+
+		public BigDecimal getCreditAmount() {
+			return creditAmount;
+		}
+
+		public BigDecimal getRoundOff() {
+			return roundOff;
+		}
+
+		public BigDecimal getPromotionalCash() {
+			return promotionalCash;
+		}
+
+		public String getExternalOrderId() {
+			return externalOrderId;
+		}
+
+		public String getReference() {
+			return reference;
+		}
+
+		public BigDecimal getTotalDiscount() {
+			return totalDiscount;
+		}
+
+		public BigDecimal getTotalBill() {
+			return totalBill;
+		}
+		
+		public long getOrderDateTime() {
+			return orderDateTime;
+		}
 	}
 
-	public static class Bank implements Database.OrderOnEntity {
+	public static class Account implements Database.OrderOnEntity {
 
-		private String hotelId;
+		private String outletId;
+		private String systemId;
+		private String restaurantId;
+		private String corporateId;
 		private String accountNumber;
 		private String bankName;
 		private String accountName;
-		private BigDecimal balance;
+		private BigDecimal initialBalance;
+		//BANK, CASH, ORDER
+		private String accountType;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 
-			this.hotelId = Database.readRsString(rs, "hotelId");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 			this.accountNumber = Database.readRsString(rs, "accountNumber");
 			this.bankName = Database.readRsString(rs, "bankName");
 			this.accountName = Database.readRsString(rs, "accountName");
-			this.balance = Database.readRsBigDecimal(rs, "balance");
+			this.initialBalance = Database.readRsBigDecimal(rs, "balance");
 		}
 
-		public String getHotelId() {
-			return hotelId;
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
 		}
 
 		public String getAccountNumber() {
@@ -3998,8 +8003,70 @@ public class AccessManager {
 			return accountName;
 		}
 
-		public BigDecimal getBalance() {
-			return balance;
+		public BigDecimal getInitialBalance() {
+			return initialBalance;
+		}
+
+		public String getAccountType() {
+			return accountType;
+		}
+	}
+	
+	public static class AccountLog implements Database.OrderOnEntity {
+
+		private int transactionId;
+		private int accountNumber;
+		private BigDecimal transAmount;
+		//CREDIT/DEBIT
+		private String transType;
+		private String transDate;
+		private String transTime;
+		private String outletId;
+		private String userId;
+		
+		public int getTransactionId() {
+			return transactionId;
+		}
+
+		public int getAccountNumber() {
+			return accountNumber;
+		}
+
+		public BigDecimal getTransAmount() {
+			return transAmount;
+		}
+
+		public String getTransType() {
+			return transType;
+		}
+
+		public String getTransDate() {
+			return transDate;
+		}
+
+		public String getTransTime() {
+			return transTime;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getUserId() {
+			return userId;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.transactionId = Database.readRsInt(rs, "transactionId");
+			this.accountNumber = Database.readRsInt(rs, "accountNumber");
+			this.transAmount = Database.readRsBigDecimal(rs, "transAmount");
+			this.transType = Database.readRsString(rs, "transType");
+			this.transDate = Database.readRsString(rs, "transDate");
+			this.transTime = Database.readRsString(rs, "transTime");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.userId = Database.readRsString(rs, "userId");
 		}
 	}
 
@@ -4012,6 +8079,7 @@ public class AccessManager {
 		private String userId;
 		private String payee;
 		private String memo;
+		private String description;
 		private int chequeNumber;
 		private String accountName;
 		private String paymentType;
@@ -4023,6 +8091,7 @@ public class AccessManager {
 		private String sku;
 		private int quantity;
 		private String serviceType;
+		private String invoiceNumber;
 		/*
 		 * c = create new stock r = read/used while cooking u = update quanity d =
 		 * deleted/remove stock
@@ -4039,6 +8108,7 @@ public class AccessManager {
 			this.date = Database.readRsString(rs, "serviceDate");
 			this.hotelId = Database.readRsString(rs, "hotelId");
 			this.memo = Database.readRsString(rs, "memo");
+			this.description = Database.readRsString(rs, "description");
 			this.payee = Database.readRsString(rs, "payee");
 			this.type = Database.readRsString(rs, "type");
 			this.userId = Database.readRsString(rs, "userId");
@@ -4051,6 +8121,7 @@ public class AccessManager {
 			this.quantity = Database.readRsInt(rs, "quantity");
 			this.serviceType = Database.readRsString(rs, "serviceType");
 			this.paymentType = Database.readRsString(rs, "paymentType");
+			this.invoiceNumber = Database.readRsString(rs, "invoiceNumber");
 		}
 
 		public int getId() {
@@ -4079,6 +8150,10 @@ public class AccessManager {
 
 		public String getMemo() {
 			return memo;
+		}
+
+		public String getDescription() {
+			return description;
 		}
 
 		public int getChequeNumber() {
@@ -4128,6 +8203,10 @@ public class AccessManager {
 		public String getServiceType() {
 			return serviceType;
 		}
+
+		public String getInvoiceNumber() {
+			return invoiceNumber;
+		}
 	}
 
 	public static class ServiceLog implements Database.OrderOnEntity {
@@ -4140,6 +8219,8 @@ public class AccessManager {
 		private String endTimeStamp;
 		private int isCurrent;
 		private int cashInHand;
+		private int deductionState;
+		private String reportForEmail;
 
 		@Override
 		public void readFromDB(ResultSet rs) {
@@ -4152,6 +8233,8 @@ public class AccessManager {
 			this.endTimeStamp = Database.readRsString(rs, "endTimeStamp");
 			this.isCurrent = Database.readRsInt(rs, "isCurrent");
 			this.cashInHand = Database.readRsInt(rs, "cashInHand");
+			this.deductionState = Database.readRsInt(rs, "deductionState");
+			this.reportForEmail = Database.readRsString(rs, "reportForEmail");
 		}
 
 		public String getId() {
@@ -4184,6 +8267,14 @@ public class AccessManager {
 
 		public int getCashInHand() {
 			return cashInHand;
+		}
+
+		public int getDeductionState() {
+			return deductionState;
+		}
+
+		public String getReportForEmail() {
+			return reportForEmail;
 		}
 	}
 
@@ -4317,103 +8408,88 @@ public class AccessManager {
 		public int getOutOfStock() {
 			return outOfStock;
 		}
+
+		public void setHotelId(String hotelId) {
+			this.hotelId = hotelId;
+		}
+
+		public void setCheckoutOrders(int checkoutOrders) {
+			this.checkoutOrders = checkoutOrders;
+		}
+
+		public void setOutOfStock(int outOfStock) {
+			this.outOfStock = outOfStock;
+		}
+		
 	}
 
 	public static class ServerLog implements Database.OrderOnEntity {
-
-		private String hotelId;
+		
+		private int id;
+		private String outletId;
 		private String updateTime;
-		private int status;
+		private String isActive;
+		private String isTransactionLogged;
+		private String isDataDeleted;
 
-		public String getHotelId() {
-			return hotelId;
+		public int getId() {
+			return id;
 		}
-
+		public String geOutletId() {
+			return outletId;
+		}
 		public String getUpdateTime() {
 			return updateTime;
 		}
-
-		public int getStatus() {
-			return status;
+		public boolean getIsActive() {
+			return Boolean.valueOf(isActive);
+		}
+		public boolean getIsTransactionLogged() {
+			return Boolean.valueOf(isTransactionLogged);
+		}
+		public boolean getIsDataDeleted() {
+			return Boolean.valueOf(isDataDeleted);
 		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 
-			hotelId = Database.readRsString(rs, "hotelId");
-			updateTime = Database.readRsString(rs, "lastUpdateTime");
-			this.status = Database.readRsInt(rs, "status");
+			id = Database.readRsInt(rs, "id");
+			outletId = Database.readRsString(rs, "outletId");
+			updateTime = Database.readRsString(rs, "updateTime");
+			this.isActive = Database.readRsString(rs, "isActive");
+			this.isTransactionLogged = Database.readRsString(rs, "isTransactionLogged");
+			this.isDataDeleted = Database.readRsString(rs, "isDataDeleted");
 		}
-
 	}
 
 	public static class Specifications implements Database.OrderOnEntity {
 
 		private String specification;
-		private String category;
+		private String collection;
 		private int type;
+		private String isDisplayable;
 
 		public String getSpecification() {
 			return specification;
 		}
-		public String getCategory() {
-			return category;
+		public String getCollection() {
+			return collection;
 		}
 		public int getType() {
 			return type;
+		}
+		public Boolean getIsDisplayable() {
+			return Boolean.valueOf(isDisplayable);
 		}
 
 		@Override
 		public void readFromDB(ResultSet rs) {
 
 			specification = Database.readRsString(rs, "specification");
-			category = Database.readRsString(rs, "category");
+			collection = Database.readRsString(rs, "collection");
 			type = Database.readRsInt(rs, "type");
-		}
-	}
-
-	public static class AddOn implements Database.OrderOnEntity {
-
-		private String name;
-		private String menuId;
-		private BigDecimal inHouseRate;
-		private BigDecimal deliveryRate;
-		private BigDecimal onlineRate;
-		private int id;
-
-		public int getId() {
-			return id;
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public String getMenuId() {
-			return menuId;
-		}
-
-		public BigDecimal getInHouseRate() {
-			return inHouseRate;
-		}
-
-		public BigDecimal getDeliveryRate() {
-			return deliveryRate;
-		}
-
-		public BigDecimal getOnlineRate() {
-			return onlineRate;
-		}
-
-		@Override
-		public void readFromDB(ResultSet rs) {
-
-			this.id = Database.readRsInt(rs, "Id");
-			this.name = Database.readRsString(rs, "name");
-			this.menuId = Database.readRsString(rs, "menuId");
-			this.inHouseRate = Database.readRsBigDecimal(rs, "inHouseRate");
-			this.deliveryRate = Database.readRsBigDecimal(rs, "deliveryRate");
-			this.onlineRate = Database.readRsBigDecimal(rs, "onlineRate");
+			isDisplayable = Database.readRsString(rs, "isDisplayable");
 		}
 	}
 
@@ -4567,7 +8643,6 @@ public class AccessManager {
 		}
 	}
 
-	// ItemWiseReport-ap (edited)
 	public static class TransactionHistory implements Database.OrderOnEntity {
 		private String trType;
 		private String trDetail;
@@ -4633,6 +8708,69 @@ public class AccessManager {
 			this.authoriser = Database.readRsString(rs, "authoriser");
 			this.trAccountName = Database.readRsString(rs, "trAccountName");
 			this.paymentType = Database.readRsString(rs, "paymentType");
+		}
+	}
+	
+	public static class VendorTransaction implements Database.OrderOnEntity {
+		private int id;
+		private int vendorId;
+		private String transType;
+		private String account;
+		private String paymentType;
+		private BigDecimal transAmount;
+		private String dateTime;
+		private String paymentDate;
+		private String userId;
+		private String corporateId;
+		private String outletId;
+		
+		public int getId() {
+			return id;
+		}
+		public int getVendorId() {
+			return vendorId;
+		}
+		public String getTransType() {
+			return transType;
+		}
+		public String getAccount() {
+			return account;
+		}
+		public String getPaymentType() {
+			return paymentType;
+		}
+		public BigDecimal getTransAmount() {
+			return transAmount;
+		}
+		public String getDateTime() {
+			return dateTime;
+		}
+		public String getPaymentDate() {
+			return paymentDate;
+		}
+		public String getUserId() {
+			return userId;
+		}
+		public String getCorporateId() {
+			return corporateId;
+		}
+		public String getOutletId() {
+			return outletId;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			this.id = Database.readRsInt(rs, "id");
+			this.vendorId = Database.readRsInt(rs, "vendorId");
+			this.transType = Database.readRsString(rs, "transType");
+			this.transAmount = Database.readRsBigDecimal(rs, "transAmount");
+			this.account = Database.readRsString(rs, "account");
+			this.paymentType = Database.readRsString(rs, "paymentType");
+			this.dateTime = Database.readRsString(rs, "dateTime");
+			this.paymentDate = Database.readRsString(rs, "paymentDate");
+			this.userId = Database.readRsString(rs, "userId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
+			this.outletId = Database.readRsString(rs, "outletId");
 		}
 	}
 	
@@ -4746,12 +8884,17 @@ public class AccessManager {
 		private String type;
 		private BigDecimal value;
 		private String isActive;
-		private String applicableOn;
+		private String chargeLevel;
+		private String isApplicableOn;
 		private String isAlwaysApplicable;
 		private BigDecimal minBillAmount;
 		private String hasTierWiseValue;
 		private String taxesOnCharge;
-		
+		private String orderType;
+		private String outletId;
+		private String systemId;
+		private String restaurantId;
+		private String corporateId;
 		
 		public int getId() {
 			return id;
@@ -4769,15 +8912,24 @@ public class AccessManager {
 			return value;
 		}
 
-		public Boolean isActive() {
+		public Boolean getIsActive() {
 			return Boolean.valueOf(isActive);
 		}
-
-		public String getApplicableOn() {
-			return applicableOn;
+		
+		public String getChargeLevel() {
+			return chargeLevel;
 		}
 
-		public Boolean isAlwaysApplicable() {
+		@Deprecated
+		public String getApplicableOn() {
+			return chargeLevel;
+		}
+
+		public String getIsApplicableOn() {
+			return isApplicableOn;
+		}
+
+		public Boolean getIsAlwaysApplicable() {
 			return Boolean.valueOf(isAlwaysApplicable);
 		}
 
@@ -4785,12 +8937,44 @@ public class AccessManager {
 			return minBillAmount;
 		}
 
-		public Boolean hasTierWiseValue() {
+		public Boolean getHasTierWiseValue() {
 			return Boolean.valueOf(hasTierWiseValue);
 		}
 
-		public JSONObject getTaxesOnCharge() throws JSONException {
-			return new JSONObject(taxesOnCharge);
+		public JSONArray getTaxesOnCharge(){
+			try {
+				return new JSONArray(taxesOnCharge);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public JSONArray getOrderType() {
+			try {
+				return new JSONArray(orderType);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
+		}
+
+		public String getCorporateId() {
+			return corporateId;
 		}
 
 		@Override
@@ -4801,11 +8985,17 @@ public class AccessManager {
 			this.value = Database.readRsBigDecimal(rs, "value");
 			this.type = Database.readRsString(rs, "type");
 			this.isActive = Database.readRsString(rs, "isActive");
-			this.applicableOn = Database.readRsString(rs, "applicatbleOn");
+			this.chargeLevel = Database.readRsString(rs, "chargeLevel");
+			this.isApplicableOn = Database.readRsString(rs, "isApplicableOn");
 			this.isAlwaysApplicable = Database.readRsString(rs, "isAlwaysApplicable");
 			this.minBillAmount = Database.readRsBigDecimal(rs, "minBillAmount");
 			this.hasTierWiseValue = Database.readRsString(rs, "hasTierWiseValue");
 			this.taxesOnCharge = Database.readRsString(rs, "taxesOnCharge");
+			this.orderType = Database.readRsString(rs, "orderType");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 		}
 	}
 	
@@ -4816,6 +9006,11 @@ public class AccessManager {
 		private String type;
 		private BigDecimal value;
 		private String isActive;
+		private String applicableOn;
+		private String outletId;
+		private String systemId;
+		private String restaurantId;
+		private String corporateId;
 		
 		public int getId() {
 			return id;
@@ -4837,6 +9032,26 @@ public class AccessManager {
 			return isActive;
 		}
 
+		public String getApplicableOn() {
+			return applicableOn;
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
+		}
+		
+		public String getCorporateId() {
+			return corporateId;
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -4845,6 +9060,11 @@ public class AccessManager {
 			this.value = Database.readRsBigDecimal(rs, "value");
 			this.type = Database.readRsString(rs, "type");
 			this.isActive = Database.readRsString(rs, "isActive");
+			this.applicableOn = Database.readRsString(rs, "applicableOn");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
+			this.corporateId = Database.readRsString(rs, "corporateId");
 		}
 	}
 	
@@ -4913,9 +9133,18 @@ public class AccessManager {
 		private int id;
 		private String name;
 		private int collectionOrder;
+		private int kotOrder;
 		private String hasSubCollection;
 		private String isActive;
-		private int scheduleId;
+		private String scheduleIds;
+		private String description;
+		private String imgUrl;
+		private String isSpecialCombo;
+		private String isActiveOnZomato;
+		private String tags;
+		private String outletId;
+		private String systemId;
+		private String restaurantId;
 		
 		public String getName() {
 			return name;
@@ -4928,17 +9157,65 @@ public class AccessManager {
 		public int getCollectionOrder() {
 			return collectionOrder;
 		}
+		
+		public int getKotOrder() {
+			return kotOrder;
+		}
 
-		public String getHasSubCollection() {
-			return hasSubCollection;
+		public Boolean getHasSubCollection() {
+			return Boolean.valueOf(hasSubCollection);
 		}
 
 		public String getIsActive() {
 			return isActive;
 		}
 
-		public int getScheduleId() {
-			return scheduleId;
+		public JSONArray getScheduleIds() {
+			try {
+				return new JSONArray(scheduleIds);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+		
+		public String getDescription() {
+			return description;
+		}
+
+		public String getImgUrl() {
+			return imgUrl;
+		}
+
+		public Boolean getIsSpecialCombo() {
+			return Boolean.valueOf(isSpecialCombo);
+		}
+
+		public Boolean getIsActiveOnZomato() {
+			return Boolean.valueOf(isActiveOnZomato);
+		}
+
+		public JSONArray getTags() {
+			try {
+				return new JSONArray(tags);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
+		}
+
+		public String getOutletId() {
+			return outletId;
+		}
+
+		public String getSystemId() {
+			return systemId;
+		}
+
+		public String getRestaurantId() {
+			return restaurantId;
 		}
 
 		@Override
@@ -4946,9 +9223,18 @@ public class AccessManager {
 			this.name = Database.readRsString(rs, "name");
 			this.id = Database.readRsInt(rs, "id");
 			this.collectionOrder = Database.readRsInt(rs, "collectionOrder");
+			this.kotOrder = Database.readRsInt(rs, "kotOrder");
 			this.hasSubCollection = Database.readRsString(rs, "hasSubCollection");
 			this.isActive = Database.readRsString(rs, "isActive");
-			this.scheduleId = Database.readRsInt(rs, "scheduleId");
+			this.scheduleIds = Database.readRsString(rs, "scheduleIds");
+			this.description = Database.readRsString(rs, "description");
+			this.imgUrl = Database.readRsString(rs, "imgUrl");
+			this.isSpecialCombo = Database.readRsString(rs, "isSpecialCombo");
+			this.isActiveOnZomato = Database.readRsString(rs, "isActiveOnZomato");
+			this.tags = Database.readRsString(rs, "tags");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.systemId = Database.readRsString(rs, "systemId");
+			this.restaurantId = Database.readRsString(rs, "restaurantId");
 		}
 	}
 	
@@ -4967,12 +9253,24 @@ public class AccessManager {
 			return name;
 		}
 
-		public String getDays() {
-			return days;
+		public JSONArray getDays() {
+			try {
+				return new JSONArray(days);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
-		public String getTimeSlots() {
-			return timeSlots;
+		public JSONArray getTimeSlots() {
+			try {
+				return new JSONArray(timeSlots);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
 		@Override
@@ -4989,8 +9287,10 @@ public class AccessManager {
 		
 		private int id;
 		private String name;
+		private String description;
 		private int subCollectionOrder;
 		private String collection;
+		private String isActive;
 		
 		public int getId() {
 			return id;
@@ -4998,6 +9298,10 @@ public class AccessManager {
 
 		public String getName() {
 			return name;
+		}
+
+		public String getDescription() {
+			return description;
 		}
 
 		public int getSubCollectionOrder() {
@@ -5008,13 +9312,19 @@ public class AccessManager {
 			return collection;
 		}
 
+		public Boolean getIsActive() {
+			return Boolean.valueOf(isActive);
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
 			this.id = Database.readRsInt(rs, "id");
 			this.name = Database.readRsString(rs, "name");
+			this.description = Database.readRsString(rs, "description");
 			this.subCollectionOrder = Database.readRsInt(rs, "subCollectionOrder");
 			this.collection = Database.readRsString(rs, "collection");
+			this.isActive = Database.readRsString(rs, "isActive");
 		}
 	}
 	
@@ -5027,13 +9337,22 @@ public class AccessManager {
 		private int max;
 		private int min;
 		private String isActive;
+		private String isProperty;
+		private String title;
+		private String subTitle;
 
 		public int getId() {
 			return id;
 		}
 
-		public JSONObject getItemIds() throws JSONException {
-			return new JSONObject(itemIds);
+		public JSONArray getItemIds(){
+			try {
+				return new JSONArray(itemIds);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
 
 		public String getName() {
@@ -5055,7 +9374,18 @@ public class AccessManager {
 		public Boolean getIsActive() {
 			return Boolean.valueOf(isActive);
 		}
+
+		public Boolean getIsProperty() {
+			return Boolean.valueOf(isProperty);
+		}
 		
+		public String getTitle() {
+			return title;
+		}
+		public String getSubTitle() {
+			return subTitle;
+		}
+
 		@Override
 		public void readFromDB(ResultSet rs) {
 			// TODO Auto-generated method stub
@@ -5066,6 +9396,9 @@ public class AccessManager {
 			this.max = Database.readRsInt(rs, "max");
 			this.min = Database.readRsInt(rs, "min");
 			this.isActive = Database.readRsString(rs, "isActive");
+			this.isProperty = Database.readRsString(rs, "isProperty");
+			this.title = Database.readRsString(rs, "title");
+			this.subTitle = Database.readRsString(rs, "subTitle");
 		}
 	}
 	
@@ -5095,3420 +9428,453 @@ public class AccessManager {
 			this.groupId = Database.readRsInt(rs, "groupId");
 		}
 	}
+	
+	public static class Designation implements OrderOnEntity {
 
-	// User Authentication
-
-
-	public User validUser(String hotelId, String userId, String password) {
-
-		User user = this.getUserById(hotelId, userId);
-		if(user == null) {
-			return null;
-		}
-		EncryptDecryptString eds = new EncryptDecryptString();
+		private int id;
+		private String designation;
+		private String hasIncentive;
 		
-		if(eds.isExpectedPassword(password.toCharArray(), user.getSalt(), user.getPasswd())) {
-			return user;
+		public int getId() {
+			return id;
 		}
-		return null;
-	}
 
-
-	private String setAuthToken(String userId, String hotelId) {
-
-		String sql = "UPDATE Users SET authToken = ABS(RANDOM() % 10000000000), timeStamp = '"
-				+ LocalDateTime.now().toString() + "' WHERE userId = '" + userId + "'AND hotelId = '" + hotelId + "';";
-		db.executeUpdate(sql, hotelId, false);
-
-		sql = "SELECT authToken FROM Users WHERE userId = '" + userId + "'AND hotelId = '" + hotelId + "';";
-
-		User user = db.getOneRecord(sql, User.class, hotelId);
-		if (user != null) {
-			return user.getAuthToken();
+		public String getDesignation() {
+			return designation;
 		}
-		return null;
-	}
 
-
-	public String validMPUser(String hotelId, String userId, String passwd) {
-
-		if (this.validUser(hotelId, userId, passwd)!=null) {
-
-			return setAuthToken(userId, hotelId);
+		public Boolean getHasIncentive() {
+			return Boolean.valueOf(hasIncentive);
 		}
-		String sql = "UPDATE Users SET authToken = 0, timeStamp = NULL WHERE userId = '" + userId + "'AND hotelId = '"
-				+ hotelId + "';";
-		db.executeUpdate(sql, hotelId, false);
-		return null;
-	}
 
-
-	public Boolean validOnlinePlatform(String hotelId, String userId, String passwd) {
-		if (this.validUser(hotelId, userId, passwd)!=null) {
-			return true;
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.designation = Database.readRsString(rs, "designation");
+			this.hasIncentive = Database.readRsString(rs, "hasIncentive");
 		}
-		return false;
 	}
-
-
-	public boolean validateAccess1(String hotelId, String userId, String passwd) {
-		User user = this.validUser(hotelId, userId, passwd);
-
-		if(user == null)
-			return false;
-		if ((user.getUserType().equals(UserType.ADMINISTRATOR.getValue())
-						|| user.getUserType().equals(UserType.OWNER.getValue())
-						|| user.getUserType().equals(UserType.MANAGER.getValue()))) {
-
-			return true;
-		}
-		return false;
-	}
-
-	public boolean validateOwner(String hotelId, String userId, String passwd) {
-		User user = this.validUser(hotelId, userId, passwd);
-
-		if(user == null)
-			return false;
-		if ((user.getUserType().equals(UserType.OWNER.getValue()))) {
-
-			return true;
-		}
-		return false;
-	}
-
-	public boolean validateSecretUser(String hotelId, String userId, String passwd) {
-		User user = this.validUser(hotelId, userId, passwd);
-
-		if(user == null)
-			return false;
-		if ((user.getUserType().equals(UserType.SECRET.getValue()))) {
-
-			return true;
-		}
-		return false;
-	}
-
-	public String validKDSUser(String hotelId, String userId, String passwd) {
-		User user = this.validUser(hotelId, userId, passwd);
-
-		if(user == null)
-			return null;
-
-		if (user.mUserType == UserType.CHEF.getValue() || user.mUserType == UserType.ADMINISTRATOR.getValue()) 
-				return setAuthToken(userId, hotelId);
+	
+	public static class Section implements OrderOnEntity{
+		private String barPrinter;
+		private String beveragePrinter;
+		private String cashierPrinter;
+		private String kitchenPrinter;
+		private String outDoorPrinter;
+		private String summaryPrinter;
+		private String name;
+		private int id;
 		
-		String sql = "UPDATE Users SET authToken = 0, timeStamp = NULL WHERE userId = '" + userId + "'AND hotelId = '"
-				+ hotelId + "';";
-		db.executeUpdate(sql, false);
-		return null;
-	}
-
-
-	public boolean removeToken(String hotelId, String userId) {
-
-		String sql = "UPDATE Users SET authToken = 0 WHERE userId = '" + userId + "'AND hotelId = '" + hotelId + "';";
-
-		return db.executeUpdate(sql, false);
-	}
-
-
-	public UserType validateToken(String hotelId, String userId, String authToken) {
-
-		String sql = "SELECT authtoken, timeStamp, userType FROM Users WHERE userId = '" + userId + "'AND hotelId = '"
-				+ hotelId + "';";
-		User user = db.getOneRecord(sql, User.class, hotelId);
-
-		if(hotelId.equals("dn0001"))
-			return UserType.getType(user.getUserType());
-		
-		if (user != null) {
-
-			int hourDiff = LocalDateTime.now().getHour() - LocalDateTime.parse(user.getTimeStamp()).getHour();
-
-			// Check if it been 30 minutes since any activity.
-			if (hourDiff == 0 || hourDiff == 1) {
-				int offset = LocalDateTime.now().getMinute() - LocalDateTime.parse(user.getTimeStamp()).getMinute();
-				offset = offset < 0? offset+60 : offset;
-				
-				if (offset <= 60 && offset >= 0) {
-					if (user.getAuthToken().equals(authToken)) {
-						sql = "UPDATE Users SET timeStamp = '" + LocalDateTime.now().toString() + "' WHERE userId = '" + userId
-								+ "' AND hotelId = '" + hotelId + "';";
-						db.executeUpdate(sql, false);
-						return UserType.getType(user.getUserType());
-					}
-				}
-			}
+		public String getBarPrinter() {
+			return barPrinter;
 		}
-		return UserType.UNAUTHORIZED;
-	}
 
-	// -------------------------------End User Validation
-
-	// --------------------------------Hotel
-	public Hotel getHotelById(String hotelId) {
-		String sql = "SELECT * FROM Hotel WHERE hotelId='" + hotelId + "'";
-		return db.getOneRecord(sql, Hotel.class, hotelId);
-	}
-
-	public boolean updateHotelFlags(String hotelId, String flags) {
-		String sql = "UPDATE Hotel SET taxFlags='" + flags + "' WHERE hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Collections
-	
-	public ArrayList<Collection> getCollections(String hotelId) {
-		String sql = "SELECT * FROM Collections  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Collection.class, hotelId);
-	}
-	
-	public ArrayList<Collection> getActiveCollections(String hotelId) {
-		String sql = "SELECT * FROM Collections  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, Collection.class, hotelId);
-	}
-
-	public boolean addCollection(String hotelId, String name, String image) {
-
-		String sql = "INSERT INTO Collections (hotelId, name, image) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(name) + "', '" + (image.equals("No image") ? "" : "1") + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-
-	public Boolean collectionExists(String hotelId, String collectionName) {
-		Collection collection = getCollectionByName(hotelId, collectionName);
-		if (collection != null) {
-			return true;
+		public String getBeveragePrinter() {
+			return beveragePrinter;
 		}
-		return false;
-	}
 
-	public Collection getCollectionByName(String hotelId, String collectionName) {
-		String sql = "SELECT * FROM Collections WHERE name='" + escapeString(collectionName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Collection.class, hotelId);
-	}
+		public String getCashierPrinter() {
+			return cashierPrinter;
+		}
 
-	public boolean deleteCollection(String hotelId, String collectionName) {
-		String sql = "DELETE FROM Collections WHERE name = '" + collectionName + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-	
-	// --------------------------------Schedule
-	
-	public ArrayList<Schedule> getSchedules(String hotelId) {
-		String sql = "SELECT * FROM Schedules  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Schedule.class, hotelId);
-	}
+		public String getKitchenPrinter() {
+			return kitchenPrinter;
+		}
 
-	public boolean addSchedule(String hotelId, String name, String days, String timeSlots) {
+		public String getOutDoorPrinter() {
+			return outDoorPrinter;
+		}
 
-		String sql = "INSERT INTO Schedules (hotelId, name, days, timeSlots) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(name) + "', '" + days + "', '" + timeSlots + "');";
-		return db.executeUpdate(sql, true);
-	}
+		public String getSummaryPrinter() {
+			return summaryPrinter;
+		}
 
-	public Schedule getScheduleById(String hotelId, int scheduleId) {
-		String sql = "SELECT * FROM Schedules WHERE id=" + scheduleId + " AND hotelId='" + escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Schedule.class, hotelId);
-	}
+		public String getName() {
+			return name;
+		}
 
-	public boolean deleteSchedule(String hotelId, int scheduleId) {
-		String sql = "DELETE FROM Schedules WHERE id = " + scheduleId + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-	
-	public JSONObject getSchedulesForCollection(String hotelId, int scheduleId) {
-		Schedule schedule = this.getScheduleById(hotelId, scheduleId);
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("scheduleName", schedule.getName());
-			outObj.put("scheduleDays", schedule.getDays());
-			outObj.put("scheduleTimeSlots", schedule.getTimeSlots());
-		}catch(JSONException e){
-			e.printStackTrace();
+		public int getId() {
+			return id;
+		}
+
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.name = Database.readRsString(rs, "name");
+			this.barPrinter = Database.readRsString(rs, "barPrinter");
+			this.beveragePrinter = Database.readRsString(rs, "beveragePrinter");
+			this.cashierPrinter = Database.readRsString(rs, "cashierPrinter");
+			this.kitchenPrinter = Database.readRsString(rs, "kitchenPrinter");
+			this.outDoorPrinter = Database.readRsString(rs, "outDoorPrinter");
+			this.summaryPrinter = Database.readRsString(rs, "summaryPrinter");
 		}
 		
-		return outObj;
-	}
-
-	// -------------------------------SubCollections
-	
-	public ArrayList<SubCollection> getSubCollections(String hotelId) {
-		String sql = "SELECT * FROM SubCollections  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, SubCollection.class, hotelId);
 	}
 	
-	public ArrayList<SubCollection> getActiveSubCollections(String hotelId) {
-		String sql = "SELECT * FROM SubCollections  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, SubCollection.class, hotelId);
-	}
-
-	public boolean addSubCollection(String hotelId, String name, int order, String collection) {
-
-		String sql = "INSERT INTO SubCollections (hotelId, name, subCollectionOrder, collection) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(name) + "', " + order + ", '" + collection + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public SubCollection getSubCollectionByName(String hotelId, String subCollectionName) {
-		String sql = "SELECT * FROM SubCollections WHERE name='" + escapeString(subCollectionName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, SubCollection.class, hotelId);
-	}
-
-	public boolean deleteSubCollection(String hotelId, int id) {
-		String sql = "DELETE FROM SubCollections WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Taxes
-	
-	public ArrayList<Tax> getTaxes(String hotelId) {
-		String sql = "SELECT * FROM Taxes  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Tax.class, hotelId);
-	}
-	
-	public ArrayList<Tax> getActiveTaxes(String hotelId) {
-		String sql = "SELECT * FROM Taxes  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, Tax.class, hotelId);
-	}
-
-	public boolean addTax(String hotelId, String name, BigDecimal value, String type, Boolean isActive) {
-
-		String sql = "INSERT INTO Taxes (hotelId, name, value, type, isActive) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(name) + "', " + value + ", '" + type + "', '" + isActive + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Tax getTaxByName(String hotelId, String taxName) {
-		String sql = "SELECT * FROM Taxes WHERE name='" + escapeString(taxName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Tax.class, hotelId);
-	}
-
-	public boolean deleteTax(String hotelId, int id) {
-		String sql = "DELETE FROM Taxes WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Charges
-	
-	public ArrayList<Charge> getCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Charge.class, hotelId);
-	}
-	
-	public ArrayList<Charge> getActiveCharges(String hotelId) {
-		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "' AND isActive = 'true'";
-		return db.getRecords(sql, Charge.class, hotelId);
-	}
-
-	public boolean addCharge(String hotelId, String name, BigDecimal value, String type, Boolean isActive,
-			String applicableOn, boolean isAlwaysApplicable, BigDecimal minBillAmount, boolean hasTierWiseValues) {
-
-		String sql = "INSERT INTO Charges (hotelId, name, value, type, isActive, applicableOn, isAlwaysApplicable, minBillAmount, hasTierWiseValues"
-				+ ", taxesOnCharge) VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', " + value + ", '" + type + "', '" 
-				+ isActive + "', '" + applicableOn + "', '" + isAlwaysApplicable + "', " + minBillAmount + ", '" + hasTierWiseValues + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Charge getChargeByName(String hotelId, String taxName) {
-		String sql = "SELECT * FROM Charges WHERE name='" + escapeString(taxName) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Charge.class, hotelId);
-	}
-
-	public boolean deleteCharge(String hotelId, int id) {
-		String sql = "DELETE FROM Charges WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Tiers
-	
-	public ArrayList<Tier> getTiers(String hotelId) {
-		String sql = "SELECT * FROM Tiers  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Tier.class, hotelId);
-	}
-
-	public boolean addTier(String hotelId, BigDecimal value, boolean chargeAlwaysApplicable, BigDecimal minBillAMount) {
-
-		String sql = "INSERT INTO Tiers (hotelId, value, chargeAlwaysApplicable, minBillAmount) VALUES('" + escapeString(hotelId) 
-				+ "', " + value + ", '" + chargeAlwaysApplicable + "', " + minBillAMount + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Tier getTierById(String hotelId, int id) {
-		String sql = "SELECT * FROM Tiers WHERE id='" + id + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Tier.class, hotelId);
-	}
-
-	public boolean deleteTier(String hotelId, int id) {
-		String sql = "DELETE FROM Tiers WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Flags
-	
-	public ArrayList<Flag> getFlags(String hotelId) {
-		String sql = "SELECT * FROM Charges  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Flag.class, hotelId);
-	}
-
-	public boolean addFlag(String hotelId, BigDecimal value, boolean chargeAlwaysApplicable, BigDecimal minBillAMount) {
-
-		String sql = "INSERT INTO Flags (hotelId, value, chargeAlwaysApplicable, minBillAmount) VALUES('" + escapeString(hotelId) 
-				+ "', " + value + ", '" + chargeAlwaysApplicable + "', " + minBillAMount + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Flag getFlagById(String hotelId, int id) {
-		String sql = "SELECT * FROM Flags WHERE id='" + id + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Flag.class, hotelId);
-	}
-
-	public boolean deleteFlag(String hotelId, int id) {
-		String sql = "DELETE FROM Flags WHERE id = " + id + " AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// --------------------------------MenuItem
-
-
-	public MenuItem itemExists(String hotelId, String title) {
-		String sql = "SELECT * FROM MenuItems WHERE title='" + escapeString(title) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
-	}
-
-	public boolean isTaxableMenuItem(String hotelId, String menuId) {
-
-		String sql = "SELECT * FROM MenuItems WHERE menuId = '" + escapeString(menuId) + "' AND hotelId='"
-				+ escapeString(hotelId) + "' AND isTaxable = 0;";
-
-		return db.hasRecords(sql, hotelId);
-	}
-
-
-	public String addMenuItem(String hotelId, String title, String description, String category, String station,
-			String flags, int preparationTime, BigDecimal rate, BigDecimal inhouseRate, BigDecimal onlineRate, BigDecimal costPrice, 
-			int vegType, String image, int isTaxable, int incentiveType, int incentive, String shortForm) {
-
-		String menuId = getNextMenuId(hotelId, category);
-
-		String sql = "INSERT INTO MenuItems "
-				+ "(hotelId, menuId, title, description, category, station, flags, preparationTime, rate, inhouseRate, onlineRate, costPrice, "
-				+ "vegType, img, method, shortForm, state, isTaxable, hasIncentive, incentive) VALUES('"
-				+ escapeString(hotelId) + "', '" + escapeString(menuId) + "', '" + escapeString(title) + "', '"
-				+ escapeString(description) + "', '" + escapeString(category) + "', '" + escapeString(station) + "', '"
-				+ escapeString(flags) + "', '" + Integer.toString(preparationTime) + "', " + rate
-				+ ", " + inhouseRate + ", " + onlineRate + ", " + costPrice + ", "
-				+ Integer.toString(vegType) + ", '" + (image.equals("No image") ? "" : "1") + "', '', '"
-				+ shortForm + "', " + MENUITEM_STATE_AVAILABLE + ", " + isTaxable + ", " + incentiveType + ", " + incentive
-				+ ");";
-
-		if (db.executeUpdate(sql, true)) {
-			return menuId;
-		} else
-			return "";
-	}
-
-	public MenuItem getMenuById(String hotelId, String menuId) {
-		String sql = "SELECT * FROM MenuItems WHERE menuId='" + escapeString(menuId) + "' AND hotelId='" + hotelId
-				+ "';";
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
-	}
-
-
-	public MenuItem getMenuItemByTitle(String hotelId, String title) {
-
-		String sql = "SELECT * FROM MenuItems WHERE title = '" + escapeString(title) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-
-		return db.getOneRecord(sql, MenuItem.class, hotelId);
-	}
-
-	public ArrayList<MenuItem> getMenuItemBySearch(String hotelId, String query) {
-
-		query = escapeString(query);
-		String sql = "SELECT * FROM MenuItems WHERE title LIKE '%" + query + "%' OR menuId LIKE '%" + query
-				+ "%' OR shortForm LIKE '%" + query + "%' OR category LIKE '%" + query + "%' AND hotelId='" + escapeString(hotelId) + "';";
-
-		return db.getRecords(sql, MenuItem.class, hotelId);
-	}
-
-	public ArrayList<MenuItem> getMenu(String hotelId) {
-		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "' AND state = " + MENUITEM_STATE_AVAILABLE
-				+ ";";
-		return db.getRecords(sql, MenuItem.class, hotelId);
-	}
-
-	public ArrayList<EntityString> getMenuItems(String hotelId) {
-		String sql = "SELECT title AS entityId FROM MenuItems  WHERE hotelId='" + hotelId + "';";
-		return db.getRecords(sql, EntityString.class, hotelId);
-	}
-
-	public ArrayList<MenuItem> getMenuMP(String hotelId) {
-		String sql = "SELECT * FROM MenuItems  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, MenuItem.class, hotelId);
-	}
-
-	public String getNextMenuId(String hotelId, String category) {
-
-		Hotel hotel = this.getHotelById(hotelId);
-		String sql = "";
-		if(!hotel.getIsMenuIcCategorySpecific())
-			sql = "SELECT MAX(CAST(menuId AS integer)) AS entityId FROM MenuItems WHERE hotelId='" + hotelId + "'";
-		else
-			sql = "SELECT MAX(CAST(menuId AS integer)) AS entityId FROM MenuItems WHERE category = '"
-					+ category + "' AND hotelId='" + hotelId + "'";
-
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		if (entity != null) {
-			return Integer.toString((entity.getId() + 1));
-		}
-		return null;
-	}
-
-	public Boolean updateMenuItem(String hotelId, String menuId, String title, String description, String category,
-			String station, String flags, int preparationTime, BigDecimal rate, BigDecimal inhouseRate, BigDecimal onlineRate, BigDecimal costPrice, int vegType,
-			String image, int isTaxable, int incentiveType, int incentive, String shortForm) {
-
-		String sql = "UPDATE MenuItems SET title = '" + escapeString(title) + "', description = '"
-				+ escapeString(description) + "', category = '" + category + "', station = '"
-				+ station + "', flags = '" + flags + "', preparationTime = '" + preparationTime
-				+ "', rate = " + rate + ", inhouseRate = " + inhouseRate  + ", onlineRate = " + onlineRate 
-				+ ", costPrice = " + costPrice 
-				+ ", vegType = " + vegType + ", shortForm = '" + shortForm
-				+ "', incentive = " + incentive + ", hasIncentive = " + incentiveType
-				+ ", img  ='" + (image.equals("No image") ? "" : "1") + "', isTaxable = " + isTaxable
-				+ " WHERE hotelId = '" + hotelId + "' AND menuId = '" + menuId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-
-	public Boolean updateMenuItemState(String hotelId, String menuId, int state) {
-
-		String sql = "UPDATE MenuItems SET state = " + Integer.toString(state) + " WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	private String generateShortForm(String title) {
-		String[] sf = title.split(" ");
-		StringBuilder out = new StringBuilder();
-
-		for (int i = 0; i < sf.length; i++) {
-			if (sf[i].length() >= 2)
-				out.append(sf[i].substring(0, 2).toUpperCase());
-		}
-		return out.toString();
-	}
-
-	public boolean deleteItem(String hotelId, String menuId) {
-		String sql = "DELETE FROM MenuItems WHERE menuId = '" + menuId + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean changeMenuItemState(String hotelId, String menuId, int state) {
-
-		String sql = "UPDATE MenuItems SET state = '" + state + "' WHERE hotelId = '" + hotelId + "' AND menuId = '"
-				+ menuId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -----------------------------User
-
-
-	public Boolean userExists(String hotelId, String userId) {
-		User user = getUserById(hotelId, userId);
-		if (user != null) {
-			return true;
-		}
-		return false;
-	}
-
-
-	public Boolean addUser(String hotelId, String userId, String employeeId, int userType, String userPasswd) {
+	public static class OnlineOrderingSalesReport implements OrderOnEntity {
 		
-		EncryptDecryptString eds = new EncryptDecryptString();
-		byte[] salt = eds.getNextSalt();
-		byte[] hash = eds.hash(userPasswd.toCharArray(), salt);
+		private int portalId;
+		private String portalName;
+		private BigDecimal totalBillAmount;
+		private BigDecimal discount;
+		private BigDecimal gst;
+		private BigDecimal packagingCharge;
+		private BigDecimal serviceCharge;
+		private BigDecimal deliveryCharge;
+		private BigDecimal netAmount;
+		private BigDecimal commisionType;
+		private BigDecimal commisionValue;
+		private BigDecimal commisionAmount;
+		private BigDecimal tds;
 		
-		String sql = "INSERT INTO Users ('hotelId', 'userId', 'userPasswd', 'employeeId', 'userType', 'authToken', 'timeStamp', 'salt') VALUES ('"
-				+ escapeString(hotelId) + "','" + escapeString(userId) + "',?,'"
-				+ escapeString(employeeId) + "'," + Integer.toString(userType) + ",NULL,NULL, ? );";
-
-		Connection conn;
-		try {
-			conn = db.getConnection();
-			PreparedStatement pstmt = conn.prepareStatement(sql);
-			pstmt.setBytes(1, hash);
-			pstmt.setBytes(2, salt);
-			if(pstmt.executeUpdate() > 0) {
-				return true;
-			}
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		public int getPortalId() {
+			return portalId;
 		}
-		
-		return false;
-	}
-
-
-	public JSONObject updateUser(String hotelId, String userId, String oldPassword, String password, int userType) {
-
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("status", false);
-			EncryptDecryptString eds = new EncryptDecryptString();
-			
-			if(this.validUser(hotelId, userId, oldPassword)==null) {
-				outObj.put("message", "Old Passwords don't match. Please try again.");
-				return outObj;
-			}
-			
-			byte[] salt = eds.getNextSalt();
-			byte[] hash = eds.hash(password.toCharArray(), salt);
-			
-			String sql = "UPDATE Users SET userType= " + Integer.toString(userType) + ", userPasswd = ?, salt = ? "
-					+ " WHERE userId='" + escapeString(userId) + "' AND hotelId='" + hotelId + "';";
-	
-			Connection conn;
-			conn = db.getConnection();
-			PreparedStatement pstmt = conn.prepareStatement(sql);
-			pstmt.setBytes(1, hash);
-			pstmt.setBytes(2, salt);
-			if(pstmt.executeUpdate() > 0) {
-				outObj.put("status", true);
-			}else {
-				outObj.put("message", "Could not update User. Please contact support");
-				return outObj;
-			}
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		public String getPortalName() {
+			return portalName;
 		}
-		return outObj;
-	}
-
-
-	public User getUserById(String hotelId, String userId) {
-		String sql = "SELECT Users.*, (Employee.firstName || ' ' || Employee.surName) AS name "
-				+ "FROM Users, Employee WHERE userId='" + escapeString(userId) + "' AND Users.hotelId='"
-				+ escapeString(hotelId) + "' AND Users.employeeId = Employee.employeeId;";
-		return db.getOneRecord(sql, User.class, hotelId);
-	}
-
-	public User getUserByEmpId(String hotelId, String employeeId) {
-		String sql = "SELECT * FROM Users WHERE employeeId='" + escapeString(employeeId) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, User.class, hotelId);
-	}
-
-	public ArrayList<User> getAllUsers(String hotelId) {
-		String sql = "SELECT Users.*, (Employee.firstName || ' ' || Employee.surName) AS name " + 
-				"FROM Users, Employee WHERE Users.hotelId='" + escapeString(hotelId) + "' AND Users.employeeId == Employee.employeeId;";
-		return db.getRecords(sql, User.class, hotelId);
-	}
-
-	public boolean deleteUser(String hotelId, String userId) {
-		String sql = "DELETE FROM Users WHERE userId = '" + userId + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// ------------------------------Attendance
-
-	public Boolean hasCheckedOut(String hotelId, String serviceDate) {
-		String sql = "SELECT * FROM Attendance WHERE checkOutTime is NULL AND isPresent = 1 AND checkInDate = '"+serviceDate+"';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-
-	public Boolean isPresent(String hotelId, String employeeId) {
-		String sql = "SELECT * FROM Attendance WHERE checkOutTime is NULL AND isPresent = 1 AND employeeId = '"
-				+ employeeId + "';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-
-	public Boolean hasCheckedIn(String hotelId, String employeeId) {
-		String sql = "SELECT * FROM Attendance WHERE checkInDate = '" + this.getServiceDate(hotelId)
-				+ "' AND employeeId = '" + employeeId + "' AND hotelId = '" + hotelId + "' AND shift = 1;";
-		return db.hasRecords(sql, hotelId);
-	}
-
-
-	public Boolean hasSecondShift(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT * FROM Attendance WHERE shift = 2 AND authorisation = 1 AND checkInDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public ArrayList<Attendance> getAllAttendance(String hotelId, int shift) {
-
-		String fromClause = " FROM Attendance where Employee.employeeId == Attendance.employeeId AND Attendance.shift == "
-				+ shift + "  AND Attendance.checkInDate == '" + this.getServiceDate(hotelId) + "')";
-
-		String sql = "SELECT employeeId, firstName, surName, (SELECT Attendance.Id " + fromClause + " AS Id, "
-				+ "(SELECT Attendance.checkInTime " + fromClause + " AS checkInTime, "
-				+ "(SELECT Attendance.checkOutTime " + fromClause + " AS checkOutTime, "
-				+ "(SELECT Attendance.authorisation " + fromClause + " AS authorisation, "
-				+ "(SELECT Attendance.reason  " + fromClause + " AS reason, (SELECT Attendance.checkOutDate "
-				+ fromClause + " AS checkOutDate, (SELECT Attendance.isPresent " + fromClause + " AS isPresent, "
-				+ "(SELECT Attendance.shift " + fromClause + " AS shift FROM Employee WHERE hotelId = '" + hotelId
-				+ "' AND designation != 'ADMINISTRATOR';";
-		return db.getRecords(sql, Attendance.class, hotelId);
-	}
-
-	public boolean markExcused(String hotelId, String employeeId, String reason, int shift) {
-
-		String sql = "INSERT INTO ATTENDANCE (hotelId, employeeId, checkInTime, checkInDate, authorisation, isPresent, shift, reason)"
-				+ " VALUES ('" + escapeString(hotelId) + "', '" + escapeString(employeeId) + "', '"
-				+ LocalDateTime.now() + "', '" + escapeString(this.getServiceDate(hotelId)) + "', " + AUTHORIZE + ", "
-				+ EXCUSED + ", " + shift + ", '" + reason + "');";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean markAbsent(String hotelId, String employeeId, int shift) {
-
-		String sql = "INSERT INTO ATTENDANCE (hotelId, employeeId, checkInTime, checkInDate, authorisation, isPresent, shift)"
-				+ " VALUES ('" + escapeString(hotelId) + "', '" + escapeString(employeeId) + "', '"
-				+ LocalDateTime.now() + "', '" + escapeString(this.getServiceDate(hotelId)) + "', " + AUTHORIZE + ", "
-				+ ABSENT + ", " + shift + ");";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public String checkOut(String hotelId, int attendanceId) {
-
-		LocalDateTime now = LocalDateTime.now();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-		String checkOutDate = now.format(formatter);
-		formatter = DateTimeFormatter.ofPattern("HH:mm");
-
-		String sql = "UPDATE ATTENDANCE SET checkOutTime = '" + now + "', checkOutDate = '" + checkOutDate
-				+ "' WHERE hotelId = '" + hotelId + "' AND Id = '" + attendanceId + "';";
-
-		db.executeUpdate(sql, true);
-
-		return checkOutDate;
-	}
-
-	public String checkInEmployee(String hotelId, String employeeId, int shift) {
-
-		LocalDateTime now = LocalDateTime.now();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-		String checkInTime = now.format(formatter);
-
-		String sql = "INSERT INTO ATTENDANCE (hotelId, employeeId, checkInTime, checkInDate, authorisation, isPresent, shift)"
-				+ " VALUES ('" + escapeString(hotelId) + "', '" + escapeString(employeeId) + "', '" + now + "', '"
-				+ escapeString(this.getServiceDate(hotelId)) + "', " + UNAUTHORIZE + ", " + PRESENT + ", " + shift
-				+ ");";
-
-		db.executeUpdate(sql, true);
-
-		return checkInTime;
-	}
-
-	public boolean authorizeEmployee(String hotelId, int attendanceId) {
-
-		String sql = "UPDATE ATTENDANCE SET authorisation = " + AUTHORIZE + " WHERE hotelId = '" + hotelId
-				+ "' AND Id = '" + attendanceId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public int getLastAttendanceId(String hotelId) {
-		String sql = "SELECT MAX (Id) AS entityId FROM Attendance;";
-
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		return entity.getId();
-	}
-
-	// -------------------------------Employee
-
-
-	public String addEmployee(String hotelId, String firstName, String middleName, String surName, String address,
-			String contactNumber, String dob, String sex, String hiringDate, String designation, String department,
-			int salary, int bonus, String image, String email) {
-
-		String employeeId = getNextEmployeeId(hotelId);
-
-		String sql = "INSERT INTO Employee "
-				+ "(hotelId, employeeId, firstName, surName, address, contactNumber, dob, sex, hiringDate, designation, department"
-				+ ", salary, bonus, image, middleName, email) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(employeeId) + "', '" + escapeString(firstName) + "', '" + escapeString(surName) + "', '"
-				+ escapeString(address) + "', '" + escapeString(contactNumber) + "', '" + escapeString(dob) + "', '"
-				+ escapeString(sex) + "', '" + escapeString(hiringDate) + "', '" + escapeString(designation) + "', '"
-				+ escapeString(department) + "', " + Integer.toString(salary) + ", " + Integer.toString(bonus) + ", '"
-				+ (image.equals("No image") ? "" : "1") + "', '" + escapeString(middleName) + "', '"
-				+ escapeString(email) + "');";
-
-		if (db.executeUpdate(sql, true)) {
-			return employeeId;
-		} else
-			return "";
-	}
-
-
-	public Boolean updateEmployee(String hotelId, String employeeId, String firstName, String middleName,
-			String surName, String address, String contactNumber, String dob, String sex, String hiringDate,
-			String designation, String department, int salary, int bonus, String image, String email) {
-
-		String sql = "UPDATE Employee SET firstName = '" + escapeString(firstName) + "', middleName = '"
-				+ escapeString(middleName) + "', surName = '" + escapeString(surName) + "', address = '"
-				+ escapeString(address) + "', contactNumber = '" + escapeString(contactNumber) + "', email = '"
-				+ escapeString(email) + "', dob = '" + escapeString(dob) + "', sex = '" + escapeString(sex)
-				+ "', hiringDate = '" + escapeString(hiringDate) + "', designation = '" + escapeString(designation)
-				+ "', department = '" + escapeString(department) + "', salary = " + Integer.toString(salary)
-				+ ", bonus = " + Integer.toString(bonus) + ", image  ='" + (image.equals("No image") ? "" : "1")
-				+ "' WHERE hotelId = '" + escapeString(hotelId) + "' AND employeeId = '" + escapeString(employeeId)
-				+ "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-
-	public Employee getEmployeeById(String hotelId, String employeeId) {
-		String sql = "SELECT * FROM Employee WHERE employeeId = '" + escapeString(employeeId) + "' AND hotelId = '"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Employee.class, hotelId);
+		public BigDecimal getTotalBillAmount() {
+			return totalBillAmount;
+		}
+		public BigDecimal getDiscount() {
+			return discount;
+		}
+		public BigDecimal getGst() {
+			return gst;
+		}
+		public BigDecimal getPackagingCharge() {
+			return packagingCharge;
+		}
+		public BigDecimal getServiceCharge() {
+			return serviceCharge;
+		}
+		public BigDecimal getDeliveryCharge() {
+			return deliveryCharge;
+		}
+		public BigDecimal getNetAmount() {
+			return netAmount;
+		}
+		public BigDecimal getCommisionType() {
+			return commisionType;
+		}
+		public BigDecimal getCommisionValue() {
+			return commisionValue;
+		}
+		public BigDecimal getCommisionAmount() {
+			return commisionAmount;
+		}
+		public BigDecimal getTds() {
+			return tds;
+		}
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.portalId = Database.readRsInt(rs, "portalId");
+			this.portalName = Database.readRsString(rs, "portalName");
+			this.totalBillAmount = Database.readRsBigDecimal(rs, "totalBillAmount");
+			this.discount = Database.readRsBigDecimal(rs, "discount");
+			this.gst = Database.readRsBigDecimal(rs, "gst");
+			this.packagingCharge = Database.readRsBigDecimal(rs, "packagingCharge");
+			this.serviceCharge = Database.readRsBigDecimal(rs, "serviceCharge");
+			this.deliveryCharge = Database.readRsBigDecimal(rs, "deliveryCharge");
+			this.netAmount = Database.readRsBigDecimal(rs, "netAmount");
+			this.commisionType = Database.readRsBigDecimal(rs, "commisionType");
+			this.commisionValue = Database.readRsBigDecimal(rs, "commisionValue");
+			this.commisionAmount = Database.readRsBigDecimal(rs, "commisionAmount");
+			this.tds = Database.readRsBigDecimal(rs, "tds");
+		}
 	}
 	
-	public Employee getEmployeeByName(String hotelId, String name) {
-		String sql = "SELECT * FROM Employee WHERE firstName = '" + escapeString(name) + "' COLLATE NOCASE AND hotelId = '"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Employee.class, hotelId);
-	}
+	public static class PromotionalCampaign implements OrderOnEntity{
 
-
-	public ArrayList<Employee> getEmployeesByDesignation(String hotelId, Designation designation) {
-		String sql = "SELECT * FROM Employee WHERE designation = '" + escapeString(designation.toString())
-				+ "' AND hotelId = '" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, Employee.class, hotelId);
-	}
-	
-	public ArrayList<Employee> getEmployeesForNC(String hotelId) {
-		String sql = "SELECT * FROM Employee WHERE designation = '" + Designation.OWNER.toString() + "' OR designation = '"
-				+ Designation.MANAGER.toString() + "' AND hotelId = '" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, Employee.class, hotelId);
-	}
-
-	public ArrayList<Employee> getAllEmployee(String hotelId) {
-		String sql = "SELECT * FROM Employee WHERE hotelId='" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, Employee.class, hotelId);
-	}
-
-	public ArrayList<Employee> getAllDeliveryEmployee(String hotelId) {
-		String sql = "SELECT * FROM Employee WHERE hotelId='" + escapeString(hotelId)
-				+ "' AND designation = 'DELIVERYBOY';";
-		return db.getRecords(sql, Employee.class, hotelId);
-	}
-
-	public String getNextEmployeeId(String hotelId) {
-
-		String sql = "SELECT MAX(CAST(SUBSTR(employeeId,3) AS integer)) AS entityId FROM Employee WHERE hotelId='"
-				+ hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		String employeeId = this.getHotelById(hotelId).mHotelCode;
-
-		if (entity != null) {
-			return employeeId + (String.format("%03d", entity.getId() + 1));
-		}
-		return employeeId + "000";
-	}
-
-	public boolean deleteEmployee(String hotelId, String employeeId) {
-		String sql = "DELETE FROM Employee WHERE employeeId = '" + employeeId + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------Orders
-
-	public ArrayList<Order> getAllOrders(String hotelId, String date, String query, boolean visible) {
+		private int id;
+		private String name;
+		private String messageContent;
+		private String usageDetails;
+		private int totalSMSSent;
+		private String outletId;
+		private String outletIds;
+		private String userTypes;
+		private String sex;
+		private String ageGroup;
+		private String status;
 		
-		String sql = "SELECT Orders.*, (SELECT foodDiscount+barDiscount FROM Payment WHERE Orders.orderId == Payment.orderId) AS discount, "
-				+ "(SELECT cashPayment+cardPayment+appPayment FROM Payment WHERE Orders.orderId == Payment.orderId) AS totalPayment, "
-				+ "(SELECT cardType FROM Payment WHERE Orders.orderId == Payment.orderId) AS paymentType, "
-				+ "(SELECT firstName FROM Employee WHERE Orders.deliveryBoy == Employee.employeeId) AS firstName "
-				+ "FROM Orders WHERE Orders.hotelId='" + escapeString(hotelId) + "' ";
-		if(!visible) 
-			sql += " AND Orders.state!=" + ORDER_STATE_HIDDEN + " ";
-		ArrayList<Order> orders = new ArrayList<Order>();
-		if (date.length() > 0) {
-			sql += "AND Orders.orderDate='" + date + "' ORDER BY id DESC;";
-			return db.getRecords(sql, Order.class, hotelId);
+		public int getId() {
+			return id;
 		}
-		String sql2;
-		String serviceDate = this.getServiceDate(hotelId);
-		Employee employee = this.getEmployeeByName(hotelId, query);
-		if(employee != null) {
-			sql2 = sql + "AND deliveryBoy = '" + employee.getEmployeeId() + "' AND Orders.orderDate='" + serviceDate + "' ORDER BY id DESC;";
-			orders.addAll(db.getRecords(sql2, Order.class, hotelId));
-			return orders;
-		} else if (query.trim().length() > 0) {
-			sql2 = sql + "AND Orders.billNo = '" + query + "' AND Orders.orderDate='" + serviceDate + "' ORDER BY id DESC;";
-			orders.addAll(db.getRecords(sql2, Order.class, hotelId));
-			sql2 = sql + "AND tableId LIKE '%" + query + "%' AND Orders.orderDate='" + serviceDate + "' ORDER BY id DESC;";
-			orders.addAll(db.getRecords(sql2, Order.class, hotelId));
-			sql2 = sql + "AND customerName LIKE '" + query + "%' AND Orders.orderDate='" + serviceDate + "' ORDER BY id DESC;";
-			orders.addAll(db.getRecords(sql2, Order.class, hotelId));
-			return orders;
+		public String getName() {
+			return name;
 		}
-		if (date.length() == 0 && query.trim().length() == 0)
-			sql += " AND Orders.orderDate='" + serviceDate + "' ";
-		
-		sql += " ORDER BY id DESC;";
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-	
-	private ArrayList<Order> getCashOrders(String hotelId, String serviceDate) {
-		
-		String sql = "SELECT Orders.orderId, Orders.billNo, (SELECT cashPayment FROM Payment WHERE Orders.orderId == Payment.orderId) AS cashPayment " + 
-					"FROM Orders, Payment " + 
-					"WHERE Orders.hotelId='" + escapeString(hotelId) + "' AND Orders.orderDate='" + serviceDate + "' " + 
-					"AND Orders.orderId == Payment.orderId " + 
-					"AND Payment.cardType LIKE '%CASH%' " +
-					"AND Orders.state != " + ORDER_STATE_HIDDEN + " " +
-					"ORDER BY cashPayment DESC;";
-
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-	
-	private ArrayList<Order> getAllVisibleOrders(String hotelId, String serviceDate) {
-		
-		String sql = "SELECT Orders.orderId, Orders.billNo " + 
-					"FROM Orders " + 
-					"WHERE Orders.hotelId='" + escapeString(hotelId) + "' AND Orders.orderDate BETWEEN '" + serviceDate +
-					"' AND '" + this.getServiceDate(hotelId) + "' " + 
-					"AND Orders.state != " + ORDER_STATE_HIDDEN + " " +
-					"ORDER BY id;";
-
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-	
-	private ArrayList<Order> getInVisibleOrders(String hotelId, String serviceDate) {
-		
-		String sql = "SELECT Orders.orderId, Orders.billNo " + 
-					"FROM Orders " + 
-					"WHERE Orders.hotelId='" + escapeString(hotelId) + "' AND Orders.orderDate = '" + serviceDate +
-					"' AND Orders.state == " + ORDER_STATE_HIDDEN + " " +
-					"ORDER BY id;";
-
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-	
-	public ArrayList<Order> getCompletedOrders(String hotelId) {
-		String sql = "SELECT * FROM Orders WHERE hotelId='" + escapeString(hotelId) +
-					"' AND orderDate='" + this.getServiceDate(hotelId) +
-					"' AND Orders.state = "+ORDER_STATE_BILLING+" ORDER BY id DESC;";
-
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-
-	public BigDecimal getTaxableFoodBill(String hotelId, String orderId) {
-
-		String sql = "SELECT SUM(OrderItems.rate*OrderItems.qty) AS entityId FROM OrderItems, MenuItems WHERE orderId = '"
-				+ orderId + "' AND MenuItems.isTaxable = 0 AND OrderItems.menuId == MenuItems.menuId"
-				+ " AND OrderItems.hotelId == MenuItems.hotelId AND OrderItems.hotelId == '" + hotelId
-				+ "' AND (MenuItems.vegType == 1 OR MenuItems.vegType == 2);";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		BigDecimal totalBill = entity.getId();
-
-		sql = "SELECT SUM(OrderAddOns.rate*OrderAddOns.qty) AS entityId FROM OrderAddOns, OrderItems, MenuItems"
-				+ " WHERE OrderAddOns.orderId = '" + orderId + "'"
-				+ " AND MenuItems.isTaxable = 0 AND OrderItems.menuId == MenuItems.menuId"
-				+ " AND OrderItems.hotelId == MenuItems.hotelId AND OrderItems.hotelId == '" + hotelId + "'"
-				+ " AND (MenuItems.vegType == 1 OR MenuItems.vegType == 2)"
-				+ " AND OrderAddOns.orderId == OrderItems.orderId"
-				+ " AND OrderAddOns.subOrderId == OrderItems.subOrderId"
-				+ " AND OrderAddOns.menuId == OrderItems.menuId;";
-
-		entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		totalBill.add(entity.getId());
-
-		return totalBill;
-	}
-
-	public BigDecimal getTaxableBarBill(String hotelId, String orderId) {
-
-		String sql = "SELECT SUM(OrderItems.rate*OrderItems.qty) AS entityId FROM OrderItems, MenuItems WHERE orderId = '"
-				+ orderId + "' AND MenuItems.isTaxable = 0 AND OrderItems.menuId == MenuItems.menuId"
-				+ " AND OrderItems.hotelId == MenuItems.hotelId AND OrderItems.hotelId == '" + hotelId
-				+ "' AND (MenuItems.vegType == 3 OR MenuItems.vegType == 4);";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		BigDecimal totalBill = entity.getId();
-
-		sql = "SELECT SUM(OrderAddOns.rate*OrderAddOns.qty) AS entityId FROM OrderAddOns, OrderItems, MenuItems"
-				+ " WHERE OrderAddOns.orderId = '" + orderId + "'"
-				+ " AND MenuItems.isTaxable = 0 AND OrderItems.menuId == MenuItems.menuId"
-				+ " AND OrderItems.hotelId == MenuItems.hotelId AND OrderItems.hotelId == '" + hotelId + "'"
-				+ " AND (MenuItems.vegType == 3 OR MenuItems.vegType == 4)"
-				+ " AND OrderAddOns.orderId == OrderItems.orderId"
-				+ " AND OrderAddOns.subOrderId == OrderItems.subOrderId"
-				+ " AND OrderAddOns.menuId == OrderItems.menuId;";
-
-		entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		totalBill.add(entity.getId());
-
-		return totalBill;
-	}
-
-	public OrderItem getOrderedItem(String hotelId, String orderId, String subOrderId, String menuId) {
-
-		String sql = "SELECT OrderItems.subOrderDate AS subOrderDate, OrderItems.qty AS qty, "
-				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.category AS category, "
-				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.rate AS rate, "
-				+ "MenuItems.isTaxable AS isTaxable, "
-				+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE OrderItems.orderId='" + orderId
-				+ "' AND OrderItems.subOrderId='" + subOrderId + "' AND OrderItems.menuId=='" + menuId
-				+ "' AND OrderItems.hotelId='" + hotelId + "' AND OrderItems.menuId==MenuItems.menuId;";
-		return db.getOneRecord(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> getOrderedItems(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.qty AS qty, "
-				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.category AS category, "
-				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.specs AS reason, OrderItems.rate AS rate, "
-				+ "MenuItems.isTaxable AS isTaxable, OrderItems.state AS state, "
-				+ "substr(OrderItems.subOrderDate, 12, 5) AS time  FROM OrderItems, MenuItems WHERE orderId='" + orderId
-				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.hotelId='" + hotelId + "' UNION ALL "
-				+ "SELECT OrderItemLog.subOrderId AS subOrderId, OrderItemLog.subOrderDate AS subOrderDate, "
-				+ "OrderItemLog.Id AS Id, OrderItemLog.menuId AS menuId, OrderItemLog.quantity AS qty, "
-				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.category AS category, "
-				+ "MenuItems.station AS station, (SELECT specs FROM OrderItems WHERE OrderItems.orderId = '" + orderId
-				+ "') AS specs, OrderItemLog.reason AS reason, OrderItemLog.rate AS rate, MenuItems.isTaxable AS isTaxable, "
-				+ "OrderItemLog.state AS state, substr(OrderItemLog.datetime, 12, 5) AS time "
-				+ "FROM MenuItems, OrderItemLog WHERE OrderItemLog.orderId='" + orderId
-				+ "' AND OrderItemLog.menuId==MenuItems.menuId "
-				+ "AND OrderItemLog.hotelId='" + hotelId + "' ORDER BY menuId;";
-
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> getOrderedItemForVoid(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, OrderItems.qty AS qty, "
-				+ "MenuItems.title AS title, MenuItems.vegType AS vegType, MenuItems.category AS category, "
-				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.rate AS rate, "
-				+ "MenuItems.isTaxable AS isTaxable, OrderItems.state AS state, "
-				+ "substr(OrderItems.subOrderDate, 12, 5) AS time  FROM OrderItems, MenuItems WHERE orderId='" + orderId
-				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.hotelId='" + hotelId + "' ORDER BY menuId;";
-
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<EntityString> getUniqueMenuIdForOrder(String hotelId, String orderId) {
-		String sql = "SELECT distinct OrderItems.menuId AS entityId FROM OrderItems, MenuItems WHERE OrderItems.orderId='"
-				+ orderId + "' AND OrderItems.hotelId='" + hotelId
-				+ "' AND MenuItems.menuId=OrderItems.menuId AND MenuItems.flags NOT LIKE '%ci%';";
-
-		return db.getRecords(sql, EntityString.class, hotelId);
-	}
-
-	public ArrayList<EntityString> getUniqueMenuIdForComplimentaryOrder(String hotelId, String orderId) {
-		String sql = "SELECT distinct menuId AS entityId FROM OrderItemLog WHERE OrderItemLog.orderId='" + orderId
-				+ "'; AND hotelId='" + hotelId + "' AND state=" + ORDER_STATE_COMPLIMENTARY + ";";
-
-		return db.getRecords(sql, EntityString.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> getOrderedItemForBill(String hotelId, String orderId) {
-
-		ArrayList<EntityString> menuIds = this.getUniqueMenuIdForOrder(hotelId, orderId);
-		ArrayList<OrderItem> orderItems = new ArrayList<OrderItem>();
-		for (EntityString menuId : menuIds) {
-
-			String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-					+ "OrderItems.Id AS Id, OrderItems.menuId AS menuId, SUM(OrderItems.qty) AS qty, "
-					+ "MenuItems.title AS title, MenuItems.vegType AS vegType, "
-					+ "MenuItems.category AS category, MenuItems.station AS station, "
-					+ "OrderItems.rate AS rate, OrderItems.specs AS specs, MenuItems.isTaxable AS isTaxable, "
-					+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE OrderItems.orderId='" + orderId
-					+ "' AND OrderItems.menuId='" + menuId.getEntity() + "' AND MenuItems.menuId='" + menuId.getEntity()
-					+ "' AND OrderItems.hotelId='" + hotelId + "';";
-
-			orderItems.add(db.getOneRecord(sql, OrderItem.class, hotelId));
+		public String getMessageContent() {
+			return messageContent;
 		}
-		return orderItems;
-	}
-
-	public ArrayList<OrderItem> getOrderedItemForBillCI(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.subOrderDate AS subOrderDate, "
-				+ "OrderItems.menuId AS menuId, OrderItems.qty AS qty, MenuItems.title AS title, "
-				+ "MenuItems.vegType AS vegType, MenuItems.category AS category, "
-				+ "MenuItems.station AS station, OrderItems.specs AS specs, OrderItems.rate AS rate, "
-				+ "OrderItems.specs AS specs, MenuItems.isTaxable AS isTaxable, "
-				+ "OrderItems.state AS state FROM OrderItems, MenuItems WHERE orderId='" + orderId
-				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.hotelId='" + hotelId + "' "
-				+ "AND MenuItems.flags LIKE '%ci;%'";
-
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> getComplimentaryOrderedItemForBill(String hotelId, String orderId) {
-
-		ArrayList<EntityString> menuIds = this.getUniqueMenuIdForComplimentaryOrder(hotelId, orderId);
-		ArrayList<OrderItem> orderItems = new ArrayList<OrderItem>();
-		for (EntityString menuId : menuIds) {
-
-			String sql = "SELECT OrderItemLog.subOrderId AS subOrderId, "
-					+ "OrderItemLog.subOrderDate AS subOrderDate, OrderItemLog.Id AS Id, "
-					+ "OrderItemLog.menuId AS menuId, SUM(OrderItemLog.quantity) AS qty, "
-					+ "MenuItems.title AS title, MenuItems.vegType AS vegType, "
-					+ "MenuItems.category AS category, MenuItems.station AS station, "
-					+ "OrderItemLog.rate AS rate, MenuItems.isTaxable AS isTaxable, "
-					+ "OrderItemLog.state AS state FROM OrderItemLog, MenuItems WHERE OrderItemLog.orderId='" + orderId
-					+ "' AND OrderItemLog.menuId='" + menuId.getEntity() + "' AND MenuItems.menuId='"
-					+ menuId.getEntity() + "' AND OrderItemLog.hotelId='" + hotelId + "';";
-
-			orderItems.add(db.getOneRecord(sql, OrderItem.class, hotelId));
-		}
-		return orderItems;
-	}
-	
-	public JSONObject newOnlineOrder(JSONObject orderObj, int portalId) {
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("status", "failed");
-			String sql = "SELECT * FROM OnlineOrders WHERE orderId = '" + orderObj.getInt("order_id") +
-					"' AND restaurantId = '" + orderObj.getInt("restaurant_id") + "';";
-			
-			if(db.hasRecords(sql, orderObj.getString("outlet_id"))) {
-				outObj.put("message", "Order already exists.");
-				outObj.put("code", "501");
-				return outObj;
-			}
-			
-			sql = "INSERT INTO OnlineOrders (hotelId, restaurantId, externalOrderId, portalId, data, status, dateTime) " +
-					"VALUES ('" + orderObj.getString("outlet_id") + "', " + orderObj.getInt("restaurant_id") + 
-					", " + orderObj.getInt("order_id") + ", " + portalId + ", '" + orderObj + "', "+ONLINE_ORDER_NEW+", '" + LocalDateTime.now() + "');";
-			
-			if(!db.executeUpdate(sql, false)) {
-				outObj.put("message", "Order could not be placed.");
-				outObj.put("code", "500");
-				return outObj;
-			}
-			
-			outObj.put("status", "success");
-			outObj.put("code", "200");
-			outObj.put("message", "Order registered.");
-		
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		return outObj;
-	}
-	
-	public ArrayList<OnlineOrder> getOnlineOrders(String hotelId){
-		
-		String sql = "SELECT * FROM OnlineOrders WHERE hotelId = '" + hotelId + "' AND status = "+ONLINE_ORDER_NEW+";";
-		
-		return db.getRecords(sql, OnlineOrder.class, hotelId);
-	}
-
-	public JSONObject newOrder(String hotelId, String userId, String[] tableIds, int peopleCount, String customer,
-			String mobileNumber, String address, String allergyInfo, String section) {
-		JSONObject outObj = new JSONObject();
-		String orderId = "";
-		String sql = "";
-		String hotelType = this.getHotelById(hotelId).getHotelType();
-		try {
-			String serviceDate = this.getServiceDate(hotelId);
-			if (serviceDate == null) {
-				outObj.put("status", -1);
-				outObj.put("message", "Service has not started");
-				return outObj;
-			}
-			for (int i = 0; i < tableIds.length; i++) {
-				sql = "SELECT * FROM OrderTables WHERE tableId='" + tableIds[i] + "' AND hotelId='"
-						+ escapeString(hotelId) + "';";
-				TableUsage table = db.getOneRecord(sql, TableUsage.class, hotelId);
-				if (table != null) {
-					outObj.put("status", -1);
-					outObj.put("message", "Table " + tableIds[i] + " not free");
-					return outObj;
-				}
-			}
-			StringBuilder tableId = new StringBuilder();
-			for (int i = 0; i < tableIds.length; i++) {
-				tableId.append(tableIds[i]);
-				if (i != tableIds.length)
-					tableId.append(",");
-			}
-			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, isSmsSent, waiterId, numberOfGuests, "
-					+ "state, inhouse, takeAwayType, tableId, serviceType, foodBill, barBill, section) values ('" + hotelId + "', '" + orderId
-					+ "', '" + serviceDate + "','" + customer + "', '" + mobileNumber + "', '"+address+"', 0,'" + userId + "', "
-					+ Integer.toString(peopleCount) + ", ";
-
-			if (hotelType.equals("PREPAID")) {
-				sql += Integer.toString(ORDER_STATE_BILLING) + "," + INHOUSE + "," + OnlineOrderingPortals.NONE.getValue() + ",'" + tableId.toString() + "','"
-						+ getCurrentService(hotelId).getServiceType() + "',0,0, '"+section+"');";
-			} else {
-				sql += Integer.toString(ORDER_STATE_SERVICE) + "," + INHOUSE + "," + OnlineOrderingPortals.NONE.getValue() + ",'" + tableId.toString() + "','"
-						+ getCurrentService(hotelId).getServiceType() + "',0,0,'"+section+"');";
-			}
-			for (int i = 0; i < tableIds.length; i++) {
-				sql = sql + "INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId + "','"
-						+ tableIds[i] + "','" + orderId + "');";
-			}
-			if (!mobileNumber.equals("")) {
-				if (!hasCustomer(hotelId, mobileNumber)) {
-					addCustomer(hotelId, customer, mobileNumber, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE);
-				} else {
-					modifyCustomer(hotelId, customer, mobileNumber, "", "", "", allergyInfo, address, Boolean.FALSE);
-				}
-			}
-			if (!db.executeUpdate(sql, true)) {
-				db.rollbackTransaction();
-				outObj.put("status", 1);
-				outObj.put("message", "Could Not place Order");
-				return outObj;
-			}
-			outObj.put("status", 0);
-			outObj.put("orderId", orderId);
-			return outObj;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public JSONObject hideOrder(String hotelId, String serviceDate, String serviceType, BigDecimal cashAmount) {
-		JSONObject outObj = new JSONObject();
-		ArrayList<Order> allOrders = this.getCashOrders(hotelId, serviceDate);
-		BigDecimal cashSale = this.getCashCardSales(hotelId, serviceDate, serviceType).getCashPayment();
-		BigDecimal cashDeducted = new BigDecimal("0.0");
-		ServiceLog service = this.getCurrentService(hotelId);
-		try {
-			outObj.put("status", false);
-			if(service.getServiceDate().equals(serviceDate) && service.getServiceType().equals(serviceType)) {
-				outObj.put("message", "This process cannot be performed for the Current Service. Please continue after Service is ended.");
-				return outObj;
-			}
-			if(allOrders.isEmpty()) {
-				outObj.put("message", "The Selected Service Date and Type have no cash orders.");
-				return outObj;
-			}
-	 	
-			for(int i=0; i<allOrders.size(); i++) {
-				if(allOrders.get(i).getCashPayment().compareTo((cashSale.subtract(cashAmount))) == 1)
-					continue;
-				this.changeOrderStateToHidden(hotelId, allOrders.get(i).getOrderId());
-				cashDeducted.add(allOrders.get(i).getCashPayment());
-				cashSale.subtract(allOrders.get(i).getCashPayment());
-			}
-			
-			String sql = "SELECT cash FROM TotalRevenue WHERE serviceDate = '"+serviceDate+"' AND serviceType = '"+serviceType+"';";
-			
-			EntityBigDecimal cashReported = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-			if(cashReported!=null) {
-				sql = "UPDATE TotalRevenue SET cash2 = " + cashReported.getId() + ", "
-					+ "cash = " + (cashReported.getId().subtract(cashDeducted))
-					+ ", deductedCash = " + cashAmount 
-					+ " WHERE serviceDate = '"+serviceDate+"' AND serviceType = '"+serviceType+"';";
-				
-				db.executeUpdate(sql, true);
-			}
-			
-			sql = "SELECT Orders.billNo AS entityId FROM Orders WHERE orderDate = '"+serviceDate+"' AND billNo != ''  order by billNo asc LIMIT 1";
-			EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-			int billNo = entity.getId();
-			this.updateBillNo2(hotelId, serviceDate);
-			
-			allOrders = this.getAllVisibleOrders(hotelId, serviceDate);
-			for(int i=0; i<allOrders.size(); i++) {
-				this.updateBillNo(hotelId, allOrders.get(i).getOrderId(), Integer.toString(billNo));
-				billNo++;
-			}
-			
-			allOrders = this.getInVisibleOrders(hotelId, serviceDate);
-			for(int i=0; i<allOrders.size(); i++) {
-				sql = "UPDATE OrderItems SET billNo2 = billNo, billNo = '' WHERE orderId = '"+allOrders.get(i).getOrderId()+"' AND hotelId = '"+hotelId+"'; ";
-				
-				db.executeUpdate(sql, true);
-			}
-			
-			outObj.put("status", true);
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		return outObj;
-	}
-	
-	private boolean updateBillNo2(String hotelId, String serviceDate) {
-		
-		String sql = "UPDATE Orders SET billNo = '' WHERE orderDate = '"+serviceDate+"' AND hotelId = '"+hotelId+"'; "
-				+ "UPDATE Payment SET billNo = '' WHERE orderDate = '"+serviceDate+"' AND hotelId = '"+hotelId+"'; ";
-		
-		return db.executeUpdate(sql, true);
-	}
-	
-	private boolean updateBillNo(String hotelId, String orderId, String billNo) {
-		
-		String sql = "UPDATE Orders SET billNo = '"+billNo+"' WHERE orderId = '"+orderId+"' AND hotelId = '"+hotelId+"'; "
-				+ "UPDATE OrderItems SET billNo2 = billNo, billNo = '"+billNo+"' WHERE orderId = '"+orderId+"' AND hotelId = '"+hotelId+"'; "
-				+ "UPDATE Payment SET billNo = '"+billNo+"' WHERE orderId = '"+orderId+"' AND hotelId = '"+hotelId+"'; ";
-		
-		return db.executeUpdate(sql, true);
-	}
-
-	public JSONObject newNCOrder(String hotelId, String userId, String reference, String section, String remarks) {
-		JSONObject outObj = new JSONObject();
-		String orderId = "";
-		String sql = "";
-		try {
-			String serviceDate = this.getServiceDate(hotelId);
-			if (serviceDate == null) {
-				outObj.put("status", -1);
-				outObj.put("message", "Service has not started");
-				return outObj;
-			}
-			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, waiterId, numberOfGuests, "
-					+ "state, inhouse, serviceType, foodBill, barBill, section, reference, remarks) values ('" + hotelId + "', '" + orderId
-					+ "', '" + serviceDate + "', '" + userId + "', 1, "
-					+ Integer.toString(ORDER_STATE_COMPLETE) + "," + NON_CHARGEABLE + ",'" 
-					+ getCurrentService(hotelId).getServiceType() + "',0,0,'"+section+"', '"+reference+"', '"+remarks+"');";
-			
-			if (!db.executeUpdate(sql, true)) {
-				db.rollbackTransaction();
-				outObj.put("status", 1);
-				outObj.put("message", "Could Not place Order");
-				return outObj;
-			}
-			outObj.put("status", 0);
-			outObj.put("orderId", orderId);
-			return outObj;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public JSONObject newQsrOrder(String hotelId, String userId, String customer, String mobileNumber,
-			String allergyInfo, int orderType) {
-		JSONObject outObj = new JSONObject();
-		String orderId = "";
-		String sql = "";
-		try {
-			String serviceDate = this.getServiceDate(hotelId);
-			if (serviceDate == null) {
-				outObj.put("status", -1);
-				outObj.put("message", "Service has not started");
-				return outObj;
-			}
-			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, waiterId, numberOfGuests, state, inhouse, serviceType, foodBill, barBill) values ('"
-					+ hotelId + "', '" + orderId + "', '" + serviceDate + "','" + customer + "', '" + mobileNumber
-					+ "', '', '" + userId + "', " + 1 + ", " + Integer.toString(ORDER_STATE_COMPLETE) + "," + orderType
-					+ ",'" + getCurrentService(hotelId).getServiceType() + "',0,0);";
-
-			if (!hasCustomer(hotelId, mobileNumber)) {
-				addCustomer(hotelId, customer, mobileNumber, "", "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE);
-			} else {
-				modifyCustomer(hotelId, customer, mobileNumber, "", "", "", allergyInfo, "", Boolean.FALSE);
-			}
-			db.executeUpdate(sql, true);
-			outObj.put("status", 0);
-			outObj.put("orderId", orderId);
-			outObj.put("orderNumber", this.getOrderNumber(hotelId, orderId));
-			return outObj;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public JSONObject placeOrder(String hotelId, String userId, String customer, String phone, String address,
-			int orderType, int takeAwayType, String allergyInfo, String reference, String remarks) {
-		JSONObject outObj = new JSONObject();
-		String orderId = "";
-		String sql = "";
-		try {
-			String serviceDate = this.getServiceDate(hotelId);
-			Boolean status = false;
-			if (serviceDate == null) {
-				outObj.put("status", -1);
-				outObj.put("message", "Service has not started for the day");
-				return outObj;
-			}
-			if (!phone.equals("")) {
-				if (!hasCustomer(hotelId, phone)) {
-					status = addCustomer(hotelId, customer, phone, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE);
-				} else {
-					status = modifyCustomer(hotelId, customer, phone, "", "", "", allergyInfo, address, Boolean.FALSE);
-				}
-				if (!status) {
-					outObj.put("status", -1);
-					outObj.put("message", "Failed to update customer information");
-					db.rollbackTransaction();
-					return outObj;
-				}
-			}
-
-			String orderState = Integer.toString(ORDER_STATE_SERVICE);
-			String hotelType = getHotelById(hotelId).getHotelType();
-			if (hotelType.equals("PREPAID"))
-				orderState = Integer.toString(ORDER_STATE_BILLING);
-
-			orderId = getNextOrderId(hotelId, userId);
-			sql = "INSERT INTO Orders (hotelId, orderId, orderDate, customerName, "
-					+ "customerNumber, customerAddress, isSmsSent,  waiterId, numberOfGuests, state, inhouse, takeAwayType, serviceType, reference, remarks)"
-					+ " values ('" + hotelId + "', '" + orderId + "', '" + serviceDate + "','" + customer + "', '"
-					+ escapeString(phone) + "', '" + escapeString(address) + "',0, '" + userId + "', 1, "
-					+ orderState + "," + orderType + "," + takeAwayType + ",'" + getCurrentService(hotelId).getServiceType() + "', '"+reference
-					+ "', '"+remarks+"');";
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("status", -1);
-				outObj.put("message", "Failed to add order");
-				db.rollbackTransaction();
-				return outObj;
-			}
-			outObj.put("status", 0);
-			outObj.put("orderId", orderId);
-			return outObj;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public JSONObject newHomeDeliveryOrder(String hotelId, String userId, String customer, String phone, String address,
-			String allergyInfo, String remarks) {
-		return this.placeOrder(hotelId, userId, customer, phone, address, HOME_DELIVERY, OnlineOrderingPortals.NONE.getValue(), allergyInfo, "", remarks);
-	}
-
-	public JSONObject newTakeAwayOrder(String hotelId, String userId, String customer, String phone,
-			String externalId, String allergyInfo, String remarks) {
-		int takeAwaytype = OnlineOrderingPortals.COUNTER.getValue();
-		if(!externalId.equals("")) {
-			if(customer.equals("ZOMATO"))
-				takeAwaytype = OnlineOrderingPortals.ZOMATO.getValue();
-			else if(customer.equals("SWIGGY"))
-				takeAwaytype = OnlineOrderingPortals.SWIGGY.getValue();
-			else if(customer.equals("FOODPANDA"))
-				takeAwaytype = OnlineOrderingPortals.FOODPANDA.getValue();
-			else if(customer.equals("UBEREATS"))
-				takeAwaytype = OnlineOrderingPortals.UBEREATS.getValue();
-			else if(customer.equals("FOODILOO"))
-				takeAwaytype = OnlineOrderingPortals.FOODILOO.getValue();
-			customer = "";
-		}
-		return this.placeOrder(hotelId, userId, customer, phone, "", TAKE_AWAY, takeAwaytype, allergyInfo, externalId, remarks);
-	}
-
-	public JSONObject newBarOrder(String hotelId, String userId, String reference,
-			String remarks) {
-		return this.placeOrder(hotelId, userId, "", "", "", BAR, OnlineOrderingPortals.NONE.getValue(), "", reference, remarks);
-	}
-
-	public Boolean unCheckOutOrder(String hotelId, String orderId) {
-		String hotelType = this.getHotelById(hotelId).getHotelType();
-		String sql = "";
-		
-		if (hotelType.equals("PREPAID"))
-			sql += " UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_OFFKDS) + " WHERE orderId='" + orderId
-					+ "' AND hotelId='" + hotelId + "';";
-		else
-			sql += " UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_SERVICE) + " WHERE orderId='" + orderId
-					+ "' AND hotelId='" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean checkOutOrder(String hotelId, String orderId) {
-		String hotelType = this.getHotelById(hotelId).getHotelType();
-		String sql = "";
-		
-		if (hotelType.equals("PREPAID"))
-			sql += " UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_COMPLETE) + " WHERE orderId='" + orderId
-					+ "' AND hotelId='" + hotelId + "'; UPDATE OrderItems SET state="
-					+ Integer.toString(SUBORDER_STATE_COMPLETE) + " WHERE orderId='" + orderId + "' AND hotelId='"
-					+ hotelId + "'";
-		else
-			sql += " UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_BILLING) + " WHERE orderId='" + orderId
-					+ "' AND hotelId='" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-	
-	public Boolean updateDeliveryTime(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET deliveryTimeStamp = '"+parseTime("HH:mm")+ "' WHERE "
-				+ "hotelId = '" + hotelId + "' AND orderId = '"+ orderId + "';";
-		
-		return db.executeUpdate(sql, true);
-	}
-	
-	public Boolean updateCompleteTime(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET completeTimeStamp = '"+parseTime("HH:mm")+ "' WHERE "
-				+ "hotelId = '" + hotelId + "' AND orderId = '"+ orderId + "';";
-		
-		return db.executeUpdate(sql, true);
-	}
-	
-	public Boolean updateDeliveryBoy(String hotelId, String orderId, String employeeName) {
-		String sql = "UPDATE Orders SET deliveryBoy = '"+employeeName+ "' WHERE "
-				+ "hotelId = '" + hotelId + "' AND orderId = '"+ orderId + "';";
-		
-		return db.executeUpdate(sql, true);
-	}
-
-	public String updateBillNoInOrders(String hotelId, String orderId) {
-
-		String sql = "SELECT DISTINCT billNo AS entityId FROM OrderItems WHERE hotelId = '" + hotelId + "' AND orderId='" + orderId
-				+ "';";
-
-		ArrayList<EntityString> billNos = db.getRecords(sql, EntityString.class, hotelId);
-
-		StringBuilder billNo = new StringBuilder();
-
-		int offset = 1;
-		for (EntityString billNoFeild : billNos) {
-			billNo.append(billNoFeild.getEntity());
-			if (billNos.size() != offset)
-				billNo.append(";");
-			offset++;
-		}
-
-		sql = "UPDATE Orders SET billNo = '" + billNo.toString() + "', billNo2 = '" + billNo.toString() + "' WHERE hotelId = '" + hotelId + "' AND orderId='"
-				+ orderId + "';";
-
-		if (db.executeUpdate(sql, true)) {
-			return billNo.toString();
-		}
-		return "";
-	}
-
-	public Boolean changeOrderStatus(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_OFFKDS) + " WHERE orderId='" + orderId
-				+ "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean changeOrderStateToHidden(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_HIDDEN) + " WHERE orderId='" + orderId
-				+ "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean changeOrderStateToCancelled(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET state = "+ORDER_STATE_CANCELED+" WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-				+ "DELETE FROM OrderTables WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-				+ "DELETE FROM OrderSpecifications WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; ";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean markPaymentComplete(String hotelId, String orderId) {
-		String sql = "DELETE FROM OrderTables WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';"
-				+ "UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_COMPLETE) + " WHERE orderId='" + orderId
-				+ "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean changeOrderStatusToService(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET state=" + Integer.toString(ORDER_STATE_SERVICE) + " WHERE orderId='" + orderId
-				+ "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean editSubOrder(String hotelId, String orderId, String subOrderId, String menuId, int qty) {
-		String sql = null;
-		if (qty == 0) {
-			sql = "DELETE FROM OrderItems WHERE orderId='" + orderId + "' AND subOrderId=='" + subOrderId
-					+ "' AND menuId='" + menuId + "' AND hotelId='" + hotelId + "' AND state="
-					+ Integer.toString(SUBORDER_STATE_PENDING) + ";";
-		} else {
-			sql = "UPDATE OrderItems SET qty=" + Integer.toString(qty) + " WHERE orderId='" + orderId
-					+ "' AND subOrderId=='" + subOrderId + "' AND menuId='" + menuId + "' AND hotelId='" + hotelId
-					+ "' AND state=" + Integer.toString(SUBORDER_STATE_PENDING) + ";";
-		}
-		int itemId = qty + 1;
-		this.removeAddOns(hotelId, orderId, subOrderId, menuId, itemId);
-		this.removeOrderedSpecification(hotelId, orderId, subOrderId, menuId, itemId);
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean removeOrderedSpecification(String hotelId, String orderId, String subOrderId, String menuId,
-			int itemId) {
-		String sql = "DELETE FROM OrderSpecifications WHERE orderId='" + orderId + "' AND subOrderId=='" + subOrderId
-				+ "' AND menuId='" + menuId + "' AND hotelId='" + hotelId + "' AND itemId=" + itemId + ";";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean updateFoodBill(String hotelId, String orderId, String menuId, Integer qty, boolean isCancelled, BigDecimal rate) {
-		Order order = getOrderById(hotelId, orderId);
-		MenuItem menu = getMenuById(hotelId, menuId);
-
-		int veg = menu.getVegType();
-		BigDecimal total = new BigDecimal("0.0");
-		String sql = null;
-		if (isCancelled) {
-			if (veg == 3) {
-				total = order.getBarBill().subtract(rate);
-				sql = "UPDATE Orders SET foodBill = " + order.getFoodBill() + ", barBill = " + total
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			} else {
-				total = order.getFoodBill().subtract(rate);
-				sql = "UPDATE Orders SET foodBill = " + total + ", barBill = " + order.getBarBill()
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			}
-		} else {
-			if (veg == 3) {
-				total = rate.multiply(new BigDecimal(qty)).add(order.getBarBill());
-				sql = "UPDATE Orders SET foodBill = " + order.getFoodBill() + ", barBill = " + total
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			} else {
-				total = rate.multiply(new BigDecimal(qty)).add(order.getFoodBill());
-				sql = "UPDATE Orders SET foodBill = " + total + ", barBill = " + order.getBarBill()
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			}
-		}
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean updateFoodBillAddOn(String hotelId, String orderId, String subOrderId, String menuId, int itemId,
-			BigDecimal rate) {
-		Order order = getOrderById(hotelId, orderId);
-		int veg = getMenuById(hotelId, menuId).getVegType();
-		ArrayList<OrderAddOn> addOns = this.getOrderedAddOns(hotelId, orderId, subOrderId, menuId, itemId, false);
-		for (OrderAddOn addOn : addOns) {
-			BigDecimal total = new BigDecimal("0.0");
-			String sql = null;
-			if (veg == 3) {
-				total = rate.multiply(new BigDecimal(addOn.getQty())).add(order.getBarBill());
-				sql = "UPDATE Orders SET foodBill = " + order.getFoodBill() + ", barBill = " + total
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			} else {
-				total = rate.multiply(new BigDecimal(addOn.getQty())).add(order.getFoodBill());
-				sql = "UPDATE Orders SET foodBill = " + total + ", barBill = " + order.getBarBill()
-						+ " WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-			}
-			if (!db.executeUpdate(sql, true))
-				return false;
-		}
-		return true;
-	}
-
-	public Boolean updateFoodBillAddOnReturn(String hotelId, String orderId, String subOrderId, String menuId,
-			int itemId, int addOnId) {
-		OrderAddOn addOn = this.getOrderedAddOnById(hotelId, orderId, subOrderId, menuId, itemId, addOnId);
-		Order order = getOrderById(hotelId, orderId);
-		int veg = getMenuById(hotelId, menuId).getVegType();
-		BigDecimal rate = addOn.getRate();
-		BigDecimal total = new BigDecimal("0.0");
-		String sql = null;
-		if (veg == 3) {
-			total = order.getBarBill().subtract(rate).multiply(new BigDecimal(addOn.getQty()));
-			sql = "UPDATE Orders SET foodBill = " + order.getFoodBill() + ", barBill = " + total + " WHERE hotelId = '"
-					+ hotelId + "' AND orderId = '" + orderId + "';";
-		} else {
-			total = order.getFoodBill().subtract(rate).multiply(new BigDecimal(addOn.getQty()));
-			sql = "UPDATE Orders SET foodBill = " + total + ", barBill = " + order.getBarBill() + " WHERE hotelId = '"
-					+ hotelId + "' AND orderId = '" + orderId + "';";
-		}
-		if (!db.executeUpdate(sql, true))
-			return false;
-		return true;
-	}
-
-	public Boolean removeSubOrder(String hotelId, String orderId, String subOrderId, String menuId, int qty) {
-		String sql = null;
-		if (qty == 0) {
-			sql = "DELETE FROM OrderItems WHERE orderId='" + orderId + "' AND subOrderId=='" + subOrderId
-					+ "' AND menuId='" + menuId + "' AND hotelId='" + hotelId + "';";
-		} else {
-			sql = "UPDATE OrderItems SET qty=" + qty + " WHERE orderId='" + orderId + "' AND subOrderId=='" + subOrderId
-					+ "' AND menuId='" + menuId + "' AND hotelId='" + hotelId + "';";
-		}
-		this.removeOrderedSpecification(hotelId, orderId, subOrderId, menuId, qty + 1);
-		return db.executeUpdate(sql, true);
-	}
-
-	public JSONObject voidOrder(String hotelId, String orderId, String reason, String authId, String section) {
-
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("status", false);
-
-			Order order = getOrderById(hotelId, orderId);
-
-			String sql = "UPDATE Orders SET state=" + ORDER_STATE_VOIDED + ", foodBill = 0, barBill = 0, reason = '"
-					+ reason + "', authId = '" + authId + "' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId
-					+ "';";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Failed to void the order. Please try again.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-
-			if (order.getState() == ORDER_STATE_BILLING || order.getState() == ORDER_STATE_OFFKDS
-					|| order.getState() == ORDER_STATE_SERVICE) {
-
-				sql = "DELETE FROM OrderTables WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-				if (!db.executeUpdate(sql, true)) {
-					outObj.put("message", "Failed to delete Order table. Please try again");
-					db.rollbackTransaction();
-					return outObj;
-				}
-
-				String billNo = this.updateBillNoInOrders(hotelId, orderId);
-				sql = "INSERT INTO Payment (hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, total, cardType, foodDiscount, barDiscount, gst, cashPayment, cardPayment, appPayment"
-						+ ", VATBAR, complimentary, loyaltyAmount) "
-						+ "VALUES('" + hotelId + "', '" + billNo + "', '" + billNo + "', '"
-						+ orderId + "', '" + this.getServiceDate(hotelId) + "', "
-						+ order.getFoodBill() + ", " + order.getBarBill() + ", "
-						+ "0, 'VOID',0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);";
-			} else {
-				this.updateCashBalance(hotelId, this.getCashBalance(hotelId, section).subtract((this.getPayment(hotelId, orderId).getCashPayment())));
-				sql = "UPDATE Payment SET cashPayment = 0, foodDiscount = 0,  barDiscount = 0, gst = 0, VATBAR = 0, complimentary = 0, loyaltyAmount = 0, cardPayment = 0, appPayment = 0, cardType = 'VOID', total = 0 WHERE orderId = '" + orderId
-						+ "' AND hotelID = '" + hotelId + "';";
-				
-			}
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Failed to insert/update Payment. Please try again.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-
-			ArrayList<OrderItem> orderitems = this.getOrderedItemForVoid(hotelId, orderId);
-
-			for (OrderItem orderItem : orderitems) {
-				if (!this.updateOrderItemLog(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), "Void",
-						"void", orderItem.getQty(), orderItem.getRate(), 0)) {
-					outObj.put("message", "Failed to update OrderItem Log. Please try again.");
-					db.rollbackTransaction();
-					return outObj;
-				}
-				if (!this.removeSubOrder(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), 0)) {
-					outObj.put("message", "Failed to remove Ordered Item. Please try again.");
-					db.rollbackTransaction();
-					return outObj;
-				}
-				ArrayList<OrderAddOn> addOns = this.getAllOrderedAddOns(hotelId, orderId);
-				for (OrderAddOn orderAddOn : addOns) {
-					if (!this.updateOrderAddOnLog(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getSubOrderDate(), orderItem.getMenuId(),
-							orderAddOn.getItemId(), "void", orderAddOn.getQty(), orderAddOn.getRate(),
-							orderAddOn.getAddOnId())) {
-						outObj.put("message", "Failed to update Addon Log. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-					if (!this.removeAddOns(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), 0)) {
-						outObj.put("message", "Failed to remove Ordered Addon. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-				}
-			}
-			
-			sql = "UPDATE OrderItemLog SET state=" + ORDER_STATE_VOIDED + ", reason = 'Void' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId
-					+ "';";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Failed to void the order. Please try again.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-			outObj.put("status", true);
-			db.commitTransaction();
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			db.rollbackTransaction();
-			e.printStackTrace();
-		}
-		return outObj;
-	}
-
-	public Boolean complimentaryOrder(String hotelId, String orderId, String authId) {
-
-		String sql = "UPDATE Orders SET state=" + ORDER_STATE_COMPLIMENTARY + ", foodBill = 0, barBill = 0, "
-				+ "authId = '" + authId + "' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-
-		ArrayList<OrderItem> orderitems = this.getOrderedItems(hotelId, orderId);
-
-		for (OrderItem orderItem : orderitems) {
-			this.updateOrderItemLog(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), "Complimentary",
-					"comp", orderItem.getQty(), new BigDecimal("0.0"), 0);
-			this.removeSubOrder(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), 0);
-			ArrayList<OrderAddOn> addOns = this.getAllOrderedAddOns(hotelId, orderId);
-			for (OrderAddOn orderAddOn : addOns) {
-				this.updateOrderAddOnLog(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getSubOrderDate(), orderItem.getMenuId(),
-						orderAddOn.getItemId(), "comp", orderAddOn.getQty(), orderAddOn.getRate(),
-						orderAddOn.getAddOnId());
-				this.removeAddOns(hotelId, orderId, orderItem.getSubOrderId(), orderItem.getMenuId(), 0);
-			}
-		}
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean complimentaryItem(String hotelId, String orderId, String menuId, String authId, String subOrderId,
-			BigDecimal rate, int qty, String reason) {
-
-		if (this.updateOrderItemLog(hotelId, orderId, subOrderId, menuId, reason, "comp", 1, rate, 0)) {
-			this.removeSubOrder(hotelId, orderId, subOrderId, menuId, qty - 1);
-			return true;
-		}
-		return false;
-	}
-
-	public boolean complimentaryAddOn(String hotelId, String orderId, int addOnId, String authId, String menuId,
-			String subOrderId, String subOrderDate, int itemId, BigDecimal rate, int qty) {
-
-		if (this.updateOrderAddOnLog(hotelId, orderId, subOrderId, subOrderDate, menuId, itemId, "comp", 1, rate, addOnId)) {
-			this.removeAddOn(hotelId, orderId, subOrderId, menuId, qty - 1, addOnId, itemId);
-			return true;
-		}
-		return false;
-	}
-
-	public JSONObject newSubOrder(String hotelId, String orderId, String menuId, Integer qty, String specs,
-			String subOrderId, String waiterId, BigDecimal rate) {
-		JSONObject outObj = new JSONObject();
-		String sql = null;
-		try {
-			outObj.put("status", -1);
-			outObj.put("message", "Unknown error!");
-			MenuItem menu = getMenuById(hotelId, menuId);
-			String billNo = getCurrentBill(hotelId, orderId,
-					menu.getStation().equals("Bar") || menu.getStation().equals("BAR") ? "B" : "F",
-					this.getHotelById(hotelId).getBillType());
-			if (billNo.equals("")) {
-				if (this.getHotelById(hotelId).getBillType() == BILLTYPE_NUMBER)
-					billNo = this.getNextBillNoNumberFormat(hotelId);
-				else if(this.getHotelById(hotelId).getBillType() == BILLTYPE_NUMBER_REFRESH)
-					billNo = this.getNextBillNoNumberFormatDaywise(hotelId);
-				else if(this.getHotelById(hotelId).getBillType() == BILLTYPE_BF)
-					billNo = this.getNextBillNo(hotelId, menu.getStation());
-			}
-			Order order = this.getOrderById(hotelId, orderId);
-			if(!menu.getFlags().contains("ci")) {
-				if(order.getInHouse() == INHOUSE || order.getInHouse() == BAR || order.getInHouse() == NON_CHARGEABLE)
-					rate = menu.getInhouseRate();
-				else if(order.getInHouse() == HOME_DELIVERY || (order.getInHouse() == TAKE_AWAY && order.getTakeAwayType() == OnlineOrderingPortals.COUNTER.getValue()))
-					rate = menu.getRate();
-				else
-					rate = menu.getOnlineRate();
-			}
-			
-			String orderState = Integer.toString(SUBORDER_STATE_PENDING);
-			boolean hasKds = getHotelById(hotelId).getHasKds();
-			int kotPrinting = 1;
-			if (!hasKds) {
-				orderState = Integer.toString(SUBORDER_STATE_COMPLETE);
-				kotPrinting = 0;
-			}
-			
-			sql = "INSERT INTO OrderItems (hotelId, subOrderId, subOrderDate, orderId, menuId, qty, rate, specs, state, billNo, billNo2, isKotPrinted, waiterId) values ('"
-					+ hotelId + "', '" + subOrderId + "', '"
-					+ (new SimpleDateFormat("yyyy/MM/dd HH:mm")).format(new Date()) + "','" + orderId + "', '" + menuId
-					+ "', " + Integer.toString(qty) + ", " + (new DecimalFormat("0.00")).format(rate) + ", '" + specs
-					+ "', " + orderState + ", '" + billNo + "', '" + billNo + "', " + kotPrinting + ", '" + waiterId + "');";
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("status", -1);
-				outObj.put("message", "Failed to add suborder");
-				return outObj;
-			}
-			updateFoodBill(hotelId, orderId, menuId, qty, false, rate);
-
-			if (!hasKds) {
-				this.manageStock(hotelId, menuId, subOrderId, orderId);
-			}
-			outObj.put("status", 0);
-			outObj.put("subOrderId", subOrderId);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return outObj;
-	}
-
-	public String getCurrentBill(String hotelId, String orderId, String type, int billType) {
-		String sql = "SELECT billNo AS entityId FROM orderitems WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId
-				+ "' AND billNo LIKE '" + type + "%';";
-		if (billType == BILLTYPE_NUMBER || billType == BILLTYPE_NUMBER_REFRESH)
-			sql = "SELECT billNo AS entityId FROM orderitems WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-
-		EntityString billNoFeild = db.getOneRecord(sql, EntityString.class, hotelId);
-
-		if (billNoFeild == null)
-			return "";
-		return billNoFeild.getEntity();
-	}
-
-	public Integer getOrderCount(String hotelId, String userId, Date dt) {
-		/* A small Hack */
-		String sql = "SELECT count(orderId) AS entityId FROM Orders WHERE waiterId=='" + userId + "' AND orderDate=='"
-				+ (new SimpleDateFormat("yyyy/MM/dd")).format(dt) + "' AND hotelId='" + hotelId + "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public Boolean updateSpecifications(String hotelId, String orderId, String subOrderId, String menuId,
-			String specs) {
-
-		String sql = "UPDATE OrderItems SET specs='" + specs + "' WHERE subOrderId=='" + subOrderId + "' AND menuId='"
-				+ menuId + "' AND orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean changeOrderStatus(String hotelId, String orderId, String subOrderId, String menuId) {
-		String sql = null;
-		OrderItem item = getOrderStatus(hotelId, orderId, subOrderId, menuId);
-		int curState = item.state;
-		ArrayList<Table> tables = getJoinedTables(hotelId, orderId);
-		String tableId = "";
-		if (tables.size() > 0) {
-			tableId = tables.get(0).getTableId();
-		}
-		String userId = orderId.split(":")[0];
-		Hotel hotel = this.getHotelById(hotelId);
-
-		if (curState == SUBORDER_STATE_PENDING) {
-			sql = "UPDATE OrderItems SET state=" + Integer.toString(SUBORDER_STATE_PROCESSING) + " WHERE subOrderId=='"
-					+ subOrderId + "' AND menuId='" + menuId + "' AND orderId='" + orderId + "' AND hotelId='" + hotelId
-					+ "';";
-		} else if (curState == SUBORDER_STATE_PROCESSING) {
-			sql = "UPDATE OrderItems SET state=" + Integer.toString(SUBORDER_STATE_RECIEVED) + " WHERE subOrderId=='"
-					+ subOrderId + "' AND menuId='" + menuId + "' AND orderId='" + orderId + "' AND hotelId='" + hotelId
-					+ "';";
-			Boolean retval = db.executeUpdate(sql, true);
-			if (!retval)
-				return retval;
-			if (allItemsProcessedOrReceived(hotelId, orderId)) {
-				int notId = getNextNotificationId(userId, hotelId);
-				String target = tableId.equals("") ? "Home Delivery" : "Table " + tableId;
-				if (hotel.getHotelType().equals("KDS")) {
-					String msg = "Order of " + target + " is ready.";
-					sql += "INSERT INTO Notification (notId, hotelId, orderId, msg) VALUES (" + Integer.toString(notId)
-							+ ", '" + hotelId + "','" + orderId + "', '" + msg + "');";
-				}
-				db.executeUpdate(sql, true);
-			} else if (!tableId.equals("")) {
-				int notId = getNextNotificationId(userId, hotelId);
-				if (hotel.getHotelType().equals("KDS")) {
-					String msg = item.title + " of Table " + tableId + " is ready.";
-					sql += "INSERT INTO Notification (notId, hotelId, orderId, msg) VALUES (" + Integer.toString(notId)
-							+ ", '" + hotelId + "','" + orderId + "', '" + msg + "');";
-				}
-				db.executeUpdate(sql, true);
-			}
-			this.manageStock(hotelId, menuId, subOrderId, orderId);
-
-			return retval;
-		} else if (curState == SUBORDER_STATE_RECIEVED) {
-			sql = "UPDATE OrderItems SET state=" + Integer.toString(SUBORDER_STATE_COMPLETE) + " WHERE subOrderId=='"
-					+ subOrderId + "' AND menuId='" + menuId + "' AND orderId='" + orderId + "' AND hotelId='" + hotelId
-					+ "';";
-		} else {
-			return false;
-		}
-		return db.executeUpdate(sql, true);
-	}
-
-	private int getQuantityOfOrderedItem(String hotelId, String menuId, String subOrderId, String orderId) {
-
-		String sql = "SELECT qty AS entityId FROM OrderItems WHERE menuId = '" + menuId + "' AND subOrderId = '"
-				+ subOrderId + "' AND orderId = '" + orderId + "' AND hotelId = '" + hotelId + "';";
-
-		return db.getOneRecord(sql, EntityId.class, hotelId).getId();
-	}
-
-	private Boolean allItemsProcessedOrReceived(String hotelId, String orderId) {
-		String sql = "SELECT * FROM OrderItems WHERE hotelId=='" + hotelId + "' AND orderId=='" + orderId
-				+ "' AND state<>" + Integer.toString(SUBORDER_STATE_RECIEVED) + " AND state <> "
-				+ Integer.toString(SUBORDER_STATE_COMPLETE);
-		return !db.hasRecords(sql, hotelId);
-	}
-
-	public OrderItem getOrderStatus(String hotelId, String orderId, String subOrderId, String menuId) {
-		String sql = "SELECT MenuItems.title as title,OrderItems.state FROM OrderItems,MenuItems WHERE MenuItems.menuId==OrderItems.menuId AND OrderItems.menuId='"
-				+ menuId + "' AND OrderItems.subOrderId='" + subOrderId + "' AND OrderItems.orderId='" + orderId
-				+ "' AND OrderItems.hotelId='" + hotelId + "';";
-		return db.getOneRecord(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> getReturnedItems(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItemLog.subOrderId AS subOrderId, OrderItemLog.subOrderDate AS subOrderDate, "
-				+ "OrderItemLog.menuId AS menuId, OrderItemLog.quantity AS qty, "
-				+ "OrderItemLog.itemId AS itemId, MenuItems.title AS title, OrderItemLog.rate AS rate, "
-				+ "OrderItemLog.reason AS reason, "
-				+ "OrderItemLog.state AS state FROM OrderItemLog, MenuItems WHERE OrderItemLog.orderId='" + orderId
-				+ "' AND OrderItemLog.menuId==MenuItems.menuId AND OrderItemLog.hotelId='" + hotelId + "';";
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	public Order getOrderById(String hotelId, String orderId) {
-		String sql = "SELECT * FROM Orders WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-
-		return db.getOneRecord(sql, Order.class, hotelId);
-	}
-
-	public Table getTableById(String hotelId, String tableId) {
-		String sql = "SELECT * FROM TABLES WHERE tableId = '" + tableId + "' AND hotelID = '" + hotelId + "';";
-
-		return db.getOneRecord(sql, Table.class, hotelId);
-	}
-
-	public Boolean hasCheckedOutOrders(String hotelId, String serviceDate) {
-		String sql = "SELECT * FROM Orders WHERE (state == 0 OR state == 1 OR state == 2) AND hotelId = '" + hotelId
-				+ "' AND orderDate == '" + serviceDate + "';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public boolean checkServiceCharge(String hotelId, String orderId) {
-		String sql = "SELECT serviceCharge AS entityId FROM Payment WHERE orderId='" + orderId + "' AND hotelId='"
-				+ hotelId + "';";
-		boolean hasSC = db.hasRecords(sql, hotelId);
-		BigDecimal sc = new BigDecimal("0.0");
-		if (hasSC)
-			sc = db.getOneRecord(sql, EntityBigDecimal.class, hotelId).getId();
-		if (sc.compareTo(new BigDecimal("0.0")) == 1)
-			return true;
-		else
-			return false;
-	}
-
-	private String getNextOrderId(String hotelId, String userId) {
-		String sql = "SELECT MAX(CAST(SUBSTR(orderId," + Integer.toString(userId.length() + 2)
-				+ ") AS integer)) AS entityId FROM Orders WHERE orderId LIKE '" + userId + ":%'  AND hotelId='"
-				+ hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return userId + ":" + (entity.getId() + 1);
-		}
-		return userId + ":0";
-	}
-
-	private int getOrderNumber(String hotelId, String orderId) {
-		String sql = "SELECT Id AS entityId FROM Orders WHERE orderId = '" + orderId + "' AND hotelId='" + hotelId
-				+ "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		return entity.getId();
-	}
-
-	public String getNextBillNo(String hotelId, String station) {
-
-		StringBuilder billNo = new StringBuilder();
-		if (station.equals("BAR") || station.equals("Bar"))
-			billNo.append("B");
-		else
-			billNo.append("F");
-
-		String sql = "SELECT MAX(CAST(REPLACE(billNo, '" + billNo.toString() + "', '') AS integer)) AS entityId "
-				+ "FROM OrderItems WHERE hotelId='" + hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum1 = entity.getId();
-
-		sql = "SELECT MAX(CAST(REPLACE(billNo, '" + billNo.toString() + "', '') AS integer)) AS entityId "
-				+ "FROM Orders WHERE hotelId='" + hotelId + "'";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
-
-		return billNo.toString();
-	}
-
-	public String getNextBillNoNumberFormat(String hotelId) {
-
-		StringBuilder billNo = new StringBuilder();
-
-		String sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM OrderItems WHERE hotelId='" + hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum1 = entity.getId();
-
-		sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId + "'";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
-
-		return billNo.toString();
-	}
-
-	public String getNextBillNoNumberFormatDaywise(String hotelId) {
-
-		StringBuilder billNo = new StringBuilder();
-		String serviceDate = this.getServiceDate(hotelId);
-		String sql = "SELECT MAX(CAST(OrderItems.billNo AS integer)) AS entityId FROM OrderItems, Orders WHERE OrderItems.hotelId='"
-				+ hotelId + "' AND Orders.orderId == OrderItems.orderId AND Orders.orderDate=='" + serviceDate + "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum1 = entity==null?1:entity.getId();
-
-		sql = "SELECT MAX(CAST(billNo AS integer)) AS entityId FROM Orders WHERE hotelId='" + hotelId 
-				+ "' AND Orders.orderDate=='" + serviceDate + "';";
-		entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		int billNum2 = entity==null?1:entity.getId();
-
-		if (billNum1 > billNum2)
-			billNo.append(billNum1 + 1);
-		else
-			billNo.append(billNum2 + 1);
-
-		return billNo.toString();
-	}
-
-	public String getNextSubOrderId(String hotelId, String orderId) {
-		String sql = "SELECT MAX(CAST(subOrderId AS integer)) AS entityId FROM OrderItems WHERE orderId == '" + orderId
-				+ "' AND hotelId='" + hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return Integer.toString(entity.getId() + 1);
-		}
-		return "0";
-	}
-
-	public int getTotalBillAmount(String hotelId, String orderId) {
-		String sql = "SELECT SUM(rate*qty) AS entityId FROM OrderItems WHERE hotelId='" + hotelId + "' AND orderId='"
-				+ orderId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public ArrayList<HomeDelivery> getActiveHomeDeliveries(String hotelId, String userId) {
-
-		Hotel hotel = this.getHotelById(hotelId);
-		String sql = "SELECT Orders.state, Orders.billNo, Orders.remarks, Orders.customerAddress as address, "
-				+ "Orders.customerName as customer, Orders.customerNumber as mobileNo, Orders.orderId, Orders.takeAwayType "
-				+ "FROM Orders WHERE inhouse="
-				+ HOME_DELIVERY + " AND Orders.state=";
-
-		if (hotel.getHotelType().equals("PREPAID") && !hotel.getHasKds())
-			sql += Integer.toString(ORDER_STATE_BILLING);
-		else
-			sql += Integer.toString(ORDER_STATE_SERVICE);
-
-		sql += " AND hotelId='" + hotelId + "' GROUP BY Orders.orderId";
-		return db.getRecords(sql, HomeDelivery.class, hotelId);
-	}
-
-	public ArrayList<HomeDelivery> getActiveTakeAway(String hotelId, String userId) {
-
-		Hotel hotel = this.getHotelById(hotelId);
-		String sql = "SELECT Orders.state, Orders.billNo, Orders.reference, Orders.remarks, Orders.customerName as customer, "
-				+ "Orders.customerNumber as mobileNo, Orders.orderId, Orders.takeAwayType FROM Orders WHERE inhouse="
-				+ TAKE_AWAY + " AND Orders.state=";
-
-		if (hotel.getHotelType().equals("PREPAID") && !hotel.getHasKds())
-			sql += Integer.toString(ORDER_STATE_BILLING);
-		else
-			sql += Integer.toString(ORDER_STATE_SERVICE);
-
-		sql += " AND hotelId='" + hotelId + "' GROUP BY Orders.orderId";
-		return db.getRecords(sql, HomeDelivery.class, hotelId);
-	}
-
-	public ArrayList<HomeDelivery> getActiveBarOrders(String hotelId, String userId) {
-
-		Hotel hotel = this.getHotelById(hotelId);
-		String sql = "SELECT Orders.state AS state, Orders.customerName as customer, Orders.customerNumber as mobileNo, "
-				+ "Orders.customerAddress as address, Orders.orderId, Orders.reference, Orders.remarks FROM Orders WHERE inhouse="
-				+ BAR + " AND Orders.state=";
-
-		if (hotel.getHotelType().equals("PREPAID") && !hotel.getHasKds())
-			sql += Integer.toString(ORDER_STATE_BILLING);
-		else
-			sql += Integer.toString(ORDER_STATE_SERVICE);
-		
-		sql += " AND hotelId='" + hotelId + "' GROUP BY Orders.orderId";
-
-		return db.getRecords(sql, HomeDelivery.class, hotelId);
-	}
-
-	public BigDecimal getOrderTotal(String hotelId, String orderId) {
-		String sql = "SELECT TOTAL(OrderItems.qty*OrderItems.rate) AS entityId FROM OrderItems WHERE OrderItems.orderId='" + orderId
-				+ "' AND OrderItems.hotelId='" + hotelId + "'";
-		EntityBigDecimal amount = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		if (amount == null) {
-			return new BigDecimal("0.0");
-		}
-		return amount.getId();
-	}
-
-	public Boolean isHomeDeliveryOrder(String hotelId, String orderId) {
-		String sql = "SELECT * FROM Orders WHERE orderId='" + orderId + "' AND inhouse==0 AND hotelId='" + hotelId
-				+ "'";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public Boolean isTakeAwayOrder(String hotelId, String orderId) {
-		String sql = "SELECT * FROM Orders WHERE orderId='" + orderId + "' AND inhouse==2 AND hotelId='" + hotelId
-				+ "'";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public Boolean isBarOrder(String hotelId, String orderId) {
-		String sql = "SELECT * FROM Orders WHERE orderId='" + orderId + "' AND inhouse==3 AND hotelId='" + hotelId
-				+ "'";
-		return db.hasRecords(sql, hotelId);
-	}
-	
-	public ArrayList<OrderItem> getReturnedOrders(String hotelId, String orderId){
-		String sql = null;
-		
-		sql = "SELECT * FROM OrderItemLog WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'";
-		
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-	
-	public ArrayList<OrderItem> getCancellableOrderedItems(String hotelId, String orderId){
-		String sql = null;
-
-		sql = "SELECT * FROM OrderItems WHERE orderId=='" + orderId + "' AND state!="
-				+ Integer.toString(SUBORDER_STATE_PENDING) + " AND hotelId='" + hotelId + "'";
-		
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-	
-	public Boolean deleteOrder(String hotelId, String orderId) {
-		String sql = null;
-		sql = "DELETE FROM OrderItems WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-					+ "DELETE FROM Orders WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-					+ "DELETE FROM OrderTables WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-					+ "DELETE FROM OrderSpecifications WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; "
-					+ "DELETE FROM OrderAddons WHERE orderId=='" + orderId + "' AND hotelId='" + hotelId + "'; ";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateOrderItemLog(String hotelId, String orderId, String subOrderId, String menuId, String reason,
-			String type, int quantity, BigDecimal rate, int itemId) {
-
-		int state = SUBORDER_STATE_RETURNED;
-		if (type == "void")
-			state = SUBORDER_STATE_VOIDED;
-		else if (type == "comp")
-			state = SUBORDER_STATE_COMPLIMENTARY;
-		else if (type == "cancel")
-			state = SUBORDER_STATE_CANCELED;
-
-		OrderItem orderedItem = this.getOrderedItem(hotelId, orderId, subOrderId, menuId);
-
-		String sql = "INSERT INTO OrderItemLog "
-				+ "(hotelId, orderId, subOrderId, subOrderDate, menuId, state, reason, dateTime, quantity, rate, itemId) "
-				+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(orderId) + "', '"
-				+ escapeString(subOrderId) + "', '" + escapeString(orderedItem.getSubOrderDate()) + "', '"
-				+ escapeString(menuId) + "', " + state + ", '" + reason + "', '"
-				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', " + quantity + ", " + rate + ", "
-				+ itemId + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateOrderAddOnLog(String hotelId, String orderId, String subOrderId, String subOrderDate, String menuId, 
-			int itemId, String type, int quantity, BigDecimal rate, int addOnId) {
-
-		int state = SUBORDER_STATE_RETURNED;
-		if (type == "void")
-			state = SUBORDER_STATE_VOIDED;
-		else if (type == "comp")
-			state = SUBORDER_STATE_COMPLIMENTARY;
-		else if (type == "comp")
-			state = SUBORDER_STATE_CANCELED;
-
-		String sql = "INSERT INTO OrderAddOnLog "
-				+ "(hotelId, orderId, subOrderId, subOrderDate, menuId, state, itemId, quantity, rate, addOnId) VALUES('"
-				+ escapeString(hotelId) + "', '" + escapeString(orderId) + "', " + escapeString(subOrderId) + ", '"
-				+ escapeString(subOrderDate) + "', '" + escapeString(menuId) + "', '" + state + "', " + itemId + ", " 
-				+ quantity + ", " + rate + ", " + addOnId + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateOrderPrintCount(String hotelId, String orderId) {
-
-		String sql = "SELECT printCount AS entityId FROM Orders WHERE hotelId = '" + hotelId + "' AND orderId = '"
-				+ orderId + "';";
-
-		int printCount = getOrderPrintCount(hotelId, orderId) + 1;
-
-		sql = "UPDATE Orders SET printCount = " + printCount + " WHERE hotelId = '" + hotelId + "' AND orderId = '"
-				+ orderId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateOrderSMSStatusDone(String hotelId, String orderId) {
-		String sql = "UPDATE Orders SET isSmsSent = 1 WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId
-				+ "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public int getOrderPrintCount(String hotelId, String orderId) {
-
-		String sql = "SELECT printCount AS entityId FROM Orders WHERE hotelId = '" + hotelId + "' AND orderId = '"
-				+ orderId + "';";
-
-		return db.getOneRecord(sql, EntityId.class, hotelId).getId();
-	}
-
-	public boolean updateKOTStatus(String hotelId, String orderId) {
-
-		String sql = "UPDATE OrderItems SET isKotPrinted = 1 WHERE hotelId = '" + hotelId + "' AND orderId = '"
-				+ orderId + "';";
-		return db.executeUpdate(sql, true);
-	}
-	
-	// ---------------------------------------Table
-
-	public ArrayList<TableUsage> getTableUsage(String hotelId, String userId) {
-		String sql = "SELECT Tables.tableId, (SELECT orderId FROM OrderTables WHERE OrderTables.tableId == Tables.tableId) AS orderId, "
-				+ "(SELECT Orders.waiterId FROM Orders, OrderTables WHERE OrderTables.tableId == Tables.tableId AND OrderTables.orderId == Orders.orderId) AS userId, "
-				+ "(SELECT Orders.state FROM Orders, OrderTables WHERE OrderTables.tableId == Tables.tableId AND OrderTables.orderId == Orders.orderId) AS state "
-				+ "FROM Tables WHERE hotelId='" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, TableUsage.class, hotelId);
-	}
-
-	public ArrayList<TableUsage> getTables(String hotelId) {
-		String sql = "SELECT * FROM Tables WHERE hotelId='" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, TableUsage.class, hotelId);
-	}
-
-	public boolean isTableOrder(String hotelId, String orderId) {
-		String sql = "SELECT * FROM OrderTables WHERE orderId=='" + orderId + "' AND hotelId=='" + hotelId + "';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public String getOrderIdFromTables(String hotelId, String tableId) {
-		String sql = "SELECT orderId FROM OrderTables WHERE tableId=='" + tableId + "' AND  hotelId='" + hotelId + "';";
-		String orderId = db.getOneRecord(sql, TableUsage.class, hotelId).getOrderId();
-
-		if (orderId == null)
-			return null;
-		else
-			return orderId;
-	}
-
-	public ArrayList<Table> getJoinedTables(String hotelId, String orderId) {
-		String sql = "SELECT * FROM OrderTables WHERE orderId == '" + orderId + "' AND hotelId='" + hotelId + "'";
-		return db.getRecords(sql, Table.class, hotelId);
-	}
-
-	public boolean transferTable(String hotelId, String oldTableId, String newTableId, String orderId) {
-		String sql = "UPDATE OrderTables SET tableId='" + newTableId + "' WHERE hotelId='" + hotelId + "' AND tableId='"
-				+ oldTableId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public JSONObject moveItem(String hotelId, int oldTableNumber, int newTableNumber, JSONArray orderItemIds) {
-
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("status", false);
-
-			String sql = "SELECT * FROM OrderTables WHERE tableId = '" + oldTableNumber + "' AND hotelId='" + hotelId
-					+ "';";
-
-			Table oldTable = db.getOneRecord(sql, Table.class, hotelId);
-
-			sql = "SELECT COUNT(id) AS entityId FROM OrderItems WHERE orderId = '" + oldTable.getOrderId()
-					+ "' AND hotelId='" + hotelId + "';";
-			int itemCount = db.getOneRecord(sql, EntityId.class, hotelId).getId();
-			if (itemCount == orderItemIds.length()) {
-				outObj.put("message", "Cannot move all item. Please cancel or void order.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-
-			sql = "SELECT * FROM OrderTables WHERE tableId = '" + newTableNumber + "' AND hotelId='" + hotelId + "';";
-
-			Table newTable = db.getOneRecord(sql, Table.class, hotelId);
-			Order newOrder = this.getOrderById(hotelId, newTable.getOrderId());
-			String billNo = newOrder.getBillNo();
-
-			for (int i = 0; i < orderItemIds.length(); i++) {
-				JSONObject orderItemId = orderItemIds.getJSONObject(i);
-				sql = "SELECT * FROM OrderItems WHERE Id = " + orderItemId.getInt("id");
-				OrderItem item = db.getOneRecord(sql, OrderItem.class, hotelId);
-				try {
-					if (billNo.equals("")) {
-						if (this.getHotelById(hotelId).getBillType() == BILLTYPE_NUMBER)
-							billNo = this.getNextBillNoNumberFormat(hotelId);
-						else if(this.getHotelById(hotelId).getBillType() == BILLTYPE_NUMBER_REFRESH)
-							billNo = this.getNextBillNoNumberFormatDaywise(hotelId);
-						else {
-							sql = "SELECT station AS entityId FROM MenuItems WHERE menuId = '" + item.getMenuId()
-									+ "';";
-							String station = db.getOneRecord(sql, EntityString.class, hotelId).getEntity();
-							billNo = this.getNextBillNo(hotelId, station);
-						}
-					}
-					String subOrderId = this.getNextSubOrderId(hotelId, newTable.getOrderId());
-					sql = "UPDATE OrderItems SET orderId = '" + newTable.getOrderId() + "', billNo = '" + billNo
-							+ "', subOrderId = '" + subOrderId + "' WHERE Id = " + orderItemId.getInt("id") + ";";
-					if (!db.executeUpdate(sql, true)) {
-						outObj.put("message", "Failed to move order. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-					sql = "UPDATE OrderAddOns SET orderId = '" + newTable.getOrderId() + "', subOrderId = '"
-							+ subOrderId + "' WHERE orderId = '" + item.getOrderId() + "' AND subOrderId = '"
-							+ item.getSubOrderId() + "' AND menuId = '" + item.getMenuId() + "';";
-					if (!db.executeUpdate(sql, true)) {
-						outObj.put("message", "Failed to move AddOn. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-					sql = "UPDATE OrderSpecifications SET orderId = '" + newTable.getOrderId() + "', subOrderId = '"
-							+ subOrderId + "' WHERE orderId = '" + item.getOrderId() + "' AND subOrderId = '"
-							+ item.getSubOrderId() + "' AND menuId = '" + item.getMenuId() + "';";
-					if (!db.executeUpdate(sql, true)) {
-						outObj.put("message", "Failed to move Specifications. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-
-					if (!this.updateFoodBill(hotelId, newTable.getOrderId(), item.getMenuId(), item.getQty(), false, item.getRate())) {
-						outObj.put("message", "Failed to update Bill amount. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-					if (!this.updateFoodBill(hotelId, oldTable.getOrderId(), item.getMenuId(), item.getQty(), true, item.getRate())) {
-						outObj.put("message", "Bill amount could not be updated. Please try again.");
-						db.rollbackTransaction();
-						return outObj;
-					}
-				} catch (JSONException e) {
-					e.printStackTrace();
-				}
-			}
-			outObj.put("status", true);
-			db.commitTransaction();
-			if (newOrder.getBillNo().equals("")) {
-				db.beginTransaction();
-				this.updateBillNoInOrders(hotelId, newTable.getOrderId()).equals("");
-				db.commitTransaction();
-			}
-		} catch (JSONException e1) {
-			db.rollbackTransaction();
-			e1.printStackTrace();
-		}
-		return outObj;
-	}
-
-	public boolean switchTable(String hotelId, String oldTableNumber, JSONArray newTableNumbers) {
-
-		String sql = "SELECT orderId FROM OrderTables WHERE tableId = '" + oldTableNumber + "' AND hotelId='" + hotelId
-				+ "';";
-
-		Table table = db.getOneRecord(sql, Table.class, hotelId);
-
-		sql = "DELETE FROM OrderTables WHERE orderId = '" + table.getOrderId() + "' AND hotelId = '" + hotelId + "';";
-		db.executeUpdate(sql, true);
-		String tableId = "";
-		int currentTableId = 0;
-		ArrayList<Integer> tables = new ArrayList<Integer>();
-
-		for (int i = 0; i < newTableNumbers.length(); i++) {
+		public JSONObject getUsageDetails() {
 			try {
-				currentTableId = newTableNumbers.getJSONObject(i).getInt("tableId");
+				if(!usageDetails.isEmpty()) {
+					return new JSONObject(usageDetails);
+				}
 			} catch (JSONException e) {
 				e.printStackTrace();
 			}
-			if (!tables.contains(currentTableId))
-				tables.add(currentTableId);
+			return new JSONObject();
 		}
-
-		for (int i = 0; i < tables.size(); i++) {
-			currentTableId = tables.get(i);
-			sql = "INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId + "','" + currentTableId
-					+ "','" + table.getOrderId() + "');";
-			db.executeUpdate(sql, true);
-			tableId += currentTableId;
-			if (i < tables.size() - 1)
-				tableId += ", ";
+		public int getTotalSMSSent() {
+			return totalSMSSent;
 		}
-		sql = "UPDATE Orders SET tableId = '" + tableId + "' WHERE orderId = '" + table.getOrderId() + "' AND hotelId='"
-				+ hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean switchFromBarToTable(String hotelId, String orderId, JSONArray newTableNumbers) {
-
-		String tableId = "";
-		int currentTableId = 0;
-		ArrayList<Integer> tables = new ArrayList<Integer>();
-		for (int i = 0; i < newTableNumbers.length(); i++) {
+		public String getOutletId() {
+			return outletId;
+		}
+		
+		public JSONArray getOutletIds() {
 			try {
-				currentTableId = newTableNumbers.getJSONObject(i).getInt("tableId");
+				if(!outletIds.isEmpty()) {
+					return new JSONArray(outletIds);
+				}
 			} catch (JSONException e) {
 				e.printStackTrace();
 			}
-			if (!tables.contains(currentTableId))
-				tables.add(currentTableId);
+			return new JSONArray();
 		}
-
-		String sql = "";
-
-		for (int i = 0; i < tables.size(); i++) {
-			currentTableId = tables.get(i);
-			sql = "INSERT INTO OrderTables (hotelId, tableId, orderId) values('" + hotelId + "','" + currentTableId
-					+ "','" + orderId + "');";
-			db.executeUpdate(sql, true);
-			tableId += currentTableId;
-			if (i < tables.size() - 1)
-				tableId += ", ";
+		public JSONArray getUserTypes() {
+			try {
+				if(!userTypes.isEmpty()) {
+					return new JSONArray(userTypes);
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
-		sql = "UPDATE Orders SET tableId = '" + tableId + "', inHouse = " + INHOUSE + " WHERE orderId = '" + orderId
-				+ "' AND hotelId='" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	// ----------------------------------------Service
-
-	public String getServiceDate(String hotelId) {
-		String sql = "SELECT * FROM ServiceLog WHERE isCurrent=0 AND hotelId='" + escapeString(hotelId) + "';";
-		ServiceLog service = db.getOneRecord(sql, ServiceLog.class, hotelId);
-		if (service == null) {
-			return null;
+		public String getSex() {
+			return sex;
 		}
-		return service.getServiceDate();
-	}
-
-	public String getServiceType(String hotelId) {
-		String sql = "SELECT * FROM ServiceLog WHERE isCurrent=0 AND hotelId='" + escapeString(hotelId) + "';";
-		ServiceLog service = db.getOneRecord(sql, ServiceLog.class, hotelId);
-		if (service == null) {
-			return null;
+		public JSONArray getAgeGroup() {
+			try {
+				if(!userTypes.isEmpty()) {
+					return new JSONArray(ageGroup);
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+			return new JSONArray();
 		}
-		return service.getServiceType();
-	}
-
-	public boolean addService(String hotelId, String serviceType, String serviceDate, int cashInHand) {
-
-		String sql = "INSERT INTO ServiceLog "
-				+ "(hotelId, serviceDate, startTimeStamp, endTimeStamp, serviceType, isCurrent, cashInHand, smsEmailSent) "
-				+ "VALUES('" + escapeString(hotelId) + "', '" + serviceDate + "', '"
-				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', '', '"
-				+ escapeString(serviceType) + "', " + 0 + ", " + cashInHand + ", 'false');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean checkSevicesEnded(String hotelId, String serviceDate, String serviceType) {
-
-		Hotel hotel = this.getHotelById(hotelId);
-		if(hotel.getSection().equals(""))
-			return true;
-		String sql = "SELECT COUNT(section) AS entityId FROM TotalRevenue WHERE hotelId = '"+hotelId+"' AND serviceDate = '"+serviceDate
-				+ "' AND serviceType = '"+serviceType+"';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if((hotel.getSections().length-1) == entity.getId())
-			return true;
-		else
-			return false;
-	}
-
-	public boolean endService(String hotelId, String serviceDate, String serviceType) {
-
-		String sql = "UPDATE ServiceLog SET endTimeStamp ='"
-				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', isCurrent = 1  WHERE hotelId = '"
-				+ hotelId + "' AND serviceDate = '" + serviceDate + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateMessageStatus(String hotelId, String serviceDate, String serviceType, Boolean status) {
-
-		String sql = "UPDATE ServiceLog SET smsEmailSent ='"
-				+ status.toString() + "'  WHERE hotelId = '"
-				+ hotelId + "' AND serviceDate = '" + serviceDate + "' AND serviceType = '" + serviceType + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<ServiceLog> getServiceLogsForMessageNotSent(String hotelId) {
-
-		String sql = "SELECT * FROM ServiceLog WHERE smsEmailSent = 'false' AND hotelId = '" + hotelId + "' AND isCurrent = 1;";
-		return db.getRecords(sql, ServiceLog.class, hotelId);
-	}
-
-	public ServiceLog getServiceLog(String hotelId, String serviceDate) {
-
-		String sql = "SELECT * FROM ServiceLog WHERE hotelId = '" + hotelId + "' AND serviceDate = '" + serviceDate
-				+ "';";
-
-		return db.getOneRecord(sql, ServiceLog.class, hotelId);
-	}
-	
-	public BigDecimal getSaleForService(String hotelId, String serviceDate, String serviceType) {
+		public String getStatus() {
+			return status;
+		}
 		
-		String sql = "SELECT ROUND(SUM(Payment.total)*100)/100 AS entityId FROM Payment, Orders WHERE Payment.hotelId = '" 
-				+ hotelId + "' AND Orders.orderDate = '" + serviceDate + "' AND Orders.serviceType = '" + serviceType
-				+ "' AND Orders.orderID == Payment.orderId;";
-
-		return db.getOneRecord(sql, EntityBigDecimal.class, hotelId).getId();
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.name = Database.readRsString(rs, "name");
+			this.messageContent = Database.readRsString(rs, "messageContent");
+			this.usageDetails = Database.readRsString(rs, "usageDetails");
+			this.totalSMSSent = Database.readRsInt(rs, "totalSMSSent");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.outletIds = Database.readRsString(rs, "outletIds");
+			this.userTypes = Database.readRsString(rs, "userTypes");
+			this.sex = Database.readRsString(rs, "sex");
+			this.ageGroup = Database.readRsString(rs, "ageGroup");
+			this.status = Database.readRsString(rs, "status");
+		}
 	}
+	
+	public static class Combo {
+	
+		private String outletId; 
+		private MenuItem comboItem;
+		private ArrayList<Group> groups;
+		private Collection collection;
+		private ArrayList<SubCollection> subCollections;
+		
+		public String getOutletId() {
+			return outletId;
+		}
 
-	public int getCashInHand(String hotelId) {
+		public MenuItem getComboItem() {
+			return comboItem;
+		}
 
-		String sql = "SELECT cashInHand as entityId FROM ServiceLog WHERE hotelId = '" + hotelId
-				+ "' AND isCurrent = 0;";
+		public ArrayList<Group> getGroups() {
+			return groups;
+		}
 
-		return db.getOneRecord(sql, EntityId.class, hotelId).getId();
+		public Collection getCollection() {
+			return collection;
+		}
+
+		public ArrayList<SubCollection> getSubCollections() {
+			return subCollections;
+		}
+
+		public void setOutletId(String outletId) {
+			this.outletId = outletId;
+		}
+
+		public void setComboItem(MenuItem comboItem) {
+			this.comboItem = comboItem;
+		}
+
+		public void setGroups(ArrayList<Group> groups) {
+			this.groups = groups;
+		}
+
+		public void setCollection(Collection collection) {
+			this.collection = collection;
+		}
+
+		public void setSubCollection(ArrayList<SubCollection> subCollections) {
+			this.subCollections = subCollections;
+		}
 	}
+	
+	public static class DBTransaction implements OrderOnEntity {
+	
+		private int id; 
+		private int batchId; 
+		private String transaction;
+		
+		public int getId() {
+			return id;
+		}
+		public int getBatchId() {
+			return batchId;
+		}
+		public String getTransaction() {
+			return transaction;
+		}
 
-	public ServiceLog getCurrentService(String hotelId) {
-
-		String sql = "SELECT * FROM ServiceLog WHERE hotelId = '" + hotelId + "' AND isCurrent = 0;";
-
-		return db.getOneRecord(sql, ServiceLog.class, hotelId);
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.batchId = Database.readRsInt(rs, "batchId");
+			this.transaction = Database.readRsString(rs, "transactions");
+		}
 	}
+	
+	public static class ReportBuffer implements OrderOnEntity {
+	
+		private int id; 
+		private String smsText;
+		private String subject;
+		private String emailText;
+		private String eWardsSettleBill;
+		private String mobileNumbers;
+		private String emailIds;
+		private String outletId;
+		private String serviceDate;
+		private String serviceType;
+		private String serviceInfo;
+		
+		public int getId() {
+			return id;
+		}
 
-	// ---------------------------------------Customer
-	public Boolean addCustomer(String hotelId, String customer, String phone, String address, String birthdate,
-			String anniversary, String allergyInfo, Boolean wantsPromotion, Boolean isPriorityCust) {
-		String sql = "INSERT INTO Customers (hotelId, customer,address,mobileNo, birthdate, anniversary, allergyInfo, points, wantsPromotion, isPriority, userType) VALUES ('"
-				+ escapeString(hotelId) + "', '" + escapeString(customer) + "', '" + escapeString(address) + "', '"
-				+ escapeString(phone) + "', '" + escapeString(birthdate) + "', '" + escapeString(anniversary) + "', '"
-				+ escapeString(allergyInfo) + "', 0, '" + wantsPromotion + "', '"+ isPriorityCust + "', '"+this.getBaseLoyaltySetting(hotelId).getUserType()+"');";
-		return db.executeUpdate(sql, true);
-	}
+		public String getSmsText() {
+			return smsText;
+		}
 
-	public Boolean modifyCustomer(String hotelId, String customerName, String phone, String birthdate,
-			String anniversary, String remarks, String allergyInfo, String address, Boolean wantsPromotion) {
+		public String getSubject() {
+			return subject;
+		}
 
-		allergyInfo = allergyInfo.equals("") ? "" : "', allergyInfo='" + escapeString(allergyInfo);
-		remarks = remarks.equals("") ? "" : "', remarks='" + escapeString(remarks);
-		birthdate = birthdate.equals("") ? "" : "', birthdate='" + escapeString(birthdate);
-		anniversary = anniversary.equals("") ? "" : "', anniversary='" + escapeString(anniversary);
-		address = address.equals("") ? "" : "', address='" + escapeString(address);
+		public String getEmailText() {
+			return emailText;
+		}
 
-		String sql = "UPDATE Customers SET customer='" + escapeString(customerName) + birthdate + anniversary
-				+ allergyInfo + remarks + address + "', wantsPromotion = '" + wantsPromotion + "' WHERE mobileNo='"
-				+ escapeString(phone) + "' AND hotelId='" + escapeString(hotelId) + "';";
-		return db.executeUpdate(sql, true);
-	}
+		public String getEWardsSettleBill() {
+			return eWardsSettleBill;
+		}
 
-	public Boolean incrementVisitCount(String hotelId, Customer customer) {
-
-		String sql = "UPDATE Customers SET visitCount="+ customer.getVisitCount()+" WHERE mobileNo='"
-				+ customer.getMobileNo() + "' AND hotelId='" + escapeString(hotelId) + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean hasCustomer(String hotelId, String phone) {
-		String sql = "SELECT * FROM customers WHERE mobileNo='" + phone + "' AND hotelId='" + escapeString(hotelId)
-				+ "';";
-		return db.hasRecords(sql, hotelId);
-	}
-
-	public Boolean editCustomerDetails(String hotelId, String orderId, String name, String number, String address,
-			int noOfGuests, String allergyInfo) {
-		Order order = this.getOrderById(hotelId, orderId);
-		Customer customer = this.getCustomerDetails(hotelId, number);
-		if (name.equals(""))
-			name = order.getCustomerName();
-		if (address.equals(""))
-			address = order.getCustomerAddress();
-		if (noOfGuests == 0)
-			noOfGuests = order.getNumberOfGuests();
-		String sql = "UPDATE Orders SET customerName ='" + escapeString(name) + "', numberOfGuests = "
-				+ Integer.toString(noOfGuests) + ", customerNumber = '" + escapeString(number)
-				+ "', customerAddress = '" + escapeString(address) + "' WHERE hotelId = '" + escapeString(hotelId)
-				+ "' AND orderId = '" + escapeString(orderId) + "';";
-
-		boolean hasUpdated = db.executeUpdate(sql, true);
-		if (hasUpdated) {
-			if (customer == null) {
-				this.addCustomer(hotelId, name, number, address, "", "", allergyInfo, Boolean.FALSE, Boolean.FALSE);
-			} else {
-				this.modifyCustomer(hotelId, name, number, "", "", "", allergyInfo, address,
-						customer.getWantsPromotion() == null ? false : customer.getWantsPromotion());
+		public JSONArray getMobileNumbers() {
+			try {
+				if(!mobileNumbers.isEmpty()) {
+					return new JSONArray(mobileNumbers);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			return true;
-		}
-		return false;
-	}
-
-	public ArrayList<Customer> getCustomersForSMS(String hotelId) {
-		String sql = "SELECT distinct Customers.mobileNo, Customers.customer, Orders.completeTimestamp, Orders.orderId"
-				+ " FROM Customers, Orders WHERE Orders.hotelId='" + hotelId
-				+ "' AND Orders.isSmsSent = 0 AND Orders.customerNumber == Customers.mobileNo AND Orders.state == "
-				+ORDER_STATE_COMPLETE+" AND Orders.orderDate == '"+this.getServiceDate(hotelId)+"';";
-		return db.getRecords(sql, Customer.class, hotelId);
-	}
-
-	public Customer getCustomerDetails(String hotelId, String mobileNo) {
-		String sql = "SELECT * FROM Customers WHERE mobileNo='" + mobileNo + "' AND hotelId='" + hotelId + "'";
-		return db.getOneRecord(sql, Customer.class, hotelId);
-	}
-
-	public int getCustomerPoints(String hotelId, String mobileNo) {
-		String sql = "SELECT points AS entityId FROM Customers WHERE mobileNo='" + mobileNo + "' AND hotelId='"
-				+ hotelId + "'";
-		return db.getOneRecord(sql, EntityId.class, hotelId).getId();
-	}
-
-	public EntityString getMobileNoFromOrderId(String hotelId, String orderId) {
-		String sql = "SELECT customerNumber AS entityId FROM Orders WHERE orderId='" + orderId + "' AND hotelId='"
-				+ hotelId + "'";
-		return db.getOneRecord(sql, EntityString.class, hotelId);
-	}
-
-	public ArrayList<Customer> getAllCustomerDetails(String hotelId, int page) {
-		int start = ((page -1)*100)+1;
-		int end = start+99;
-		String sql = "SELECT * FROM Customers WHERE hotelId='" + hotelId + "' AND id BETWEEN " + start + " AND " + end + ";";
-		return db.getRecords(sql, Customer.class, hotelId);
-	}
-
-	public ArrayList<Customer> getAllCustomerDetailsBySearch(String hotelId, String query) {
-		String sql = "SELECT * FROM Customers WHERE hotelId='" + hotelId + "' AND (mobileNo LIKE '%" + query 
-				+ "%' OR customer LIKE '%" + query + "%');";
-		return db.getRecords(sql, Customer.class, hotelId);
-	}
-
-	public ArrayList<Customer> getAllCustomerDetailsForOrdering(String hotelId) {
-		String sql = "SELECT mobileNo, customer, address FROM Customers WHERE hotelId='" + hotelId + "';";
-		return db.getRecords(sql, Customer.class, hotelId);
-	}
-
-	public Customer getCustomerBySearch(String hotelId, String query) {
-
-		String sql = "SELECT * FROM Customers WHERE mobileNo LIKE '%" + query + "%' AND hotelId='" + escapeString(hotelId) + "';";
-
-		return db.getOneRecord(sql, Customer.class, hotelId);
-	}
-
-	public ArrayList<Order> getOrdersOfOneCustomer(String hotelId, String mobileNo) {
-		String sql = "SELECT Orders.*, Payment.foodDiscount, Payment.barDiscount, Payment.cardType, " + 
-				"(Payment.cashPayment+Payment.cardPayment+Payment.appPayment) AS totalPayment " + 
-				"FROM Orders, Payment WHERE customerNumber = '" + mobileNo + "' AND Orders.hotelId = '" + hotelId + "'" +
-				" AND Orders.orderId = Payment.orderId;";
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-
-	// ------------------------------------------Payment
-
-	public ArrayList<Report> getPaymentDetails(String hotelId, String sDate, String eDate) {
-		String sql = "SELECT * FROM Payment WHERE hotelId= '" + hotelId + "' AND orderDate BETWEEN '" + sDate
-				+ "' AND '" + eDate + "'";
-		return db.getRecords(sql, Report.class, hotelId);
-	}
-
-	public BigDecimal getTotalCashIn(String hotelId, String serviceDate) {
-		String sql = "SELECT SUM(cashPayment) FROM Payment WHERE hotelId= '" + hotelId + "' AND orderDate = '"
-				+ serviceDate.replace("/", "-") + "';";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public boolean addPayment(String hotelId, String orderId, BigDecimal foodBill, BigDecimal barBill, BigDecimal foodDiscount,
-			BigDecimal barDiscount, BigDecimal loyalty, BigDecimal total, BigDecimal sc, BigDecimal gst, BigDecimal vatBar, BigDecimal tip, BigDecimal cashPayment,
-			BigDecimal cardPayment, BigDecimal appPayment, String discountName, String cardType, BigDecimal complimentary, String section) {
-
-		cardType = cardType.toUpperCase().replace(' ', '_');
-		String orderDate = this.getServiceDate(hotelId);
-
-		String sql = "SELECT * FROM Payment WHERE hotelId='" + hotelId + "' AND orderId='" + orderId
-				+ "' AND orderDate='" + orderDate + "';";
-//add app payment type.
-		Report payment = db.getOneRecord(sql, Report.class, hotelId);
-
-		if (payment != null)
-			return false;
-
-		Order order = getOrderById(hotelId, orderId);
-
-		sql = "INSERT INTO Payment (hotelId, billNo, billNo2, orderId, orderDate, foodBill, barBill, foodDiscount, barDiscount, loyaltyAmount, total, "
-				+ "serviceCharge, gst, VATBAR, tip, cashPayment, cardPayment, appPayment, discountName, cardType, complimentary, section) "
-				+ "VALUES('" + hotelId + "', '" + order.getBillNo() + "', '" + order.getBillNo() + "', '" + orderId + "', '" + orderDate + "', "
-				+ foodBill + ", " + barBill + ", " + foodDiscount + ", "+ barDiscount + ", " + loyalty + ", "+ total + ", " + sc + ", " + gst + ", " + vatBar + ", "
-				+ tip + ", " + cashPayment + ", " + cardPayment + ", " + appPayment+ ", '" + discountName + "', '" + cardType + "', "
-				+ complimentary + ", '"+section+"');";
-
-		return db.executeUpdate(sql, true);
-	}
-	
-	public boolean deletePayment(String hotelId, String orderId) {
-		String sql = "DELETE FROM Payment WHERE hotelId == '"+hotelId+"' AND orderId == '"+orderId+"';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean editPayment(String hotelId, String orderId, BigDecimal cashPayment, BigDecimal cardPayment, BigDecimal appPayment,
-			String cardType) {
-
-		String sql = "UPDATE Payment SET cashPayment = " + cashPayment + ", cardPayment = "
-				+ cardPayment + ", appPayment = " + appPayment + ", cardType = '" + escapeString(cardType) + "' " + "WHERE orderId = '"
-				+ orderId + "' AND hotelID = '" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	private String appendEndDate(String endDate) {
-		return endDate + " 23:59";
-	}
-
-	public Boolean updatePaymentForReturn(String hotelId, String orderId, BigDecimal foodBill, BigDecimal barBill,
-			BigDecimal foodDiscount, BigDecimal barDiscount, BigDecimal total, BigDecimal serviceCharge, BigDecimal gst, BigDecimal VATBar, BigDecimal cashPayment,
-			BigDecimal cardPayment, BigDecimal appPayment) {
-
-		String sql = "UPDATE Payment SET foodBill = " + foodBill + ", barBill = " + barBill + ", " + "foodDiscount = "
-				+ foodDiscount + "barDiscount = " + barDiscount + ", total = " + total + ", serviceCharge = " + serviceCharge 
-				+ ", gst = " + gst + ", VATBar = " + VATBar + ", cashPayment = " + cashPayment + ", " + "cardPayment = " 
-				+ cardPayment + ", appPayment = " + appPayment + " WHERE orderId = '" + orderId + "' AND hotelID = '" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Report getPayment(String hotelId, String orderId) {
-		String sql = "SELECT * FROM PAYMENT WHERE hotelId = '" + hotelId + "' AND orderId = '" + orderId + "';";
-
-		return db.getOneRecord(sql, Report.class, hotelId);
-	}
-
-	// -----------------------------------------AddOn
-
-	public Boolean addOrderAddon(String hotelId, String orderId, String menuId, int qty, int addOnId, String subOrderId,
-			int itemId, BigDecimal rate) {
-
-		String sql = "INSERT INTO OrderAddOns (hotelId, subOrderId, subOrderDate, addOnId, orderId, menuId, itemId, qty, rate, state) values ('"
-				+ hotelId + "', '" + subOrderId + "', '" + (new SimpleDateFormat("yyyy/MM/dd HH:mm")).format(new Date()) + "', "
-				+ addOnId + ",'" + orderId + "', '" + menuId + "', " + itemId
-				+ ", " + Integer.toString(qty) + ", " + (new DecimalFormat("0.00")).format(rate) + ", " +SUBORDER_STATE_COMPLETE+ ");";
-		if (!db.executeUpdate(sql, true)) {
-			return false;
-		}
-		updateFoodBillAddOn(hotelId, orderId, subOrderId, menuId, itemId, rate);
-
-		return true;
-	}
-
-	public ArrayList<AddOn> getAddOns(String hotelId) {
-		String sql = "SELECT * FROM AddOns  WHERE hotelId='" + hotelId + "'";
-		return db.getRecords(sql, AddOn.class, hotelId);
-	}
-
-	public AddOn getAddOnById(int addOnId, String hotelId) {
-
-		String sql = "SELECT * FROM AddOns WHERE Id = " + addOnId;
-
-		return db.getOneRecord(sql, AddOn.class, hotelId);
-	}
-
-	public boolean addAddOn(String hotelId, String name, BigDecimal inHouseRate, BigDecimal deliveryRate, BigDecimal onlineRate) {
-
-		String sql = "INSERT INTO AddOns (name, inHouseRate, deliveryRate, onlineRate) VALUES('" + escapeString(name) + "', "
-				+ inHouseRate + ", " + deliveryRate + ", " + onlineRate + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public OrderAddOn getOrderedAddOnById(String hotelId, String orderId, String subOrderId, String menuId, int itemId,
-			int addOnId) {
-
-		String sql = "SELECT OrderAddOns.addOnId AS addOnId, OrderAddOns.menuId AS menuId, "
-				+ "OrderAddOns.qty AS qty, OrderAddOns.itemId AS itemId, OrderAddOns.rate AS rate, "
-				+ "OrderAddOns.subOrderId AS subOrderId, AddOns.name AS name FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.menuId='" + menuId + "' AND AddOns.id == OrderAddOns.addOnId "
-				+ "AND OrderAddOns.subOrderId='" + subOrderId + "' AND OrderAddOns.itemId == " + itemId + " "
-				+ "AND OrderAddOns.addOnId == " + addOnId + " AND OrderAddOns.hotelId='" + hotelId + "';";
-		return db.getOneRecord(sql, OrderAddOn.class, hotelId);
-	}
-	
-	public ArrayList<OrderAddOn> getOrderedAddOns(String hotelId, String orderId, String menuId, boolean getReturnedItems) {
-
-		String sql = "SELECT OrderAddOns.addOnId, OrderAddOns.menuId, OrderAddOns.state, "
-				+ "OrderAddOns.qty, OrderAddOns.itemId, OrderAddOns.rate, "
-				+ "OrderAddOns.subOrderId, AddOns.name FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.menuId='" + menuId + "' "
-				+ "AND OrderAddOns.addOnId == AddOns.id AND OrderAddOns.hotelId='" + hotelId + "'";
-		if(getReturnedItems) {
-			sql += " UNION ALL "
-				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
-				+ "OrderAddOnLog.subOrderId, AddOns.name FROM OrderAddOnLog, AddOns "
-				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnLog.addOnId == AddOns.id AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		}
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-	
-	public ArrayList<OrderAddOn> getOrderedAddOns(String hotelId, String orderId, String subOrderId, String menuId, boolean getReturnedItems) {
-
-		String sql = "SELECT OrderAddOns.addOnId, OrderAddOns.menuId, OrderAddOns.state, "
-				+ "OrderAddOns.qty, OrderAddOns.itemId, OrderAddOns.rate, "
-				+ "OrderAddOns.subOrderId, AddOns.name FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND  OrderAddOns.subOrderId='" + subOrderId + "' AND OrderAddOns.menuId='" + menuId + "' "
-				+ "AND OrderAddOns.addOnId == AddOns.id AND OrderAddOns.hotelId='" + hotelId + "'";
-		if(getReturnedItems) {
-			sql += " UNION ALL "
-				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
-				+ "OrderAddOnLog.subOrderId, AddOns.name FROM OrderAddOnLog, AddOns "
-				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnLog.subOrderId='" + subOrderId + "' "
-				+ "AND OrderAddOnLog.addOnId == AddOns.id AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		}
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public ArrayList<OrderAddOn> getOrderedAddOns(String hotelId, String orderId, String subOrderId, String menuId,
-			int itemId, boolean getReturnedItems) {
-
-		String sql = "SELECT OrderAddOns.addOnId, OrderAddOns.menuId, OrderAddOns.state, "
-				+ "OrderAddOns.qty, OrderAddOns.itemId, OrderAddOns.rate, "
-				+ "OrderAddOns.subOrderId, AddOns.name FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.menuId='" + menuId + "' "
-				+ "AND OrderAddOns.subOrderId='" + subOrderId + "' AND OrderAddOns.itemId == " + itemId + " "
-				+ "AND OrderAddOns.addOnId == AddOns.id AND OrderAddOns.hotelId='" + hotelId + "'";
-		if(getReturnedItems) {
-			sql += " UNION ALL "
-				+ "SELECT OrderAddOnLog.addOnId, OrderAddOnLog.menuId, OrderAddOnLog.state, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.itemId, OrderAddOnLog.rate, "
-				+ "OrderAddOnLog.subOrderId, AddOns.name FROM OrderAddOnLog, AddOns "
-				+ "WHERE OrderAddOnLog.orderId='" + orderId + "' AND OrderAddOnLog.menuId='" + menuId + "' "
-				+ "AND OrderAddOnLog.subOrderId='" + subOrderId + "' AND OrderAddOnLog.itemId == " + itemId + " "
-				+ "AND OrderAddOnLog.addOnId == AddOns.id AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		}
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public ArrayList<OrderAddOn> getCanceledOrderedAddOns(String hotelId, String orderId, String subOrderId,
-			String menuId, int itemId) {
-
-		String sql = "SELECT OrderAddOnLog.addOnId AS addOnId, OrderAddOnLog.menuId AS menuId, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.itemId AS itemId, "
-				+ "OrderAddOnLog.rate AS rate, OrderAddOnLog.subOrderId AS subOrderId, AddOns.name AS name "
-				+ "FROM OrderAddOnLog, AddOns WHERE OrderAddOnLog.orderId='" + orderId + "' "
-				+ "AND OrderAddOnLog.menuId='" + menuId + "' AND OrderAddOnLog.subOrderId='" + subOrderId + "' "
-				+ "AND OrderAddOnLog.itemId == " + itemId + " AND OrderAddOnLog.addOnId == AddOns.id "
-				+ "AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public ArrayList<OrderAddOn> getReturnedAddOns(String hotelId, String orderId, String subOrderId, String menuId,
-			int itemId) {
-
-		String sql = "SELECT OrderAddOnLog.addOnId AS addOnId, OrderAddOnLog.menuId AS menuId, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.rate AS rate, "
-				+ "OrderAddOnLog.itemId AS itemId, OrderAddOnLog.subOrderId AS subOrderId, "
-				+ "AddOns.name AS name FROM OrderAddOnLog, AddOns WHERE OrderAddOnLog.orderId='" + orderId
-				+ "' AND OrderAddOnLog.menuId='" + menuId + "' AND OrderAddOnLog.subOrderId='" + subOrderId
-				+ "' AND OrderAddOnLog.itemId == " + itemId + " AND OrderAddOnLog.addOnId == AddOns.id "
-				+ "AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public ArrayList<OrderAddOn> getAllOrderedAddOns(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderAddOns.addOnId AS addOnId, OrderAddOns.menuId AS menuId, "
-				+ "OrderAddOns.subOrderDate AS subOrderDate, OrderAddOns.state AS state, "
-				+ "OrderAddOns.qty AS qty, OrderAddOns.rate AS rate, OrderAddOns.itemId AS itemId, "
-				+ "OrderAddOns.subOrderId AS subOrderId, AddOns.name AS name FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.addOnId == AddOns.id "
-				+ "AND OrderAddOns.hotelId='" + hotelId + "' UNION ALL "
-				+ "SELECT OrderAddOnLog.addOnId AS addOnId, OrderAddOnLog.menuId AS menuId, "
-				+ "OrderAddOnLog.subOrderDate AS subOrderDate, OrderAddOnLog.state AS state, "
-				+ "OrderAddOnLog.quantity AS qty, OrderAddOnLog.rate AS rate, "
-				+ "OrderAddOnLog.itemId AS itemId, OrderAddOnLog.subOrderId AS subOrderId, "
-				+ "AddOns.name AS name FROM OrderAddOnLog, AddOns WHERE OrderAddOnLog.orderId='" + orderId
-				+ "' AND OrderAddOnLog.addOnId == AddOns.id AND OrderAddOnLog.state == " + SUBORDER_STATE_COMPLIMENTARY
-				+ " AND OrderAddOnLog.hotelId='" + hotelId + "';";
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public ArrayList<OrderAddOn> getOrderedAddOns(String hotelId, String orderId, String subOrderId, String menuId, String itemId) {
-
-		String sql = "SELECT OrderAddOns.addOnId, OrderAddOns.qty, OrderAddOns.rate "
-				+ ", AddOns.name, OrderAddOnLog.state FROM OrderAddOns, AddOns "
-				+ "WHERE OrderAddOns.orderId='" + orderId + "' AND OrderAddOns.addOnId == AddOns.id "
-				+ "AND OrderAddOns.hotelId='" + hotelId + "' AND OrderAddOnLog.subOrderId='" + subOrderId
-				+ "' AND OrderAddOnLog.menuId == '"+menuId+"' AND OrderAddOnLog.itemId == '" + itemId + "';";
-		return db.getRecords(sql, OrderAddOn.class, hotelId);
-	}
-
-	public Boolean removeAddOns(String hotelId, String orderId, String subOrderId, String menuId, int qty) {
-		String sql = "DELETE FROM OrderAddOns WHERE orderId='" + orderId + "' AND subOrderId =" + subOrderId
-				+ " AND menuId='" + menuId + "' AND hotelId='" + hotelId + "' ";
-
-		if (qty > 0)
-			sql += "AND itemId =" + (qty + 1) + ";";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean removeAddOnsFromItem(String hotelId, String orderId, String subOrderId, String menuId, int itemId) {
-		String sql = "DELETE FROM OrderAddOns WHERE orderId='" + orderId + "' AND subOrderId =" + subOrderId
-				+ " AND menuId='" + menuId + "' AND hotelId='" + hotelId + "' AND itemId = " + itemId + ";";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean removeAddOn(String hotelId, String orderId, String subOrderId, String menuId, int qty, int addOnId,
-			int itemId) {
-		String sql = null;
-		if (qty == 0) {
-			sql = "DELETE FROM OrderAddOns WHERE orderId='" + orderId + "' AND subOrderId =" + subOrderId
-					+ " AND menuId='" + menuId + "' AND hotelId='" + hotelId + "' AND addOnId=" + addOnId
-					+ " AND itemId =" + itemId + ";";
-		} else {
-			sql = "UPDATE OrderAddOns SET qty=" + Integer.toString(qty) + " WHERE orderId='" + orderId
-					+ "' AND subOrderId =" + subOrderId + " AND menuId='" + menuId + "' AND hotelId='" + hotelId
-					+ "' AND addOnId=" + addOnId + " AND itemId =" + itemId + ";";
-		}
-		return db.executeUpdate(sql, true);
-	}
-
-	// ------------------------------------------Specification
-
-	public Boolean addOrderSpecification(String hotelId, String orderId, String subOrderId, String menuId, int itemId,
-			String specification) {
-
-		String sql = "INSERT INTO OrderSpecifications (hotelId, orderId, subOrderId, menuId, itemId, specification) values ('"
-				+ hotelId + "', '" + orderId + "', '" + subOrderId + "', '" + menuId + "', " + itemId + ", '"
-				+ escapeString(specification) + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<Specifications> getSpecifications(String hotelId) {
-		String sql = "SELECT * FROM Specifications ORDER BY specification;";
-		return db.getRecords(sql, Specifications.class, hotelId);
-	}
-
-	public boolean addSpecification(String name) {
-
-		String sql = "INSERT INTO Specifications (specification) VALUES('" + escapeString(name) + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<OrderSpecification> getOrderedSpecification(String hotelId, String orderId, String menuId,
-			String subOrderId, int itemId) {
-
-		String sql = "SELECT * FROM OrderSpecifications WHERE orderId='" + orderId + "' AND itemId == " + itemId
-				+ " AND menuId='" + menuId + "' AND subOrderId='" + subOrderId + "';";
-		return db.getRecords(sql, OrderSpecification.class, hotelId);
-	}
-
-	public ArrayList<OrderSpecification> getOrderedSpecification(String hotelId, String orderId, String menuId) {
-
-		String sql = "SELECT * FROM OrderSpecifications WHERE orderId='" + orderId + "' AND menuId='" + menuId + "';";
-		return db.getRecords(sql, OrderSpecification.class, hotelId);
-	}
-
-	// ----------------------------------------Stock
-
-	private void manageStock(String hotelId, String menuId, String subOrderId, String orderId) {
-
-		BigDecimal quantity = new BigDecimal(this.getQuantityOfOrderedItem(hotelId, menuId, subOrderId, orderId));
-		BigDecimal newQuantity = new BigDecimal("0.0");
-
-		ArrayList<Stock> recipeItems = this.getRecipe(hotelId, menuId);
-
-		if (recipeItems == null) {
-			return;
+			return new JSONArray();
 		}
 
-		for (int i = 0; i < recipeItems.size(); i++) {
-			Stock stockItem = this.getStockItemBySku(hotelId, recipeItems.get(i).getSku());
-			if (stockItem != null) {
-				newQuantity = stockItem.getQuantity().subtract((quantity));
-				if (quantity.compareTo(new BigDecimal("0")) == 1)
-					this.updateStock(hotelId, recipeItems.get(i).getSku(), newQuantity, quantity);
+		public JSONArray getEmailIds() {
+			try {
+				if(!mobileNumbers.isEmpty()) {
+					return new JSONArray(emailIds);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
+			return new JSONArray();
 		}
-		return;
-	}
 
-	private BigDecimal getQuantity(String sku, String hotelId) {
-
-		String sql = "SELECT quantity AS entityId FROM Stock WHERE sku = '" + sku + "' AND hotelId = '" + hotelId
-				+ "';";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public ArrayList<Stock> getStock(String hotelId) {
-		String sql = "SELECT Material.sku AS sku, Material.name AS name, Material.unit AS unit, "
-				+ "Material.displayableUnit AS displayableUnit, Material.ratePerUnit AS ratePerUnit, "
-				+ "ROUND(Stock.quantity*100)/100 AS quantity FROM Material, Stock WHERE Material.hotelId= '" + hotelId + "' "
-				+ "AND Material.sku == Stock.sku ORDER BY name;";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
-
-	public ArrayList<Stock> getExpiringStock(String hotelId) {
-
-		ArrayList<Stock> stock = new ArrayList<Stock>();
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(date);
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
-		String exDate = dateFormat.format(cal.getTime());
-
-		for (int i = 0; i <= 1; i++) {
-			String sql = "SELECT Stock.sku AS sku, Material.name AS name, Material.unit AS unit, "
-					+ "Material.displayableUnit AS displayableUnit, Stock.quantity AS quantity, "
-					+ "Stock.doc AS doc, Stock.doe AS doe FROM Material, Stock WHERE Material.hotelId= '" + hotelId
-					+ "' AND Material.sku == Stock.sku AND Stock.doe == '" + exDate + "';";
-			stock.addAll(db.getRecords(sql, Stock.class, hotelId));
-
-			cal.add(Calendar.DATE, 1);
-			exDate = dateFormat.format(cal.getTime());
+		public String getOutletId() {
+			return outletId;
 		}
-		return stock;
-	}
 
-	public ArrayList<Stock> getStockRunningOut(String hotelId) {
-
-		String sql = "SELECT Stock.sku AS sku, Material.name AS name, "
-				+ "Material.displayableUnit AS displayableUnit, Stock.quantity AS quantity, "
-				+ "Material.minQuantity AS minQuantity FROM Material, Stock WHERE Material.hotelId= '" + hotelId
-				+ "' AND Material.sku == Stock.sku AND quantity <= minQuantity ";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
-
-	public boolean addStock(String hotelId, String sku, String doc, String doe, BigDecimal quantity, BigDecimal ratePerUnit) {
-
-		String sql = "INSERT INTO Stock (hotelId, sku, doc, doe, quantity) VALUES('" + escapeString(hotelId) + "', '"
-				+ escapeString(sku) + "', '" + escapeString(doc) + "', '" + escapeString(doe) + "', "
-				+ quantity + ");";
-
-		if (db.executeUpdate(sql, true)) {
-			this.updateStockLog(hotelId, sku, quantity, ratePerUnit.multiply(quantity), "CREATE");
-			return true;
-		} else
-			return false;
-	}
-
-	public Boolean updateStock(String hotelId, String sku, BigDecimal newQuantity, BigDecimal addedQuantity, BigDecimal ratePerUnit,
-			String doe) {
-
-		String sql = "UPDATE Stock SET quantity = '" + newQuantity + "', doe = '" + escapeString(doe)
-				+ "' WHERE hotelId = '" + escapeString(hotelId) + "' AND sku = '" + escapeString(sku) + "';";
-
-		if (db.executeUpdate(sql, true)) {
-			this.updateStockLog(hotelId, sku, addedQuantity, addedQuantity.multiply(ratePerUnit), "UPDATE");
-			return true;
+		public JSONObject getServiceInfo() {
+			try {
+				if(serviceInfo.length() > 2) {
+					return new JSONObject(serviceInfo);
+				}
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return new JSONObject();
 		}
-		return false;
-	}
 
-	public Boolean updateStock(String hotelId, String sku, BigDecimal newQuantity, BigDecimal addedQuantity) {
-
-		String sql = "UPDATE Stock SET quantity = " + newQuantity + " WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND sku = '" + escapeString(sku) + "';";
-
-		if (db.executeUpdate(sql, true)) {
-			this.updateStockLog(hotelId, sku, addedQuantity, addedQuantity.multiply(this.getRatePerUnit(sku, hotelId)),
-					"USEDUP");
-			return true;
+		public String getServiceDate() {
+			try {
+				return this.getServiceInfo().getString("serviceDate");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return "";
 		}
-		return false;
-	}
 
-	public Stock getStockItemBySku(String hotelId, String sku) {
-		String sql = "SELECT * FROM Stock WHERE sku='" + escapeString(sku) + "' AND hotelId='" + escapeString(hotelId)
-				+ "';";
-		return db.getOneRecord(sql, Stock.class, hotelId);
-	}
-
-	public boolean deleteStockItem(String hotelId, String sku) {
-		String sql = "DELETE FROM Stock WHERE sku = '" + sku + "' AND hotelId='" + hotelId + "';";
-
-		BigDecimal quantity = this.getQuantity(sku, hotelId);
-
-		this.updateStockLog(hotelId, sku, quantity, quantity.multiply(this.getRatePerUnit(sku, hotelId)), "DELETED");
-
-		if (db.executeUpdate(sql, true)) {
-			sql = "DELETE FROM Material WHERE sku = '" + sku + "' AND hotelId='" + hotelId + "';";
-			return db.executeUpdate(sql, true);
-		} else
-			return false;
-	}
-
-	public boolean updateStockLog(String hotelId, String sku, BigDecimal quantity, BigDecimal amount, String crud) {
-
-		String sql = "INSERT INTO StockLog (hotelId, sku, crud, quantity, amount) VALUES('" + escapeString(hotelId)
-				+ "', '" + sku + "', '" + crud + "', " + quantity + ", " + amount
-				+ ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	// ----------------------------------------Materials
-
-	private BigDecimal getRatePerUnit(String sku, String hotelId) {
-
-		String sql = "SELECT ratePerUnit AS entityId FROM Material WHERE sku = '" + sku + "' AND hotelId = '" + hotelId
-				+ "';";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public ArrayList<Stock> getMaterial(String hotelId, int type) {
-		String sql = "SELECT Material.sku AS sku, Material.name AS name, Material.unit AS unit, "
-				+ "Material.displayableUnit AS displayableUnit, Material.ratePerUnit AS ratePerUnit, "
-				+ "Material.minQuantity AS minQuantity, Stock.quantity AS quantity, Stock.doe AS doe "
-				+ "FROM Material, Stock WHERE Material.hotelId= '" + hotelId + "' " + "AND Material.sku == Stock.sku ";
-		if (type == 0)
-			sql += "ORDER BY quantity - minQuantity;";
-		else
-			sql += "ORDER BY Material.name;";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
-
-	public ArrayList<Stock> getMaterialByName(String hotelId) {
-		String sql = "SELECT Material.sku AS sku, Material.name AS name, Material.unit AS unit, "
-				+ "Material.displayableUnit AS displayableUnit, Material.ratePerUnit AS ratePerUnit, "
-				+ "Material.minQuantity AS minQuantity, Stock.quantity AS quantity, Stock.doe AS doe "
-				+ "FROM Material, Stock WHERE Material.hotelId= '" + hotelId + "' "
-				+ "AND Material.sku == Stock.sku ORDER BY name;";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
-
-	public boolean addMaterial(String hotelId, String materialName, BigDecimal ratePerUnit, BigDecimal minQuantity,
-			BigDecimal quantity, String doe, int wastage, String unit, String displayableUnit) {
-
-		String sku = getNextSKU(hotelId);
-
-		String sql = "INSERT INTO Material "
-				+ "(hotelId, sku, name, ratePerUnit, minQuantity, wastage, unit, displayableUnit) VALUES('"
-				+ escapeString(hotelId) + "', '" + escapeString(sku) + "', '" + escapeString(materialName) + "', "
-				+ ratePerUnit + ", " + minQuantity + ", " + Integer.toString(wastage)
-				+ ", '" + escapeString(unit) + "', '" + escapeString(displayableUnit) + "');";
-
-		if (db.executeUpdate(sql, true)) {
-			Date date = new Date();
-			Calendar cal = Calendar.getInstance();
-			cal.setTime(date);
-			DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
-			String doc = dateFormat.format(cal.getTime());
-			this.addStock(hotelId, sku, doc, doe, quantity, ratePerUnit);
-			return true;
-		} else
-			return false;
-	}
-
-	public ArrayList<Stock> getMaterialBySearch(String hotelId, String query, int type) {
-
-		query = escapeString(query);
-		String sql = "SELECT Material.sku AS sku, Material.name AS name, Material.unit AS unit, "
-				+ "Material.displayableUnit AS displayableUnit, Material.ratePerUnit AS ratePerUnit, "
-				+ "Material.minQuantity AS minQuantity, Stock.quantity AS quantity FROM Material, Stock "
-				+ "WHERE Material.hotelId= '" + hotelId + "' AND Material.sku == Stock.sku ";
-
-		if (query.equals("")) {
-			sql += "";
-		} else if (query.matches("\\D*")) {
-			query = "%" + query + "%";
-			sql += "AND Material.name LIKE'" + query + "';";
-		} else {
-			sql += "AND Material.sku =='" + query + "';";
+		public String getServiceType() {
+			try {
+				return this.getServiceInfo().getString("serviceType");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return "";
 		}
-		if (type == 0)
-			sql += "ORDER BY quantity - minQuantity;";
-		else if (type == 1)
-			sql += "ORDER BY Materials.name;";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
 
-	public Stock getOneMaterial(String hotelId, String sku) {
-
-		String sql = "SELECT Material.name AS name, Stock.sku AS sku, Material.unit AS unit, "
-				+ "Material.displayableUnit AS displayableUnit, Material.ratePerUnit AS ratePerUnit, "
-				+ "Material.minQuantity AS minQuantity, Material.wastage AS wastage, "
-				+ "Stock.quantity AS quantity, Stock.doe AS doe FROM Material, Stock " + "WHERE Material.hotelId= '"
-				+ hotelId + "' AND Material.sku == Stock.sku " + "AND Material.sku =='" + escapeString(sku) + "';";
-
-		return db.getOneRecord(sql, Stock.class, hotelId);
-	}
-
-	public Boolean updateMaterial(String hotelId, String materialName, BigDecimal ratePerUnit, BigDecimal minQuantity,
-			BigDecimal quantity, String doe, int wastage, String displayableUnit, String sku) {
-
-		BigDecimal oldQuantity = this.getQuantity(sku, hotelId);
-
-		String sql = "UPDATE Material SET name = '" + escapeString(materialName) + "', ratePerUnit = "
-				+ ratePerUnit + ", minQuantity = " + minQuantity + ", wastage = "
-				+ Integer.toString(wastage) + ", displayableUnit = '" + escapeString(displayableUnit)
-				+ "' WHERE hotelId = '" + escapeString(hotelId) + "' AND sku = '" + escapeString(sku) + "';";
-
-		if (quantity.compareTo(new BigDecimal("0.0")) == 1)
-			this.updateStock(hotelId, sku, quantity, quantity.subtract(oldQuantity), ratePerUnit, doe);
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean materialExists(String hotelId, String name) {
-		Stock item = getMaterialItemByTitle(hotelId, name);
-		if (item != null) {
-			return true;
+		@Override
+		public void readFromDB(ResultSet rs) {
+			// TODO Auto-generated method stub
+			this.id = Database.readRsInt(rs, "id");
+			this.smsText = Database.readRsString(rs, "smsText");
+			this.subject = Database.readRsString(rs, "subject");
+			this.emailText = Database.readRsString(rs, "emailText");
+			this.eWardsSettleBill = Database.readRsString(rs, "eWardsSettleBill");
+			this.mobileNumbers = Database.readRsString(rs, "mobileNumbers");
+			this.emailIds = Database.readRsString(rs, "emailIds");
+			this.outletId = Database.readRsString(rs, "outletId");
+			this.serviceInfo = Database.readRsString(rs, "serviceInfo");
 		}
-		return false;
 	}
 
-	public Stock getMaterialItemByTitle(String hotelId, String name) {
-		String sql = "SELECT * FROM Material WHERE name='" + escapeString(name) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Stock.class, hotelId);
-	}
+	public ArrayList<KitchenDisplayOrders> getKDSOrdersListView(String systemId) {
 
-	public String getNextSKU(String hotelId) {
-
-		String sql = "SELECT MAX(CAST(sku AS integer)) AS entityId FROM Material WHERE hotelId='" + hotelId + "'";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		return String.format("%14d", entity.getId() + 1).replace(" ", "0");
-	}
-
-	// --------------------------------------------Recipe
-
-	public boolean deleteRecipeItem(String hotelId, String sku, String menuId) {
-		String sql = "DELETE FROM Recipe WHERE sku = '" + sku + "' AND menuId='" + menuId + "' AND hotelId='" + hotelId
-				+ "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<Stock> getRecipe(String hotelId, String menuId) {
-		String sql = "SELECT Recipe.sku AS sku, Recipe.quantity AS quantity, Material.name AS name, "
-				+ "Material.unit AS unit, Recipe.unit AS displayableUnit FROM Material, Recipe "
-				+ "WHERE Recipe.hotelId= '" + hotelId + "' AND Recipe.menuId= '" + menuId + "' "
-				+ "AND Material.sku == Recipe.sku;";
-		return db.getRecords(sql, Stock.class, hotelId);
-	}
-
-	public Stock getMethod(String hotelId, String menuId) {
-		String sql = "SELECT MenuItems.method AS method FROM MenuItems WHERE MenuItems.hotelId= '" + hotelId
-				+ "' AND MenuItems.menuId= '" + menuId + "';";
-		return db.getOneRecord(sql, Stock.class, hotelId);
-	}
-
-	public boolean recipeItemExists(String hotelId, String sku, String menuId) {
-		Stock item = getRecipeItemByTitle(hotelId, sku, menuId);
-		if (item != null) {
-			return true;
-		}
-		return false;
-	}
-
-	public Stock getRecipeItemByTitle(String hotelId, String sku, String menuId) {
-		String sql = "SELECT * FROM Recipe WHERE sku='" + escapeString(sku) + "' AND menuId='" + escapeString(menuId)
-				+ "' AND hotelId='" + escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Stock.class, hotelId);
-	}
-
-	public boolean addRecipe(String hotelId, BigDecimal quantity, String menuId, String sku, String unit) {
-		String sql = "INSERT INTO Recipe (hotelId, sku, unit, menuId, quantity) VALUES('" + escapeString(hotelId)
-				+ "', '" + escapeString(sku) + "', '" + escapeString(unit) + "', '" + escapeString(menuId) + "', "
-				+ quantity + ");";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateRecipe(String hotelId, BigDecimal quantity, String menuId, String sku, String unit) {
-
-		String sql = "UPDATE Recipe SET quantity = " + quantity + ", unit = '" + escapeString(unit)
-				+ "' WHERE hotelId = '" + escapeString(hotelId) + "' AND sku = '" + escapeString(sku)
-				+ "' AND menuId = '" + escapeString(menuId) + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean updateMethod(String hotelId, String menuId, String method) {
-
-		String sql = "UPDATE MenuItems SET method = '" + escapeString(method) + "' WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND menuId = '" + escapeString(menuId) + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean reduceQuantity(String hotelId, String sku, BigDecimal newQuantity, BigDecimal quantity) {
-
-		String sql = "UPDATE Stock SET quantity = " + newQuantity + " WHERE hotelId = '"
-				+ escapeString(hotelId) + "' AND sku = '" + escapeString(sku) + "';";
-
-		if (!db.executeUpdate(sql, true))
-			return false;
-		this.updateStockLog(hotelId, sku, quantity, quantity.multiply(this.getRatePerUnit(sku, hotelId)), "REDUCE");
-		return true;
-	}
-
-	// ----------------------------------------------KOT
-	public ArrayList<OrderItem> getOrderedItemsForKOT(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.orderId AS orderId, "
-				+ "OrderItems.subOrderDate AS subOrderDate, OrderItems.qty AS qty, MenuItems.title AS title, "
-				+ "MenuItems.menuId AS menuId, MenuItems.vegType AS vegType, MenuItems.station AS station, "
-				+ "OrderItems.specs AS specs FROM OrderItems, MenuItems WHERE orderId='" + orderId
-				+ "' AND OrderItems.menuId==MenuItems.menuId AND OrderItems.isKotPrinted = 0 "
-				+ "AND OrderItems.hotelId='" + hotelId + "' ORDER BY MenuItems.category;";
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-	
-	public ArrayList<OrderItem> getOrderedItemsForReprintKOT(String hotelId, String orderId) {
-
-		String sql = "SELECT OrderItems.subOrderId AS subOrderId, OrderItems.orderId AS orderId, "
-				+ "OrderItems.subOrderDate AS subOrderDate, OrderItems.qty AS qty, MenuItems.title AS title, "
-				+ "MenuItems.menuId AS menuId, MenuItems.vegType AS vegType, MenuItems.station AS station, "
-				+ "OrderItems.specs AS specs FROM OrderItems, MenuItems WHERE orderId='" + orderId
-				+ "' AND OrderItems.menuId==MenuItems.menuId "
-				+ "AND OrderItems.hotelId='" + hotelId + "' ORDER BY MenuItems.category;";
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	public ArrayList<OrderItem> checkKOTPrinting(String hotelId) {
-
-		String sql = "SELECT distinct orderId FROM OrderItems WHERE OrderItems.hotelId = '" + hotelId + "' "
-				+ "AND isKotPrinted == 0;";
-
-		return db.getRecords(sql, OrderItem.class, hotelId);
-	}
-
-	// ---------------------------------------------KDS
-
-	public ArrayList<KitchenDisplayOrders> getKDSOrdersListView(String hotelId) {
-
-		String hotelType = this.getHotelById(hotelId).getHotelType();
+		IOutlet outlet = new OutletManager(false);
+		Settings setting = outlet.getSettings(systemId);
+		String hotelType = setting.getHotelType();
+		IService serviceDao = new ServiceManager(false);
 
 		String sql = "SELECT OrderItems.orderId as orderId, OrderItems.subOrderDate as subOrderDate,"
 				+ " OrderItems.subOrderId as subOrderId, MenuItems.title as title,"
-				+ " MenuItems.menuId as menuId, MenuItems.vegType as vegType, OrderItems.qty as qty, "
-				+ " OrderItems.specs as specs, OrderItems.state as orderState,  Orders.inhouse as inhouse, "
+				+ " MenuItems.menuId as menuId, MenuItems.vegType as vegType, OrderItems.quantity as quantity, "
+				+ " OrderItems.specs as specs, OrderItems.state as orderState,  Orders.orderType as orderType, "
 				+ " Orders.billNo as billNo,  Orders.customerAddress as customerAddress, "
 				+ " Orders.customerName as customerName FROM OrderItems, MenuItems, Orders"
 				+ " WHERE OrderItems.menuId == MenuItems.menuID AND OrderItems.orderId == Orders.orderId";
@@ -8519,162 +9885,11 @@ public class AccessManager {
 		else
 			sql += " AND Orders.state == " + ORDER_STATE_SERVICE;
 
-		sql += " AND OrderItems.hotelId == '" + hotelId + "' AND Orders.hotelId == '" + hotelId + "'"
-				+ " AND Orders.orderDate LIKE '%" + this.getServiceDate(hotelId) + "%'"
+		sql += " AND OrderItems.hotelId == '" + systemId + "' AND Orders.hotelId == '" + systemId + "'"
+				+ " AND Orders.orderDate LIKE '%" + serviceDao.getServiceDate(systemId) + "%'"
 				+ " ORDER BY OrderItems.orderId ASC;";
 
-		return db.getRecords(sql, KitchenDisplayOrders.class, hotelId);
-	}
-	// ----------------------------------------------Ratings
-
-	public boolean submitRatings(String hotelId, String orderId, String customerName, String customerNumber,
-			String customerBirthdate, String customerAnniversary, String reviewSuggestions, JSONObject ratings,
-			Boolean wantsPromotion) {
-		try {
-			String sql = "";
-			if (!customerNumber.equals("")) {
-				if (!hasCustomer(hotelId, customerNumber)) {
-					addCustomer(hotelId, customerName, customerNumber, "", customerBirthdate, customerAnniversary, "",
-							wantsPromotion, Boolean.FALSE);
-				} else {
-					modifyCustomer(hotelId, customerName, customerNumber, customerBirthdate, customerAnniversary, "",
-							"", "", wantsPromotion);
-				}
-			}
-
-			sql = "UPDATE Orders SET customerName='" + customerName + "', customerNumber='" + customerNumber
-					+ "', rating_ambiance=" + ratings.getInt("ambianceRating") + ", rating_qof="
-					+ ratings.getInt("qualityOfFoodRating") + ", rating_service=" + ratings.getInt("serviceRating")
-					+ ", rating_hygiene=" + ratings.getInt("hygieneRating") + ", reviewSuggestions='"
-					+ reviewSuggestions + "' WHERE orderId='" + orderId + "' AND hotelId='" + hotelId + "';";
-			return db.executeUpdate(sql, true);
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
-	public Integer getAmbiancePoints(String hotelId, String userId, Date dt) {
-		/* A small Hack */
-		String sql = "SELECT TOTAL(rating_ambiance) AS entityId FROM Orders WHERE waiterId=='" + userId
-				+ "' AND orderDate=='" + (new SimpleDateFormat("yyyy/MM/dd")).format(dt) + "' AND hotelId='" + hotelId
-				+ "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public Integer getQoFPoints(String hotelId, String userId, Date dt) {
-		/* A small Hack */
-		String sql = "SELECT TOTAL(rating_qof) AS entityId FROM Orders WHERE waiterId=='" + userId
-				+ "' AND orderDate=='" + (new SimpleDateFormat("yyyy/MM/dd")).format(dt) + "' AND hotelId='" + hotelId
-				+ "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public Integer getServicePoints(String hotelId, String userId, Date dt) {
-		/* A small Hack */
-		String sql = "SELECT TOTAL(rating_service) AS entityId FROM Orders WHERE waiterId=='" + userId
-				+ "' AND orderDate=='" + (new SimpleDateFormat("yyyy/MM/dd")).format(dt) + "' AND hotelId='" + hotelId
-				+ "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public Integer getHygienePoints(String hotelId, String userId, Date dt) {
-		/* A small Hack */
-		String sql = "SELECT TOTAL(rating_hygiene) AS entityId FROM Orders WHERE waiterId=='" + userId
-				+ "' AND orderDate=='" + (new SimpleDateFormat("yyyy/MM/dd")).format(dt) + "' AND hotelId='" + hotelId
-				+ "';";
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public BigDecimal getAverageFood(String hotelId, String custNumber) {
-
-		String sql = "SELECT ROUND(AVG(rating_qof)*100)/100 AS entityId FROM Orders WHERE customerNumber = '"
-				+ custNumber + "'";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getAverageAmbiance(String hotelId, String custNumber) {
-
-		String sql = "SELECT ROUND(AVG(rating_ambiance)*100)/100 AS entityId FROM Orders WHERE customerNumber = '"
-				+ custNumber + "'";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getAverageService(String hotelId, String custNumber) {
-
-		String sql = "SELECT ROUND(AVG(rating_service)*100)/100 AS entityId FROM Orders WHERE customerNumber = '"
-				+ custNumber + "'";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getAverageHygiene(String hotelId, String custNumber) {
-
-		String sql = "SELECT ROUND(AVG(rating_hygiene)*100)/100 AS entityId FROM Orders WHERE customerNumber = '"
-				+ custNumber + "'";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getOverallAvgFood(String hotelId) {
-
-		String sql = "SELECT ROUND(AVG(rating_qof)*100)/100 AS entityId FROM Orders;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getOverallAvgAmbiance(String hotelId) {
-
-		String sql = "SELECT ROUND(AVG(rating_ambiance)*100)/100 AS entityId FROM Orders;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getOverallAvgService(String hotelId) {
-
-		String sql = "SELECT ROUND(AVG(rating_service)*100)/100 AS entityId FROM Orders;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public BigDecimal getOverallAvgHygiene(String hotelId) {
-
-		String sql = "SELECT ROUND(AVG(rating_hygiene)*100)/100 AS entityId FROM Orders;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
+		return db.getRecords(sql, KitchenDisplayOrders.class, systemId);
 	}
 
 	// ----------------------------------------------------Station
@@ -8683,1131 +9898,6 @@ public class AccessManager {
 		String sql = "SELECT * FROM Stations WHERE hotelId='" + hotelId + "';";
 		return db.getRecords(sql, KitchenStation.class, hotelId);
 	}
-	// -----------------------------------------------------Discount
-	public Boolean addDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue, String startDate,
-			String expiryDate, String usageLimit, JSONArray validColletions, boolean hasExpiry) throws ParseException {
-
-		String collections = "";
-		for (int i = 0; i < validColletions.length(); i++) {
-			try {
-				collections += validColletions.getString(i);
-				if (i < validColletions.length() - 1) {
-					collections += ",";
-				}
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		if(usageLimit.equals(""))
-			usageLimit = "Unlimited";
-		if(!hasExpiry) {
-			startDate = "01/01/2018";
-			expiryDate = "31/12/3000";
-		}
-		String sql = "INSERT INTO Discount "
-				+ "(hotelId, name, description, type, foodValue, barValue, startDate, expiryDate, usageLimit, validCollections) "
-				+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(name) + "', '" + escapeString(description)
-				+ "', '" + Integer.toString(type) + "', " + Integer.toString(foodValue) + ", " + Integer.toString(barValue) + ", '" + startDate
-				+ "', '" + expiryDate + "', '" + escapeString(usageLimit) + "', '"
-				+ escapeString(collections) + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean editDiscount(String hotelId, String name, String description, int type, int foodValue, int barValue, String startDate,
-			String expiryDate, String usageLimit, JSONArray validColletions, boolean hasExpiry) throws ParseException {
-
-		String collections = "";
-		for (int i = 0; i < validColletions.length(); i++) {
-			try {
-				collections += validColletions.getString(i);
-				if (i < validColletions.length() - 1) {
-					collections += ",";
-				}
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		if(usageLimit.equals(""))
-			usageLimit = "Unlimited";
-		if(!hasExpiry) {
-			startDate = "01/01/2018";
-			expiryDate = "31/12/3000";
-		}
-		String sql = "UPDATE Discount SET description = '" + escapeString(description) + "', type = '"
-				+ type + "', foodValue = " + foodValue + ", barValue = " + barValue
-				+ ", startDate = '" + startDate + "', expiryDate = '" + expiryDate + "', usageLimit = '"
-				+ escapeString(usageLimit) + "', validCollections = '" + escapeString(collections)
-				+ "' WHERE  hotelId='" + hotelId + "' AND name = '" + name + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean updateUsageLimit(String hotelId, String name, int usageLimit) {
-
-		String sql = "UPDATE Discount SET usageLimit = '" + Integer.toString(usageLimit) + "' WHERE  hotelId='"
-				+ escapeString(hotelId) + "' AND name = '" + name + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<Discount> getAllDiscounts(String hotelId) {
-		String sql = "SELECT * FROM Discount WHERE hotelId='" + escapeString(hotelId) + "';";
-		return db.getRecords(sql, Discount.class, hotelId);
-	}
-
-	public Boolean deleteDiscount(String hotelId, String name) {
-		String sql = "DELETE FROM Discount WHERE name='" + name + "' AND hotelId='" + hotelId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean discountExists(String hotelId, String name) {
-		Discount discount = getDiscountByName(hotelId, name);
-		if (discount != null) {
-			return true;
-		}
-		return false;
-	}
-
-	public Discount getDiscountByName(String hotelId, String name) {
-		String sql = "SELECT * FROM Discount WHERE name='" + escapeString(name) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		return db.getOneRecord(sql, Discount.class, hotelId);
-	}
-
-	public String getDiscountUsageLimit(String hotelId, String name) {
-		String sql = "SELECT usageLimit FROM Discount WHERE name='" + escapeString(name) + "' AND hotelId='"
-				+ escapeString(hotelId) + "';";
-		Discount dis = db.getOneRecord(sql, Discount.class, hotelId);
-
-		return dis.getUsageLimit();
-	}
-
-	public BigDecimal getAppliedDiscount(String hotelId, String orderId) {
-		String sql = "SELECT (foodDiscount+barDiscount) AS entityId FROM PAYMENT WHERE hotelId = '" + hotelId + "' AND orderId = '"
-				+ orderId + "';";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return new BigDecimal("0.0");
-	}
-
-	public JSONObject applyDiscount(String hotelId, String orderId, String discountCode) {
-
-		JSONObject outObj = new JSONObject();
-		try {
-			outObj.put("status", false);
-			
-			if(!this.discountExists(hotelId, discountCode)) {
-				outObj.put("message", "This code does not exist. Please enter a valid discount code.");
-			}
-			Discount discount = this.getDiscountByName(hotelId, discountCode);
-			
-			if (discount.getHasUsageLimit()) {
-				if (discount.getUsageLimit().equals("0")) {
-					outObj.put("message", "This discount cannot be used right now as it has been exhausted.");
-					return outObj;
-				}
-			}
-
-			DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
-			Date date = df.parse(discount.getExpiryDate());
-
-			if (date.before(new Date())) {
-				outObj.put("message", "This discount has expired. Please use another Offer.");
-				return outObj;
-			}
-			date = df.parse(discount.getStartDate());
-
-			if (date.after(new Date())) {
-				outObj.put("message", "This discount is not active yet. Please use another Offer.");
-				return outObj;
-			}
-			
-			String sql = "UPDATE Orders SET discountCode = '" + escapeString(discountCode) + "' WHERE hotelId = '" + hotelId
-					+ "' AND orderId = '" + orderId + "';";
-			
-			if(!db.executeUpdate(sql, true)) {
-				outObj.put("message", "This discount code could not be applied. Please contact support.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-			outObj.put("status", true);
-			
-			db.commitTransaction();
-			
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return outObj;
-	}
-	
-	public JSONObject calculateDiscount(String hotelId, String orderId, Discount discount, LoyaltyOffer loyalty) {
-		
-		BigDecimal foodbill = new BigDecimal("0.0"), barBill = new BigDecimal("0.0"), taxableFoodBill = new BigDecimal("0.0");
-		BigDecimal taxableBarBill = new BigDecimal("0.0"), nonTaxableFoodBill = new BigDecimal("0.0"), nonTaxableBarBill = new BigDecimal("0.0"); 
-		JSONObject outObj = new JSONObject();
-		BigDecimal discountAmount = new BigDecimal("0.0"), totalPerItem = new BigDecimal("0.0");
-		
-		ArrayList<OrderItem> orderItems = this.getOrderedItems(hotelId, orderId);
-		
-		for (OrderItem orderItem : orderItems) {
-			totalPerItem = orderItem.getRate().multiply(new BigDecimal(orderItem.getQty()));
-			if(discount != null && discount.getType() == AccessManager.DISCOUNT_TYPE_PERCENTAGE) {
-				if(discount.getHasCollections()) {
-					
-				}else {
-					if(orderItem.getStation() == "BAR") {
-						
-					}else {
-						
-					}
-				}
-			} else if(discount != null && discount.getType() == AccessManager.DISCOUNT_TYPE_FIXED) {
-				
-			}
-		}
-		
-		return outObj;
-	}
-	
-	public boolean removeDiscount(String hotelId, String orderId) {
-
-		String sql = "UPDATE Orders SET discountCode = '' WHERE hotelId = '" + hotelId
-					+ "' AND orderId = '" + orderId + "';";
-			
-		return db.executeUpdate(sql, true);
-	}
-
-	public boolean applyCustomerGST(String hotelId, String orderId, String gst) {
-
-		String sql = "UPDATE Orders SET customerGST = '" + escapeString(gst) + "' WHERE hotelId = '" + hotelId
-				+ "' AND orderId = '" + orderId + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -----------------------------------------------Report
-
-	public MonthReport getTotalOrdersForCurMonth(String hotelId, String duration, boolean visible) {
-		String sql = "SELECT COUNT(orderId) as count FROM Orders WHERE orderDate LIKE'" + escapeString(duration)
-				+ "%' AND hotelId='" + hotelId + "' ";
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN + ";";
-		return db.getOneRecord(sql, MonthReport.class, hotelId);
-	}
-
-	public MonthReport getBestWaiter(String hotelId, String duration, boolean visible) {
-
-		String sql = "SELECT RTRIM(orderId, '0123456789:') AS user, SUBSTR(subOrderDate, 1, " + duration.length()
-				+ ") AS duration, count(*) AS waitersOrders, employeeID FROM OrderItems, Users WHERE duration = '"
-				+ escapeString(duration) + "' AND Users.userId = user ";
-		if(!visible)
-			sql += "AND OrderItems.billNo != '' ";
-		sql += "GROUP BY user ORDER BY count(*) desc  LIMIT 1;";
-		return db.getOneRecord(sql, MonthReport.class, hotelId);
-	}
-
-	public ArrayList<MonthReport> getWeeklyRevenue(String hotelId, boolean visible) {
-
-		ArrayList<MonthReport> weeklyRevenue = new ArrayList<MonthReport>();
-
-		String duration = "";
-
-		for (int i = 0; i < 7; i++) {
-
-			duration = getPreviousDateString(i);
-			String sql = "SELECT SUM(total) AS totalSales FROM Payment WHERE orderDate = '" + duration + "' ";
-			if(!visible)
-				sql += "AND billNo != '';";
-			MonthReport report = db.getOneRecord(sql, MonthReport.class, hotelId);
-			weeklyRevenue.add(report);
-		}
-		return weeklyRevenue;
-	}
-
-	public ArrayList<YearlyReport> getYearlyOrders(String hotelId, boolean visible) {
-
-		ArrayList<YearlyReport> out = new ArrayList<YearlyReport>();
-
-		Date date = new Date();
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(date);
-		int month = cal.get(Calendar.MONTH);
-		String duration = "";
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM");
-
-		for (int i = 0; i < 9; i++) {
-			duration = dateFormat.format(cal.getTime());
-			String sql = "SELECT count(Id) AS totalOrders FROM Orders WHERE orderDate LIKE '" + duration + "%' ";
-			if(!visible)
-				sql += "AND Orders.state != " + ORDER_STATE_HIDDEN + ";";
-			YearlyReport report = db.getOneRecord(sql, YearlyReport.class, hotelId);
-			report.month = month + 1;
-			out.add(report);
-			cal.add(Calendar.MONTH, -1);
-			month = cal.get(Calendar.MONTH);
-
-		}
-		return out;
-	}
-
-	public MonthReport getMostOrderedItem(String hotelId, String duration, boolean visible) {
-
-		String sql = "SELECT OrderItems.menuId as itemId, SUBSTR(subOrderDate, 1, " + duration.length()
-				+ ") AS duration, MenuItems.title AS title, SUM(qty) AS orderCount, img FROM OrderItems, MenuItems "
-				+ "WHERE duration = '" + escapeString(duration) + "' AND MenuItems.menuId = OrderItems.menuId "
-				+ " AND MenuItems.category != 'Roti' ";
-		if(!visible)
-			sql += "AND OrderItems.billNo != '' ";
-		sql += " GROUP BY itemId ORDER BY orderCount desc LIMIT 1;";
-		
-		return db.getOneRecord(sql, MonthReport.class, hotelId);
-	}
-
-	// Reports
-	// expense-ap
-	public ArrayList<Expense> getExpenseReport(String hotelid, String startDate, String endDate) {
-
-		String sql = "SELECT serviceDate, amount, type, payee, "
-				+ "REPLACE(REPLACE(REPLACE(Expenses.memo,CHAR(13),''),CHAR(10),''),',','|') AS memo " // replaced ','
-																										// with '|' AND
-																										// '/n' with ' '
-				+ "FROM Expenses WHERE hotelId = '" + hotelid + "' AND type != 'PAYIN'" 
-				+ "AND serviceDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate) + "';";
-		return db.getRecords(sql, Expense.class, hotelid);
-	}
-
-	// new-ap(in progress)
-	public ArrayList<DailyDiscountReport> getDailyDiscountReport(String hotelId, String startDate, String endDate, boolean visible) {
-		String sql = "SELECT *, ROUND(ordersAffected/totalOrders*10000)/100 AS ordersDiscountedPer, "
-				+ "(ROUND(sumDiscount/sumTotal*10000)/100)||' %' AS discountPer,"
-				+ "(ROUND(avgDiscount/avgTotal*10000)/100)||' %' AS avgDiscountPer,"
-				+ "(ROUND(grossDiscount/grossSale*10000)/100)||' %' AS grossDiscountPer "
-				+ " FROM "
-				+ "(SELECT discount.name AS name, "
-				+ "CASE discount.type WHEN 1 THEN 'Rs '||discount.foodValue else discount.foodValue||' %' END AS foodValue, "
-				+ "CASE discount.type WHEN 1 THEN 'Rs '||discount.barValue else discount.barValue||' %' END AS barValue, "
-				+ "discount.description AS description, "
-				+ "(ROUND(SUM(foodBill+barBill)*100)/100) AS sumTotal, "
-				+ "(ROUND(AVG(foodBill+barBill)*100)/100) AS avgTotal, "
-				+ "(ROUND(AVG(foodDiscount+barDiscount)*100)/100) AS avgDiscount, "
-				+ "(ROUND(SUM(foodDiscount+barDiscount)*100)/100) AS sumDiscount, "
-				+ "(ROUND(SUM(foodBill+barBill-foodDiscount-barDiscount)*100)/100) AS sumDiscountedTotal, "
-				+ "COUNT(payment.Id) AS ordersAffected, "
-				+ "(SELECT COUNT(orderId) FROM Payment WHERE hotelId='" + hotelId + "' AND orderDate BETWEEN '" 
-				+ startDate + "' AND '" + appendEndDate(endDate) +"' AND cardType != 'VOID') AS totalOrders, " 
-				+ "(SELECT ROUND(SUM(foodBill+barBill)*100)/100 FROM Payment WHERE hotelId='" + hotelId + "' AND orderDate BETWEEN '" 
-				+ startDate + "' AND '" + appendEndDate(endDate) +"' AND cardType != 'VOID') AS grossSale, " 
-				+ "(SELECT ROUND(SUM(foodDiscount+barDiscount)*100)/100 FROM Payment WHERE hotelId='" + hotelId + "' AND orderDate BETWEEN '" 
-				+ startDate + "' AND '" + appendEndDate(endDate) +"' AND cardType != 'VOID') AS grossDiscount " 
-				+ "FROM payment, discount WHERE payment.hotelId='" + hotelId
-				+ "' AND payment.orderDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate)
-				+ "' AND payment.discountName=discount.name ";
-
-		if(!visible)
-			sql += " AND payment.billNo != '" + "'";
-		
-				sql += " GROUP BY discount.name)";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyDiscountReport.class, hotelId);
-	}
-
-	// new-ap
-	// refere googlesheets for logic...
-	public ArrayList<GrossSaleReport> getGrossSalesReport(String hotelId, String startDate, String endDate, boolean visible) {
-		endDate = appendEndDate(endDate);
-		String sql = "SELECT ROUND(SUM(payment.foodBill+barBill)*100)/100 as grossTotal, "
-				+ "ROUND(SUM(payment.barDiscount+payment.foodDiscount)*100)/100 as grossDiscount, "
-				+ "ROUND(SUM(payment.loyaltyAmount)*100)/100 as grossLoyalty, "
-				+ "ROUND(SUM(payment.complimentary)*100)/100 as grossComplimentary, "
-				+ "ROUND(SUM(payment.gst)*100)/100 as grossGst, "
-				+ "ROUND(SUM(payment.appPayment)*100)/100 as appPayment, "
-				+ "ROUND(SUM(payment.cardPayment)*100)/100 as cardPayment, "
-				+ "ROUND(SUM(payment.appPayment)*100)/100 as appPayment, "
-				+ "ROUND(SUM(payment.cashPayment)*100)/100 as cashPayment, "
-				+ "ROUND(SUM(payment.serviceCharge)*100)/100 as grossServiceCharge, "
-				+ "ROUND(SUM(payment.total)*100)/100 as totalSale, "
-				+ "ROUND((SUM(payment.total)-(Select SUM(Expenses.amount) From Expenses Where (expenses.type!='CASH_LIFT' OR expenses.type!='PAYIN') AND expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND expenses.hotelId='" + hotelId + "'))*100)/100 as NetSales, "
-				+ "ROUND((Select SUM(Expenses.amount) From Expenses Where (expenses.type!='CASH_LIFT' OR expenses.type!='PAYIN') AND expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND expenses.hotelId='" + hotelId
-				+ "')*100)/100 as grossExpenses, "
-				+ "ROUND((Select SUM(Expenses.amount) From Expenses Where expenses.type=='PAYIN' AND expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND expenses.hotelId='" + hotelId
-				+ "')*100)/100 as totalPayIns, "
-				+ "ROUND((Select SUM(OrderItemLog.rate*OrderItemLog.quantity) FROM OrderItemLog Where OrderItemLog.state='99' AND OrderItemLog.hotelId='"
-				+ hotelId + "' AND OrderItemLog.dateTime BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')*100)/100  as sumVoids,  "
-				+ "(Select COUNT(OrderItemLog.rate*OrderItemLog.quantity) FROM OrderItemLog Where OrderItemLog.state='99' AND OrderItemLog.hotelId='"
-				+ hotelId + "' AND OrderItemLog.dateTime BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')  as countVoids,  "
-				+ "ROUND((Select SUM(OrderItemLog.rate*OrderItemLog.quantity) FROM OrderItemLog Where OrderItemLog.state='100' AND OrderItemLog.hotelId='"
-				+ hotelId + "' AND OrderItemLog.dateTime BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')*100)/100  as sumReturns, "
-				+ "(Select COUNT(OrderItemLog.rate*OrderItemLog.quantity) FROM OrderItemLog Where OrderItemLog.state='100' AND OrderItemLog.hotelId='"
-				+ hotelId + "' AND OrderItemLog.dateTime BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')  as countReturns FROM Payment  Where payment.hotelId='" + hotelId + "' "
-				+ "AND payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' AND payment.cardType != 'VOID'";
-		if(!visible) 
-			sql += " AND payment.billNo != '" + "'";
-		
-		System.out.println(sql);
-		return db.getRecords(sql, GrossSaleReport.class, hotelId);
-	}
-
-	// newCollectionWiseReportA-ap (gross and totals...)
-	public ArrayList<CollectionWiseReportA> getCollectionWiseReportA(String hotelId, String startDate, String endDate) {
-		endDate = appendEndDate(endDate);
-		String sql = "Select DISTINCT(MenuItems.category) AS collection, "
-				+ "ROUND(SUM(OrderItems.qty*OrderItems.rate*100))/100 AS grossTotal, "
-				+ "ROUND(AVG(OrderItems.qty*OrderItems.rate)*100)/100 AS averagePrice, "
-				+ "COUNT(OrderItems.menuId) AS noOrdersAffected, "
-				+ "(ROUND(CAST(COUNT(OrderItems.menuId) AS FLOAT)/(SELECT CAST(SUM(OrderItems.qty) AS FLOAT) FROM OrderItems WHERE OrderItems.hotelId='"
-				+ hotelId + "' AND OrderItems.subOrderDate BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')*100*100)/100)||' %' AS noOrdersAffectedPer, SUM(OrderItems.qty) AS totalQuantityOrdered, "
-				+ "(ROUND(CAST(SUM(OrderItems.qty) AS FLOAT)/(SELECT CAST(SUM(OrderItems.qty) AS FLOAT) FROM OrderItems WHERE OrderItems.hotelId='"
-				+ hotelId + "' AND OrderItems.subOrderDate BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')*100*100)/100)||' %' AS totalQuantityOrderedPer FROM OrderItems,MenuItems "
-				+ "WHERE OrderItems.menuId=MenuItems.menuId AND OrderItems.hotelId='" + hotelId + "' "
-				+ "AND OrderItems.subOrderDate BETWEEN '" + startDate + "' AND '" + endDate + "' "
-				+ "GROUP BY MenuItems.category;";
-		System.out.println(sql);
-		return db.getRecords(sql, CollectionWiseReportA.class, hotelId);
-	}
-
-	// newCollectionWiseReportB-ap (top/hot selling item!)
-	public ArrayList<CollectionWiseReportB> getCollectionWiseReportB(String hotelId, String startDate, String endDate) {
-		endDate = appendEndDate(endDate);
-		String sql = "SELECT title AS topItemTitle, max(SUM) "
-				+ "FROM (SELECT MenuItems.category, MenuItems.title, OrderItems.menuId, SUM(OrderItems.qty) AS SUM "
-				+ "        FROM OrderItems, MenuItems "
-				+ "        WHERE OrderItems.menuId = MenuItems.menuId AND OrderItems.subOrderDate BETWEEN '" + startDate
-				+ "' AND '" + endDate + "'         GROUP BY MenuItems.menuId "
-				+ "        ORDER BY MenuItems.title) GROUP BY category;";
-		System.out.println(sql);
-		return db.getRecords(sql, CollectionWiseReportB.class, hotelId);
-	}
-
-	// total operating cost-ap
-	public ArrayList<DailyOperationReport> getDailyOperationReport1(String hotelId, String startDate, String endDate) {
-		endDate = appendEndDate(endDate);
-		String sql = "SELECT ROUND(SUM(Expenses.amount)*100)/100 AS  totalOperatingCost, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='INVENTORY' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS INVENTORY, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='LABOUR' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS LABOUR, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='RENT' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS RENT, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='ELECTRICITY_BILL' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId
-				+ "')*100)/100 AS ELECTRICITY_BILL, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='GAS_BILL' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS GAS_BILL, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='PETROL' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS PETROL, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='TELEPHONE_BILL' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId
-				+ "')*100)/100 AS TELEPHONE_BILL, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='MOBILE_RECHARGE' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId
-				+ "')*100)/100 AS MOBILE_RECHARGE, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='INTERNET' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS INTERNET, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='SOFTWARE' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS SOFTWARE, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='COMPUTER_HARDWARE' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId
-				+ "')*100)/100 AS COMPUTER_HARDWARE, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='REPAIRS' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS REPAIRS, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='OTHERS' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS OTHERS, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type='CASH_LIFT' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND Expenses.hotelId='" + hotelId + "')*100)/100 AS CASH_LIFT "
-				+ "FROM Expenses WHERE Expenses.hotelId='" + hotelId + "' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "';";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// total revenue-ap
-	public ArrayList<DailyOperationReport> getDailyOperationReport2(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT (SELECT ROUND(SUM(TotalRevenue.total)*100)/100 FROM TotalRevenue WHERE TotalRevenue.hotelId='"
-				+ hotelId + "' AND TotalRevenue.serviceDate BETWEEN '" + startDate + "' AND '" + endDate
-				+ "' ) AS totalRevenue, ROUND(SUM(payment.total)*100)/100 as grossTotal, "
-				+ "ROUND(SUM(payment.foodDiscount+ payment.barDiscount)*100)/100 as grossDiscount, "
-				+ "ROUND(SUM(payment.gst)*100)/100 as grossTaxes, "
-				+ "ROUND(SUM(payment.serviceCharge)*100)/100 as grossServiceCharge, "
-				+ "ROUND(ROUND((Select SUM(payment.total) FROM payment WHERE payment.hotelId='" + hotelId
-				+ "' AND Payment.orderDate  BETWEEN '" + startDate + "' AND '" + endDate
-				+ "')*100)/100 - ROUND((Select SUM(Expenses.amount) From Expenses WHERE expenses.type!='CASH_LIFT' AND Expenses.serviceDate BETWEEN '"
-				+ startDate + "' AND '" + endDate + "' AND expenses.hotelId='" + hotelId
-				+ "')*100)/100)*100/100 as NetSales FROM Payment WHERE payment.hotelId='" + hotelId + "' "
-				+ "AND payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "';";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// Total Operating Margin-ap //implementvisible
-	public ArrayList<DailyOperationReport> getDailyOperationReport3(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT ROUND((SUM(TotalRevenue.total) - (SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.hotelId='"
-				+ hotelId + "' AND Expenses.serviceDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate)
-				+ "'))*100)/100 AS totalOperatingMargin, "
-				+ "ROUND((SELECT SUM(Payment.Total) FROM Payment WHERE Payment.hotelId='" + hotelId
-				+ "' AND Payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "')*100)/100 AS paidIn, "
-				+ "ROUND((SELECT SUM(Expenses.amount) FROM Expenses WHERE Expenses.type!='CASH_LIFT' AND expenses.hotelId='"
-				+ hotelId + "' AND Expenses.serviceDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate)
-				+ "')*100)/100 AS paidOut FROM TotalRevenue Where hotelId='" + hotelId + "' "
-				+ "AND TotalRevenue.serviceDate BETWEEN '" + startDate + "' AND '" + endDate + "';";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// Operating Metrics-ap
-	// main 3
-	public ArrayList<DailyOperationReport> getDailyOperationReport4(String hotelId, String startDate, String endDate, boolean visible) {
-
-		String billNo = visible?"Payment.billNo2":"Payment.billNo";
-		
-		String sql = "SELECT Distinct Orders.serviceType AS serviceType, "
-				+ "SUM(Payment.total)/SUM(Orders.numberOfGuests) AS AvgAmountPerGuest, "
-				+ "(SUM(Payment.total)/COUNT("+billNo+")) AS AvgAmountPerCheck, SUM(Payment.total) AS Total, "
-				+ "SUM(Orders.numberOfGuests) AS noOfGuests, COUNT("+billNo+") AS noOfBills "
-				+ "FROM Orders, Payment WHERE Orders.hotelId='" + hotelId + "' "
-				+ "AND Orders.orderId=Payment.orderId AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		sql += "GROUP BY Orders.serviceType ";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// tables turned-ap
-	public ArrayList<DailyOperationReport> getDailyOperationReport5(String hotelId, String startDate, String endDate, boolean visible) {
-		
-		String billNo = visible?"Payment.billNo2":"Payment.billNo";
-		
-		String sql = "SELECT SUM(Payment.total)/COUNT(distinct "+billNo+") as AvgAmountPerTableTurned "
-				+ "FROM Payment,Orders WHERE payment.orderId=orders.orderId AND orders.inhouse='1' "
-				+ "AND orders.serviceType=serviceType AND orders.hotelId='" + hotelId + "' "
-				+ "AND orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		sql += "GROUP BY Orders.serviceType ";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// voids-ap
-	public ArrayList<DailyOperationReport> getDailyOperationReport6(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT COUNT(orders.orderId) AS voids FROM orders WHERE orders.state='99' "
-				+ "AND orders.hotelId='" + hotelId + "' AND orders.orderDate BETWEEN '" + startDate + "' and '"
-				+ endDate + "' GROUP BY Orders.serviceType;";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// returns-ap
-	public ArrayList<DailyOperationReport> getDailyOperationReport7(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT COUNT(Distinct OrderItemLog.orderId) AS returns FROM orderitemlog, orders "
-				+ "WHERE orderitemlog.state='100' AND orderitemlog.orderId=orders.orderId "
-				+ "AND orderitemlog.hotelId='" + hotelId + "' AND orderitemlog.dateTime BETWEEN '" + startDate
-				+ "' AND '" + appendEndDate(endDate) + "' GROUP BY Orders.serviceType;";
-		System.out.println(sql);
-		return db.getRecords(sql, DailyOperationReport.class, hotelId);
-	}
-
-	// Jason
-	// Discount Report-ap(edited)
-	public ArrayList<DiscountReport> getDiscountReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT payment.discountName, payment.orderDate, "
-				+ "ROUND(payment.foodDiscount*100)/100 AS foodDiscount, "
-				+ "ROUND(payment.barDiscount*100)/100 AS barDiscount, "
-				+ "ROUND((payment.foodDiscount+payment.barDiscount)*100)/100 AS totalDiscount, "
-				+ "ROUND((payment.total+payment.foodDiscount+payment.barDiscount)*100)/100 AS total, "
-				+ "customerName ,"
-				+ "payment.total AS discountedTotal "
-				+ "FROM payment, orders WHERE payment.orderid = orders.orderid AND discountName!='' "
-				+ "AND payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' AND payment.hotelId='"
-				+ hotelId + "';";
-		System.out.println(sql);
-		return db.getRecords(sql, DiscountReport.class, hotelId);
-	}
-
-	// Jason
-	// itemwise-ap(hot selling items/menu category)
-	public ArrayList<ItemWiseReport> getItemwiseReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT Menuitems.menuid AS menuId, category AS category, title AS title, "
-				+ "SUM(qty) AS qty FROM MenuItems, Orderitems, Orders WHERE Menuitems.menuid = Orderitems.menuid "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate) + "' "
-				+ "AND Orderitems.hotelId ='" + hotelId + "' AND MenuItems.station!='Bar' "
-				+ "AND Orderitems.orderId == Orders.orderId "
-				+ "GROUP BY menuitems.menuid UNION ALL "
-				+ "SELECT menuitems.menuid AS menuId, category AS category, title AS title, "
-				+ "SUM(OrderItemLog.quantity) AS qty FROM MenuItems, OrderItemLog, Orders WHERE menuitems.menuid = OrderItemLog.menuid "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate) + "' "
-				+ "AND OrderItemLog.hotelId='" + hotelId + "' AND menuItems.station!='Bar' AND OrderItemLog.state == 50 "
-				+ "AND OrderItemLog.orderId == Orders.orderId "
-				+ "GROUP BY menuitems.menuid "
-				+ "ORDER BY category, MenuItems.title;";
-		System.out.println(sql);
-		return db.getRecords(sql, ItemWiseReport.class, hotelId);
-	}
-
-	// liquor-ap(hot selling items/menu category)
-	public ArrayList<ItemWiseReport> getLiquorReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT menuitems.menuid AS menuId, category AS category, title AS title, "
-				+ "SUM(qty) AS qty FROM MenuItems, Orderitems, Orders WHERE menuitems.menuid = orderitems.menuid "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate) + "' "
-				+ "AND Orderitems.hotelId='" + hotelId + "' AND menuItems.station='Bar' "
-				+ "AND Orderitems.orderId == Orders.orderId "
-				+ "GROUP BY menuitems.menuid UNION ALL "
-				+ "SELECT menuitems.menuid AS menuId, category AS category, title AS title, "
-				+ "SUM(OrderItemLog.quantity) AS qty FROM MenuItems, OrderItemLog, Orders WHERE menuitems.menuid = OrderItemLog.menuid "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + appendEndDate(endDate) + "' "
-				+ "AND OrderItemLog.hotelId='" + hotelId + "' AND menuItems.station='Bar' AND OrderItemLog.state == 50 "
-				+ "AND OrderItemLog.orderId == Orders.orderId "
-				+ "GROUP BY menuitems.menuid "
-				+ "ORDER BY category, MenuItems.title;";
-		System.out.println(sql);
-		return db.getRecords(sql, ItemWiseReport.class, hotelId);
-	}
-
-	//Void Report
-	public ArrayList<Order> getVoidOrderReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT Orders.id, Orders.billNo, Orders.orderDate, Orders.waiterId, Orders.inhouse, "
-				+ "Orders.reason, Payment.foodBill, Payment.barBill, Payment.foodBill + Payment.barBill AS total FROM Orders, Payment WHERE Orders.state = 99 "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' "
-				+ "AND Orders.hotelId='" + hotelId + "' AND Orders.orderId == Payment.orderId ORDER BY Orders.id;";
-		System.out.println(sql);
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-
-	//Void Report
-	public ArrayList<Order> getNCOrderReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT Orders.id, Orders.billNo, Orders.orderDate, Orders.waiterId, Orders.inhouse, "
-				+ "Orders.reference, Payment.foodBill, Payment.barBill, Payment.foodBill + Payment.barBill AS total FROM Orders, Payment WHERE Orders.inhouse = 4 "
-				+ "AND Orders.orderId == Payment.orderId "
-				+ "AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' "
-				+ "AND Orders.hotelId='" + hotelId + "' ORDER BY Orders.id;";
-		System.out.println(sql);
-		return db.getRecords(sql, Order.class, hotelId);
-	}
-	
-	//Returned Item  Report
-	public ArrayList<ReturnedItemsReport> getReturnedItemsReport(String hotelId, String startDate, String endDate, boolean visible) {
-		
-		String billNo = visible?"Orders.billNo2 AS billNo":"Orders.billNo";
-		
-		String sql = "SELECT Orders.id, "+billNo+", Orders.orderDate, Orders.waiterId, Orders.inhouse, "
-				+ "MenuItems.title, OrderItemLog.dateTime, OrderItemLog.quantity, OrderItemLog.reason, OrderItemLog.rate "
-				+ ", (OrderItemLog.rate*OrderItemLog.quantity) AS total FROM Orders, OrderItemlog, MenuItems WHERE OrderItemlog.state = 100 "
-				+ "AND OrderItemlog.dateTime BETWEEN '" + startDate + "%' AND '" + endDate + "%' "
-				+ "AND Orders.hotelId =='" + hotelId + "' AND OrderItemlog.orderId == Orders.orderId "
-				+ "AND OrderItemLog.menuId == MenuItems.menuId ";
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		sql += " ORDER BY OrderItemlog.id;";
-		System.out.println(sql);
-		return db.getRecords(sql, ReturnedItemsReport.class, hotelId);
-	}
-	
-	//Returned Item  Report
-	public ArrayList<ReturnedItemsReport> getComplimentaryItemsReport(String hotelId, String startDate, String endDate, boolean visible) {
-
-		String billNo = visible?"Orders.billNo2 AS billNo":"Orders.billNo";
-		
-		String sql = "SELECT Orders.id, "+billNo+", Orders.orderDate, Orders.waiterId, Orders.inhouse, "
-				+ "MenuItems.title, OrderItemLog.dateTime, OrderItemLog.quantity, OrderItemLog.rate "
-				+ ", (OrderItemLog.rate*OrderItemLog.quantity) AS total FROM Orders, OrderItemlog, MenuItems WHERE OrderItemlog.state = 50 "
-				+ "AND OrderItemlog.dateTime BETWEEN '" + startDate + "%' AND '" + endDate + "%' "
-				+ "AND Orders.hotelId =='" + hotelId + "' AND OrderItemlog.orderId == Orders.orderId "
-				+ "AND OrderItemLog.menuId == MenuItems.menuId ";
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		sql += " ORDER BY OrderItemlog.id;";
-		System.out.println(sql);
-		return db.getRecords(sql, ReturnedItemsReport.class, hotelId);
-	}
-
-	public PaymentWiseSalesReport getPaymentWiseSalesReport(String hotelId, String startDate, String endDate,
-			Integer i, boolean visible) {
-
-		String[] cardTypes = this.getEnums(CardType.class);
-		String[] onlinePaymentTypes = this.getEnums(OnlinePaymentType.class);
-		
-		String sql = "SELECT ROUND(SUM(Payment.foodBill)*100)/100 AS foodBill, ROUND(SUM(Payment.barBill)*100)/100 AS barBill, "
-				+ "ROUND(SUM(Payment.total)*100)/100 AS total, SUM(Orders.numberOfGuests) AS cover, ROUND(SUM(Payment.cashPayment)*100)/100 AS cash, "
-				+ "ROUND(SUM(Payment.cardPayment)*100)/100 AS card, ROUND(SUM(Payment.appPayment)*100)/100 AS app";
-		
-		for (String paymentType : cardTypes) {
-			sql += ", (SELECT ifnull(ROUND(SUM(Payment.cardPayment)*100)/100, 0) FROM Payment,Orders WHERE Payment.cardType LIKE '%"+paymentType+"%' AND Payment.hotelId='"
-				+ hotelId + "' AND Payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate
-				+ "' AND Orders.inhouse='" + i + "' AND Payment.orderId = Orders.orderId ) AS "+paymentType;
-		}
-		for (String paymentType : onlinePaymentTypes) {
-			sql += ", (SELECT ifnull(ROUND(SUM(Payment.appPayment)*100)/100, 0) FROM Payment,Orders WHERE Payment.cardType LIKE '%"+paymentType+"%' AND Payment.hotelId='"
-				+ hotelId + "' AND Payment.orderDate BETWEEN '" + startDate + "' AND '" + endDate
-				+ "' AND Orders.inhouse='" + i + "' AND Payment.orderId = Orders.orderId ) AS "+paymentType;
-		}
-		sql += " FROM Payment, Orders WHERE Payment.orderId = Orders.orderId AND Payment.hotelId='" + hotelId
-				+ "' AND Payment.orderdate BETWEEN '" + startDate + "' AND '" + endDate + "' " + "AND Orders.inhouse='"
-				+ i + "' ";
-		
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		
-		System.out.println(sql);
-		return db.getOneRecord(sql, PaymentWiseSalesReport.class, hotelId);
-	}
-	
-	public String[] getEnums(Class<? extends Enum<?>> e) {
-	    return Arrays.stream(e.getEnumConstants()).map(Enum::name).toArray(String[]::new);
-	}
-
-	public ArrayList<Attendance> getAttendanceReport(String hotelId, String startDate, String endDate) {
-
-		String sql = "SELECT Employee.employeeId, Employee.salary, Employee.firstName, Employee.surName, Attendance.shift, Attendance.checkInDate, Attendance.reason, Attendance.authorisation, Attendance.checkInTime, Attendance.checkOutTIme, "
-				+ "REPLACE(REPLACE(REPLACE(Attendance.isPresent, " + PRESENT + ", \"PRESENT\") , " + ABSENT
-				+ ", \"ABSENT\"), " + EXCUSED + ", \"EXCUSED\") AS attendanceStr, "
-				+ "	(SELECT COUNT(isPresent) FROM Attendance WHERE 	Attendance.checkInDate between '" + startDate
-				+ "' AND '" + endDate + "' 	AND Attendance.employeeId = Employee.employeeId"
-				+ "	AND Attendance.authorisation = 1 	AND Attendance.isPresent=2 " + "	AND Attendance.hotelId = '"
-				+ hotelId + "' "
-				+ "	GROUP BY Attendance.employeeId ) AS excusedCount,	(SELECT COUNT(isPresent) FROM Attendance  "
-				+ "	WHERE Attendance.checkInDate between '" + startDate + "' AND '" + endDate + "' "
-				+ "	AND Attendance.employeeId = Employee.employeeId	AND Attendance.authorisation = 1 "
-				+ "	AND Attendance.isPresent=3 	AND Attendance.hotelId = '" + hotelId + "' "
-				+ "	GROUP BY Attendance.employeeId ) AS absentCount,	(SELECT COUNT(isPresent) FROM Attendance "
-				+ "	WHERE Attendance.checkInDate between '" + startDate + "' AND '" + endDate + "' "
-				+ "	AND Attendance.employeeId = Employee.employeeId	AND Attendance.authorisation = 1 "
-				+ "	AND Attendance.isPresent=1 	AND Employee.hotelId = '" + hotelId + "' "
-				+ "	GROUP BY Attendance.employeeId ) AS presentCount FROM Employee, Attendance "
-				+ "WHERE Employee.employeeId = Attendance.employeeId AND Attendance.checkInDate between '" + startDate
-				+ "' AND '" + endDate + "' AND Attendance.authorisation = 1 " + "AND Employee.hotelId = '" + hotelId
-				+ "' " + "ORDER BY Attendance.employeeId, Attendance.checkInDate, Attendance.shift";
-		System.out.println(sql);
-		return db.getRecords(sql, Attendance.class, hotelId);
-	}
-
-	public ArrayList<Attendance> getAttendanceReportB(String hotelId, String startDate, String endDate) {
-
-		String sql = "SELECT distinct Attendance.checkInDate FROM Attendance "
-				+ "WHERE Attendance.checkInDate between '" + startDate + "' AND '" + endDate + "' "
-				+ "AND Attendance.authorisation = 1 AND Attendance.hotelId = '" + hotelId + "' "
-				+ "ORDER BY Attendance.checkInDate";
-		System.out.println(sql);
-		return db.getRecords(sql, Attendance.class, hotelId);
-	}
-
-	public Report getTotalSalesForService(String hotelId, String serviceDate, String serviceType, String section, boolean visible) {
-		
-		String sql2 = "";
-		if(!visible)
-			sql2 = " AND Orders.state != "+ ORDER_STATE_HIDDEN;
-		
-		String sql = "SELECT ROUND(SUM(Payment.complimentary+Payment.loyaltyAmount+payment.foodDiscount+payment.barDiscount+Payment.foodBill+Payment.barBill+gst+VATBAR+serviceCharge)*100)/100 AS grossTotal, "
-				+ "ROUND(SUM(Payment.foodBill)*100)/100 AS foodBill, "
-				+ "ROUND(SUM(Payment.barBill)*100)/100 AS barBill, "
-				+ "ROUND(SUM(Payment.total)*100)/100 AS total, "
-				+ "ROUND(SUM(Payment.foodDiscount)*100)/100 AS foodDiscount, "
-				+ "ROUND(SUM(Payment.barDiscount)*100)/100 AS barDiscount, "
-				+ "ROUND(SUM(Payment.gst)*100)/100 AS gst, "
-				+ "ROUND(SUM(Payment.serviceCharge)*100)/100 AS serviceCharge, "
-				+ "ROUND(SUM(Payment.VATBAR)*100)/100 AS VATBAR, "
-				+ "ROUND(SUM(Payment.complimentary)*100)/100 AS complimentary, "
-				+ "ROUND(SUM(Payment.loyaltyAmount)*100)/100 AS loyalty, "
-				+ "SUM(Orders.printCount) AS printCount, "
-				+ "(SELECT SUM(Orders.printCount-1) FROM Orders WHERE printCount >1 AND orders.orderDate = '"
-				+ serviceDate + "' AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' " + sql2
-				+ ") AS reprints, COUNT(*) AS orderCount, "
-				+ "ROUND(SUM(Payment.cashPayment)*100)/100 AS cashPayment, "
-				+ "ROUND((SELECT SUM(total) from Payment, Orders WHERE Orders.orderid == Payment.orderid AND inhouse = 1 AND Orders.orderDate = '"
-				+ serviceDate + "' AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' " + sql2
-				+ ")*100)/100 AS inhouse, "
-				+ "ROUND((SELECT SUM(total) from Payment, Orders WHERE Orders.orderid == Payment.orderid AND inhouse = 0 AND Orders.orderDate = '"
-				+ serviceDate + "' AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' " + sql2
-				+ ")*100)/100 AS homeDelivery, "
-				+ "ROUND((SELECT SUM(total) from Payment, Orders WHERE Orders.orderid == Payment.orderid AND inhouse = 2 AND Orders.orderDate = '"
-				+ serviceDate + "' AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' " + sql2
-				+ ")*100)/100 AS takeAway, "
-				+ "ROUND((SELECT SUM(Payment.foodBill+Payment.barBill) from Payment, Orders WHERE Orders.orderid == Payment.orderid AND Orders.orderDate = '"
-				+ serviceDate + "' AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + sql2 + "' AND cardType = 'NON_CHARGEABLE' "
-				+ ")*100)/100 AS nc FROM Payment, Orders WHERE Payment.orderId = Orders.orderId "
-				+ "AND Orders.orderDate = '" + serviceDate + "' AND Orders.hotelId = '" + hotelId + "' "
-				+ "AND Orders.serviceType = '" + serviceType + "'  AND Payment.cardType != 'VOID'"
-				+ sql2;
-
-		Hotel hotel = this.getHotelById(hotelId);
-		if(hotel.hasSection())
-			sql += " AND Payment.section = '" + section + "';";
-		else
-			sql += ";";
-		return db.getOneRecord(sql, Report.class, hotelId);
-	}
-
-	public Report getCashCardSales(String hotelId, String serviceDate, String serviceType) {
-
-		String sql = "SELECT ROUND(SUM(Payment.cashPayment)*100)/100 AS cashPayment, "
-				+ "ROUND(SUM(Payment.cardPayment)*100)/100 AS cardPayment FROM Payment, Orders WHERE Payment.orderId = Orders.orderId "
-				+ "AND Orders.orderDate = '" + serviceDate + "' AND Orders.hotelId = '" + hotelId + "' "
-				+ "AND Orders.serviceType = '" + serviceType + "'  AND Payment.cardType != 'VOID' AND Orders.state != "+ORDER_STATE_HIDDEN+" ;";
-
-		return db.getOneRecord(sql, Report.class, hotelId);
-	}
-
-	public ArrayList<Expense> getCashExpenses(String hotelId, String serviceDate, String serviceType, String section) {
-		Hotel hotel = this.getHotelById(hotelId);
-		String sql = "SELECT * FROM Expenses WHERE accountName = 'CASH_DRAWER' AND hotelId = '" + hotelId + "' "
-				+ "AND serviceDate = '" + serviceDate + "' AND serviceType = '" + serviceType;
-		if(hotel.hasSection())
-			sql += "' AND section = '" + section + "';";
-		else
-			sql += "';";
-
-		return db.getRecords(sql, Expense.class, hotelId);
-	}
-
-	public BigDecimal getCardPaymentByType(String hotelId, String serviceDate, String serviceType, String cardType) {
-
-		String sql = "SELECT SUM(Payment.cardPayment) AS entityId FROM Payment, Orders "
-				+ "WHERE Payment.orderId = Orders.orderId AND Orders.orderDate = '" + serviceDate + "' "
-				+ "AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' "
-				+ "AND Payment.cardType LIKE '%" + cardType + "%';";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return new BigDecimal("0");
-	}
-
-	public int getAppPaymentByType(String hotelId, String serviceDate, String serviceType, String cardType) {
-
-		String sql = "SELECT SUM(Payment.appPayment) AS entityId FROM Payment, Orders "
-				+ "WHERE Payment.orderId = Orders.orderId AND Orders.orderDate = '" + serviceDate + "' "
-				+ "AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' "
-				+ "AND Payment.cardType LIKE '%" + cardType + "%';";
-
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public int getVoidTransactions(String hotelId, String serviceDate, String serviceType) {
-
-		String sql = "SELECT COUNT(Orders.orderId) AS entityId FROM Orders "
-				+ "WHERE Orders.orderDate = '" + serviceDate + "' "
-				+ "AND Orders.hotelId = '" + hotelId + "' AND Orders.serviceType = '" + serviceType + "' "
-				+ "AND Orders.state = 99;";
-
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return 0;
-	}
-
-	public BigDecimal getTotalCardPayment(String hotelId, String serviceDate, String serviceType) {
-
-		String sql = "SELECT SUM(Payment.cardPayment) as entityId FROM Payment,Orders "
-				+ "WHERE Orders.orderDate = '" + serviceDate + "' AND Orders.serviceType = '" + serviceType + "' "
-				+ "AND Orders.hotelId = '" + hotelId + "' AND Payment.orderId = Orders.orderId;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return new BigDecimal("0.0");
-	}
-
-	public BigDecimal getTotalAppPayment(String hotelId, String serviceDate, String serviceType) {
-
-		String sql = "SELECT SUM(Payment.appPayment) as entityId FROM Payment,Orders "
-				+ "WHERE Orders.orderDate = '" + serviceDate + "' "
-				+ "AND Orders.serviceType = '" + serviceType + "' AND Orders.hotelId = '" + hotelId + "' "
-				+ "AND Payment.orderId = Orders.orderId;";
-
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		if (entity != null) {
-			return entity.getId();
-		}
-		return new BigDecimal("0.0");
-	}
-
-	public ArrayList<Report> getSaleSummaryReport(String hotelId, String startDate, String endDate, boolean visible) {
-
-		String billNo = visible?"Payment.billNo2":"Payment.billNo";
-		
-		String sql = "SELECT ROUND(Payment.foodBill*100)/100 AS foodBill, "
-				+ "ROUND(Payment.barBill*100)/100 AS barBill, "
-				+ billNo +" AS billNo, "
-				+ "ROUND(Payment.total*100)/100 AS total, "
-				+ "ROUND(Payment.foodDiscount*100)/100 AS foodDiscount, "
-				+ "ROUND(Payment.barDiscount*100)/100 AS barDiscount, "
-				+ "ROUND(Payment.serviceTax*100)/100 AS serviceTax, "
-				+ "ROUND(Payment.serviceCharge*100)/100 AS serviceCharge, "
-				+ "ROUND(Payment.tip*100)/100 AS tip, "
-				+ "ROUND(Payment.gst*100)/100 AS gst, "
-				+ "Orders.numberOfGuests AS cover, "
-				+ "Orders.inhouse AS inhouse, "
-				+ "Orders.takeAwayType AS takeAwayType, "
-				+ "Orders.state AS state, "
-				+ "Orders.tableId AS tableId, "
-				+ "Orders.orderDate AS orderDate, "
-				+ "ROUND(Payment.cashPayment*100)/100 AS cashPayment, "
-				+ "ROUND(Payment.cardPayment*100)/100 AS cardPayment, "
-				+ "ROUND(Payment.appPayment*100)/100 AS appPayment, "
-				+ "Payment.cardType AS cardType, "
-				+ "Orders.section AS section "
-				+ "FROM Payment, Orders WHERE Payment.orderId = Orders.orderId "
-				+ "AND Payment.hotelId = '" + hotelId;
-
-		if (endDate.equals("")) {
-			sql += "' AND Orders.orderDate ='" + startDate + "' ";
-		} else {
-			sql += "' AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-		}
-		if(!visible)
-			sql += "AND Orders.state != " + ORDER_STATE_HIDDEN;
-		
-		return db.getRecords(sql, Report.class, hotelId);
-	}
-
-	public ArrayList<CustomerReport> getCustomerReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT ROUND(SUM(OrderItems.rate*qty)*100)/100 AS totalSpent, "
-				+ "ROUND(SUM(OrderItems.rate*qty)/SUM(Orders.numberOfGuests)) AS spentPerPax, "
-				+ "ROUND(SUM(OrderItems.rate*qty)/COUNT(Orders.orderId)) AS spentPerWalkin, "
-				+ "SUM(Orders.numberOfGuests) AS totalGuests, Orders.customerName AS customerName, "
-				+ "Orders.customerNumber AS mobileNo, COUNT(Orders.orderId) AS totalWalkins "
-				+ "FROM OrderItems, Orders WHERE OrderItems.orderId == Orders.orderId AND Orders.hotelId = '" + hotelId
-				+ "' AND OrderItems.hotelId = '" + hotelId + "' AND orderDate BETWEEN '" + startDate + "' AND '"
-				+ endDate + "' GROUP BY Orders.customerNumber;";
-
-		System.out.println(sql);
-		return db.getRecords(sql, CustomerReport.class, hotelId);
-	}
-
-	public ArrayList<CustomerReport> getCustomerReviewReport(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT Customers.customer, Customers.mobileNo, Orders.rating_ambiance, Orders.rating_hygiene, Orders.rating_qof, "
-				+ "Orders.rating_service, REPLACE(Orders.reviewSuggestions, ',', ';') AS reviewSuggestions, payment.total, Orders.billNo, Orders.numberOfGuests "
-				+ "FROM Customers, Orders, Payment "
-				+ "WHERE Customers.mobileNo == Orders.customerNumber AND Orders.hotelId == '"+hotelId+"' "
-				+ "AND Orders.orderId == Payment.orderId AND Orders.orderdate between '"+startDate+"' and '"+endDate+"' "
-				+ "AND mobileNo != '' AND rating_ambiance is not null AND (rating_ambiance+rating_hygiene+rating_qof+rating_service) > 0";
-
-		System.out.println(sql);
-		return db.getRecords(sql, CustomerReport.class, hotelId);
-	}
-
-	public Report getDailyIncome(String hotelId, String startDate, String endDate, int inhouse) {
-
-		String sql = "SUM(Payment.total) AS total, SUM(Orders.numberOfGuests) AS pax, "
-				+ "COUNT(Orders.Id) AS checks, SUM(Payment.foodDiscount) AS foodDiscount, SUM(Payment.barDiscount) AS foodDiscount, "
-				+ "SUM(Payment.serviceCharge) AS serviceCharge SUM(Payment.serviceTax) AS serviceTax "
-				+ "SUM(Payment.gst) AS gst SUM(Payment.VATFOOD) AS VATFOOD SUM(Payment.VATBAR) AS VATBAR "
-				+ "SUM(Payment.sbCess) AS sbCess SUM(Payment.kkCess) AS kkCess FROM Payment, Orders "
-				+ "WHERE Payment.orderId = Orders.orderId AND Orders.inhouse = " + inhouse + "AND Orders.hotelId = '"
-				+ hotelId;
-
-		if (endDate.equals("")) {
-			sql += "' AND Orders.orderDate ='" + startDate + "';";
-		} else {
-			sql += "' AND Orders.orderDate BETWEEN '" + startDate + "' AND '" + endDate + "';";
-		}
-		return db.getOneRecord(sql, Report.class, hotelId);
-	}
-
-	public ArrayList<Expense> getDailyExpense(String hotelId, String startDate, String endDate) {
-
-		String sql = "SELECT SUM(Expense.amount) AS amount, SUM(Expense.type) AS type FROM Expense "
-				+ "WHERE hotelId = '" + hotelId;
-
-		if (endDate.equals("")) {
-			sql += "' AND Expense.date LIKE'" + startDate + "%';";
-		} else {
-			sql += "' AND Expense.date BETWEEN '" + startDate + "' AND '" + endDate + "';";
-		}
-		return db.getRecords(sql, Expense.class, hotelId);
-	}
-
-	// -------------------------------------------Bank
-
-	public ArrayList<Bank> getBankAccounts(String hotelId) {
-		String sql = "SELECT * FROM Bank WHERE hotelId='" + hotelId + "';";
-		return db.getRecords(sql, Bank.class, hotelId);
-	}
-
-	public BigDecimal getCashBalance(String hotelId, String section) {
-		String sql = "";
-		
-		if(section.equals("")) {
-			sql = "SELECT SUM(balance) as entityId FROM Bank WHERE hotelId='" + hotelId + "' AND accountNumber = "
-					+ CASH_ACCOUNT + ";";
-		}else {
-			sql = "SELECT balance as entityId FROM Bank WHERE hotelId='" + hotelId + "' AND accountNumber = "
-					+ CASH_ACCOUNT + " AND section = '"+section+"';";
-			
-		}
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public boolean updateCashBalance(String hotelId, BigDecimal balance) {
-		String sql = "UPDATE Bank SET balance = " + balance + " WHERE hotelId='" + hotelId + "' AND accountNumber = "
-				+ CASH_ACCOUNT + ";";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------------------Notifications
-
-	private int getNextNotificationId(String userId, String hotelId) {
-		String sql = "SELECT * FROM Notification WHERE orderId LIKE '" + userId + ":%' AND hotelId = '" + hotelId
-				+ "' ORDER BY notId";
-		ArrayList<Notification> notifs = db.getRecords(sql, Notification.class, hotelId);
-		if (notifs.size() == 0) {
-			return 0;
-		}
-		return notifs.get(notifs.size() - 1).mNotId + 1;
-	}
-
-	public Notification getNextNotification(String hotelId, String userId) {
-		String sql = "SELECT * FROM Notification WHERE hotelId='" + hotelId + "' AND orderId LIKE '" + userId
-				+ ":%' ORDER BY notId";
-		ArrayList<Notification> notifs = db.getRecords(sql, Notification.class, hotelId);
-		if (notifs.size() == 0) {
-			return null;
-		} else {
-			sql = "DELETE FROM Notification WHERE notId=" + notifs.get(0).mNotId + " AND hotelId='" + hotelId
-					+ "' AND orderId LIKE '" + userId + ":%';";
-			db.executeUpdate(sql, true);
-			return notifs.get(0);
-		}
-	}
-
-	public MPNotification getMPNotification(String hotelId) {
-
-		String sql = "SELECT COUNT(Stock.sku) AS outOfStock FROM Material, Stock WHERE Material.hotelId= '" + hotelId
-				+ "' AND Material.sku == Stock.sku AND Stock.quantity <= Material.minQuantity ";
-
-		MPNotification notification = new MPNotification();
-
-		notification.outOfStock = db.getOneRecord(sql, MPNotification.class, hotelId).getOutOfStock();
-		notification.hotelId = hotelId;
-
-		sql = "SELECT COUNT(Id) AS checkOutOrders FROM Orders WHERE hotelId = '" + hotelId + "' AND state = 1";
-
-		notification.checkoutOrders = db.getOneRecord(sql, MPNotification.class, hotelId).getCheckoutOrders();
-
-		return notification;
-	}
-
-	// -------------------------------------------Expenses
-	
-	public boolean addExpense(String hotelId, BigDecimal expenseAmount, String details, String payeeName, int cheque,
-			String paymentType, String expenseType, String bankAccount, String userId, String employeeId) {
-
-		String sql = "INSERT INTO Expenses "
-				+ "(hotelId, type, serviceDate, serviceType, amount, userId, payee, memo, chequeNo, accountName, "
-				+ "paymentType, employeeId) "
-				+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(expenseType) + "', '"
-				+ getServiceDate(hotelId) + "', '" + getServiceType(hotelId) + "', " + expenseAmount
-				+ ", '" + escapeString(userId) + "', '" + escapeString(payeeName) + "', '" + escapeString(details)
-				+ "', " + Integer.toString(cheque) + ", '" + bankAccount + "', '" + paymentType + "', '"
-				+ escapeString(employeeId) + "');";
-		return db.executeUpdate(sql, true);
-	}
-	
-	public ArrayList<Expense> getExpenses(String hotelId) {
-
-		String sql = "SELECT * FROM Expenses WHERE hotelId = '" + hotelId + "' AND type != 'PAYIN' AND serviceDate = '"
-				+ this.getServiceDate(hotelId) + "';";
-		return db.getRecords(sql, Expense.class, hotelId);
-	}
-	
-	public Expense getExpense(String hotelId, int expenseId) {
-
-		String sql = "SELECT * FROM Expenses WHERE hotelId = '" + hotelId + "' AND id = " + expenseId;
-		
-		return db.getOneRecord(sql, Expense.class, hotelId);
-	}
-	
-	public ArrayList<Expense> getPayIns(String hotelId) {
-
-		String sql = "SELECT * FROM Expenses WHERE hotelId = '" + hotelId + "' AND type == 'PAYIN' AND serviceDate = '"
-				+ this.getServiceDate(hotelId) + "';";
-		return db.getRecords(sql, Expense.class, hotelId);
-	}
-	
-	public boolean deleteExpense(String hotelId , int expenseId, String section, String paymentType, BigDecimal amount) {
-
-		String sql = "DELETE FROM Expenses WHERE hotelId = '"+hotelId+"' AND id = "+ expenseId;
-		return db.executeUpdate(sql, true);
-	}
-	
-	public boolean clearBigDecimal(String hotelId , int expenseId, String userId, String authoriser, String section
-			, String accountName, String paymentType, BigDecimal amount, String employeeId) {
-
-		this.deleteExpense(hotelId, expenseId, section, paymentType, amount);
-		
-		return this.updateTransactionHistory(hotelId, "DEBIT", ExpenseType.FLOAT.toString(), accountName, paymentType, 
-				amount, employeeId, userId, authoriser);
-	}
-
-	// -------------------------------------------Transaction History
-	
-	public ArrayList<TransactionHistory> getTransactionHistory(String hotelId) {
-
-		String sql = "SELECT * FROM TransactionHistory WHERE hotelId = '" + hotelId + "' AND serviceDate = '"
-				+ this.getServiceDate(hotelId) + "';";
-		return db.getRecords(sql, TransactionHistory.class, hotelId);
-	}
-	
-	public BigDecimal getBigDecimalForDeliveryBoy(String hotelId, String employeeId) {
-		String sql = "SELECT amount AS entityId FROM TransactionHistory WHERE hotelId = '" + hotelId + "' AND serviceDate = '"
-				+ this.getServiceDate(hotelId) + "' AND employeeId = '"+employeeId+"';";
-		
-		EntityBigDecimal entity = db.getOneRecord(sql, EntityBigDecimal.class, hotelId);
-		return entity==null?new BigDecimal("0.0"):entity.getId();
-	}
-	
-	public Boolean updateTransactionHistory(String hotelId, String trType, String trDetail, String trAccountName, 
-			String paymentType, BigDecimal amount, String employeeId, String userId, String authoriser) {
-
-		BigDecimal accountBalance = this.getAccountBalance(hotelId, employeeId);
-		if (trType.equals("CREDIT"))
-			accountBalance.add(amount);
-		else
-			accountBalance.add(amount);
-
-		String sql = "INSERT INTO TransactionHistory ('trType', 'trDetail', 'trAccountName', 'paymentType', 'amount', 'balance',"
-				+ "'trDate', 'userId', 'authoriser', 'employeeId', 'hotelId', 'serviceDate') VALUES ('" + trType + "', '" + escapeString(trDetail) + "', '" 
-				+ trAccountName + "', '" + paymentType + "', " + amount + ", " + accountBalance + ", '" + LocalDateTime.now() + "', '" 
-				+ userId + "', '" + authoriser + "', '" + employeeId + "', '" + escapeString(hotelId) + "', '" + this.getServiceDate(hotelId) + "');";
-
-		db.executeUpdate(sql, true);
-		
-		sql = "UPDATE Employee SET accountBalance = "+accountBalance+ " WHERE hotelId = '"+hotelId+"' AND employeeId = '"+employeeId+"';";
-		return db.executeUpdate(sql, true);
-	}
-
-	public BigDecimal getAccountBalance(String hotelId, String employeeId) {
-		String sql = "SELECT accountBalance as entityId FROM Employee WHERE hotelId = '" + hotelId
-				+ "' AND employeeId = '" + employeeId + "'";
-
-		return db.getOneRecord(sql, EntityBigDecimal.class, hotelId).getId();
-	}
-
 	// -------------------------------------------Labour
 
 	public boolean updateLabourLog(String hotelId, BigDecimal salary, String employeeId, BigDecimal bonus) {
@@ -9824,725 +9914,48 @@ public class AccessManager {
 				+ escapeString(hotelId) + "', " + salary + ", '" + employeeId + "', '"
 				+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', " + Integer.toString(month + 1)
 				+ ", " + bonus + ");";
-		return db.executeUpdate(sql, true);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 
 	// -------------------------------------------TotalRevenue
 	public boolean addRevenue(String hotelId, String serviceType, String serviceDate, BigDecimal cash, BigDecimal card,
 			BigDecimal app, BigDecimal total, BigDecimal visa, BigDecimal mastercard, BigDecimal maestro, BigDecimal amex, BigDecimal others,
-			BigDecimal mswipe, BigDecimal rupay, BigDecimal zomato, BigDecimal zomatopay, BigDecimal swiggy, BigDecimal dineOut, BigDecimal paytm,
-			BigDecimal foodPanda, BigDecimal uberEats, BigDecimal foodiloo, BigDecimal nearby,
+			BigDecimal mswipe, BigDecimal rupay, BigDecimal zomato, BigDecimal zomatoPickup, BigDecimal zomatopay, BigDecimal swiggy, BigDecimal dineOut, BigDecimal paytm,
+			BigDecimal foodPanda, BigDecimal uberEats, BigDecimal foodiloo, BigDecimal nearby, BigDecimal swiggyPop, BigDecimal googlePay, BigDecimal magicPin,
 			BigDecimal complimentary, BigDecimal difference, String reason, String clearance, String section) {
 
 		String sql = "INSERT INTO TotalRevenue "
 				+ "(hotelId, serviceType, serviceDate, cash, card, app, total, visa, mastercard, maestro, amex, "
-				+ "others, mswipe, rupay, zomato, zomatoPay, swiggy, foodPanda, uberEats, foodiloo, dineOut, paytm, nearBy, complimentary, difference, reason, clearance, section) "
+				+ "others, mswipe, rupay, zomato, zomatoPickup, zomatoPay, swiggy, foodPanda, uberEats, foodiloo, dineOut, paytm, nearBy, "
+				+ "swiggyPop, googlePay, magicPin, complimentary, difference, reason, clearance, section) "
 				+ "VALUES('" + escapeString(hotelId) + "', '" + escapeString(serviceType) + "', '"
 				+ escapeString(serviceDate) + "', " + cash + ", " + card + ", "
 				+ app + ", " + total + ", " + visa + ", "
 				+ mastercard + ", " + maestro + ", " + amex + ", "
 				+ others + ", " + mswipe + ", " + rupay + ", "
-				+ zomato + ", "+  zomatopay + ", " + swiggy + ", " + foodPanda + ", " 
+				+ zomato + ", "+ zomatoPickup + ", "+  zomatopay + ", " + swiggy + ", " + foodPanda + ", " 
 				+ uberEats + ", " + foodiloo + ", "+ dineOut + ", "
-				+ paytm + ", " + nearby + ", " + complimentary + ", " + difference
+				+ paytm + ", " + nearby + ", " + complimentary + ", "
+				+ swiggy + ", " + googlePay + ", " + magicPin + ", " + difference
 				+ ", '" + escapeString(reason) + "', '" + escapeString(clearance) + "', '" + escapeString(section) + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------------------Server
-	public boolean syncOnServer(String hotelId, String sqlQueries) {
-
-		db.beginTransaction(hotelId);
-		if (!db.executeUpdate(sqlQueries, hotelId, false)) {
-			db.rollbackTransaction();
-			System.out.println("Rolling back");
-			return false;
-		}
-		System.out.println("All Transaction logged Successfully at " + hotelId + ".");
-		db.commitTransaction();
-		return true;
-	}
-
-	public ServerLog getLastServerLog(String hotelId) {
-
-		String sql = "SELECT * FROM ServerLog WHERE hotelId = '" + escapeString(hotelId)
-				+ "' Order by id desc Limit 1;";
-
-		return db.getOneRecord(sql, ServerLog.class, hotelId);
-	}
-
-	public boolean updateServerLog(String hotelId) {
-
-		String sql = "UPDATE ServerLog SET lastUpdateTime = '" + LocalDateTime.now() + "', status = 1 WHERE hotelId = '"
-				+ hotelId + "';";
-
-		return db.executeUpdate(sql, false);
-	}
-
-	public boolean updateServerStatus(String hotelId, Boolean updateServer) {
-
-		String sql = "UPDATE ServerLog SET status = 0 WHERE hotelId = '" + hotelId + "';";
-
-		return db.executeUpdate(sql, updateServer);
-	}
-
-	public boolean createServerLog(String hotelId) {
-
-		String sql = "INSERT into ServerLog ('hotelId', 'lastUpdateTime', 'status') VALUES ('" + escapeString(hotelId)
-				+ "','" + LocalDateTime.now() + "', 1);";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------------------Table
-
-	public Boolean assignWaiterToTable(String hotelId, String waiterId, int tableId) {
-
-		String sql = "UPDATE Tables SET waiterId = '" + waiterId + "' WHERE hotelId = '" + hotelId + "' AND tableId = '"
-				+ tableId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------------------Loyalty
-
-	public JSONObject addLoyaltyOffer(String name, int offerType, int points, String offerValue, String hasUsageLimit,
-			int usageLimit, int minBill, String userType, String validCollections, String status, String startDate,
-			String expiryDate, String hotelId, String chainId, int offerQuantity) {
-
-		JSONObject outObj = new JSONObject();
-		try {
-			String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "' AND name = '" + name + "';";
-			if (db.hasRecords(sql, hotelId)) {
-				outObj.put("message", "This offer already exists. Please enter a new name.");
-				return outObj;
-			}
-			if (offerType == PRODUCT_LOYALTY_OFFER) {
-				sql = "SELECT * FROM MenuItems WHERE menuId='" + escapeString(offerValue) + "' AND hotelId='"
-						+ escapeString(hotelId) + "';";
-				if (!db.hasRecords(sql, hotelId)) {
-					outObj.put("message", "This item does not exists in the database. Please enter a valid Menu Item.");
-					return outObj;
-				}
-			}
-
-			sql = "INSERT INTO LoyaltyOffers ('name', 'offerType', 'points', 'offerValue', 'offerQuantity', 'hasUsageLimit', 'usageLimit', 'minBill', "
-					+ "'userType', 'validCollections' , 'status', 'startDate', 'expiryDate', 'hotelId', 'chainId') VALUES ('"
-					+ escapeString(name) + "'," + offerType + "," + points + ",'" + offerValue + "'," + offerQuantity
-					+ ",'" + hasUsageLimit + "'," + usageLimit + "," + minBill + ",'" + escapeString(userType) + "','"
-					+ escapeString(validCollections) + "','" + status + "','" + this.formatDate(startDate, "yyyy-MM-dd", "yyyy/MM/dd") + "','"
-					+ this.formatDate(expiryDate, "yyyy-MM-dd", "yyyy/MM/dd") + "','" + escapeString(hotelId) + "','" + escapeString(chainId) + "');";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "This offer could not be added. Internal Error");
-				return outObj;
-			}
-			outObj.put("status", true);
-		} catch (JSONException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return outObj;
-	}
-
-	public LoyaltyOffer getLoyaltyOfferById(String hotelId, int id) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "' AND id = " + id + ";";
-
-		return db.getOneRecord(sql, LoyaltyOffer.class, hotelId);
-	}
-
-	public ArrayList<LoyaltyOffer> getAllLoyaltyOffers(String hotelId) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "';";
-
-		return db.getRecords(sql, LoyaltyOffer.class, hotelId);
-	}
-
-	public ArrayList<LoyaltyOffer> getAllLoyaltyOffersByChain(String chainId) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE chainId = '" + chainId + "';";
-
-		return db.getRecords(sql, LoyaltyOffer.class, chainId);
-	}
-
-	public ArrayList<LoyaltyOffer> getAllLoyaltyOffersForCustomer(String hotelId, Customer customer) {
-		String sql = "SELECT * FROM LoyaltyOffers WHERE hotelId = '" + hotelId + "' AND status = 'true' AND points <= "
-				+ customer.getPoints() + " AND "
-				+ "((SELECT requiredPoints FROM LoyaltySettings WHERE LoyaltySettings.userType == LoyaltyOffers.userType)  <= "
-				+ customer.getPoints() + ");";
-
-		return db.getRecords(sql, LoyaltyOffer.class, hotelId);
-	}
-
-	public JSONObject editLoyaltyOffer(int id, int offerType, int points, String offerValue, String hasUsageLimit,
-			int usageLimit, int minBill, String userType, String validCollections, String status, String startDate,
-			String expiryDate, String hotelId, String chainId, int offerQuantity) throws ParseException {
-
-		JSONObject outObj = new JSONObject();
-
-		try {
-			outObj.put("status", false);
-
-			if (offerType == PRODUCT_LOYALTY_OFFER) {
-				MenuItem item = itemExists(hotelId, offerValue);
-				if (item == null) {
-					outObj.put("message", "This item does not exists in the database. Please enter a valid Menu Item.");
-					return outObj;
-				} else
-					offerValue = item.getMenuId();
-			}
-			String sql = "UPDATE LoyaltyOffers SET points = " + points + ", offerValue = '" + offerValue
-					+ "', offerQuantity = " + offerQuantity + ", hasUsageLimit = '" + hasUsageLimit + "', usageLimit = "
-					+ usageLimit + ", minBill = " + minBill + ", userType = '" + userType + "', validCollections = '"
-					+ validCollections + "', status = '" + status + "', startDate = '" + this.formatDate(startDate, "yyyy-MM-dd", "yyyy/MM/dd") + "', expiryDate = '"
-					+ this.formatDate(expiryDate, "yyyy-MM-dd", "yyyy/MM/dd") + "' WHERE hotelId = '" + hotelId + "' AND Id = " + id + ";";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Failed to edit this offer. Please try again or contact OrderOn support.");
-				return outObj;
-			}
-
-			outObj.put("status", true);
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return outObj;
-	}
-
-	private Boolean updateOfferUsageLimit(String hotelId, int updatedCount, int loyaltyId) {
-
-		String sql = "UPDATE LoyaltyOffers SET usageLimit = " + updatedCount + " WHERE id = " + loyaltyId
-				+ " AND hotelId = '" + hotelId + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public JSONObject redeemLoyaltyOffer(String hotelId, String orderId, int loyaltyId, int redeemablePoints) {
-
-		JSONObject outObj = new JSONObject();
-		Order order = this.getOrderById(hotelId, orderId);
-		Customer customer = this.getCustomerDetails(hotelId, order.getCustomerNumber());
-		int requiredPoints = this.getRequiredLoyaltyPoints(hotelId, loyaltyId);
-		LoyaltySetting setting = this.getLoyaltySettingByUserType(hotelId, customer.getUserType());
-		LoyaltyOffer loyalty = this.getLoyaltyOfferById(hotelId, loyaltyId);
-		int balancePoints = 0;
-		JSONObject discountObj = new JSONObject();
-		JSONArray collectionArr = new JSONArray();
-
-		try {
-			outObj.put("status", false);
-
-			if (loyalty.getMinBill() > this.getTotalBillAmount(hotelId, orderId)) {
-				outObj.put("message", "This offer requires minimum billing of " + loyalty.getMinBill()
-						+ ". (Bill Amount without Tax and Before Discount.)");
-				return outObj;
-			}
-
-			if (loyalty.offerType == CASH_LOYALTY_OFFER) {
-
-				if (customer.getPoints() < redeemablePoints) {
-					outObj.put("message", "Redeemable Points should be less than or equal to the points in Wallet.");
-					return outObj;
-				}
-
-			} else if (loyalty.offerType == PERCENTAGE_LOYALTY_OFFER) {
-
-				if (customer.getPoints() < requiredPoints) {
-					outObj.put("message", "Customer does not have enough points to redeem this offer.");
-					return outObj;
-				}
-				if (setting.getRequiredPoints() > customer.getPoints()) {
-					outObj.put("message",
-							"Customer must be a " + setting.getUserType() + " Customer to redeem this offer.");
-					return outObj;
-				}
-				if (loyalty.gethasUsageLimit()) {
-					if (loyalty.getUsageLimit() == 0)
-						outObj.put("message", "This offer cannot be used right now as it has been exhausted.");
-					return outObj;
-				}
-
-				DateFormat df = new SimpleDateFormat("yyyy/MM/dd");
-				Date date = null;
-				date = df.parse(loyalty.getExpiryDate());
-
-				if (date.before(new Date())) {
-					outObj.put("message", "This offer has expired. Please use another Offer.");
-					return outObj;
-				}
-				date = df.parse(loyalty.getStartDate());
-
-				if (date.after(new Date())) {
-					outObj.put("message", "This offer is not active yet. Please use another Offer.");
-					return outObj;
-				}
-
-				discountObj.put("name", loyalty.getName());
-				discountObj.put("type", loyalty.getOfferType());
-				discountObj.put("value", loyalty.getOfferValue());
-				String[] collections = loyalty.getValidCollections();
-				JSONObject collObj = null;
-				for (int j = 0; j < collections.length; j++) {
-					if (collections[j].equals(""))
-						continue;
-					collObj = new JSONObject();
-					collObj.put("collection", collections[j]);
-					collectionArr.put(collObj);
-				}
-				discountObj.put("validCollections", collectionArr);
-
-				outObj.put("discount", discountObj);
-
-			} else {
-				if (customer.getPoints() < requiredPoints) {
-					outObj.put("message", "Customer does not have enough points to redeem this offer.");
-					return outObj;
-				}
-				if (setting.getRequiredPoints() > customer.getPoints()) {
-					outObj.put("message",
-							"Customer must be a " + setting.getUserType() + " Customer to redeem this offer.");
-					return outObj;
-				}
-				ArrayList<OrderItem> orderItems = this.getOrderedItems(hotelId, orderId);
-				boolean complimetaryAdded = false;
-				int excessQty = loyalty.getOfferQuantity();
-				MenuItem item = null;
-				for (OrderItem orderItem : orderItems) {
-					item = this.getMenuById(hotelId, orderItem.getMenuId());
-					if (item.getState() == SUBORDER_STATE_CANCELED || item.getState() == SUBORDER_STATE_COMPLIMENTARY
-							|| item.getState() == SUBORDER_STATE_RETURNED || item.getState() == SUBORDER_STATE_VOIDED)
-						continue;
-					if (loyalty.getOfferValue().equals(orderItem.getMenuId())) {
-						excessQty -= orderItem.getQty();
-						int qty = excessQty <= 0 ? loyalty.getOfferQuantity() : orderItem.getQty();
-						complimetaryAdded = this.complimentaryItem(hotelId, orderId, orderItem.getMenuId(), "",
-								orderItem.getSubOrderId(), orderItem.getRate(), qty, loyalty.getName());
-						if (!complimetaryAdded) {
-							outObj.put("message", "Offer could not be applied. Please contact support. Code 50");
-							return outObj;
-						}
-						if (excessQty <= 0)
-							break;
-					}
-				}
-				if (excessQty > 0) {
-					item = this.getMenuById(hotelId, loyalty.getOfferValue());
-					String sql = "INSERT INTO OrderItemLog "
-							+ "(hotelId, orderId, subOrderId, subOrderDate, menuId, state, reason, dateTime, quantity, rate, itemId) "
-							+ "VALUES('" + hotelId + "', '" + orderId + "', '"
-							+ this.getNextSubOrderId(hotelId, orderId) + "', '"
-							+ new SimpleDateFormat("yyyy/MM/dd").format(new Date()) + "', '" + item.getMenuId() + "', "
-							+ ORDER_STATE_COMPLIMENTARY + ", 'Loyalty:" + loyalty.getName() + "', '"
-							+ new SimpleDateFormat("yyyy/MM/dd HH.mm.ss").format(new Date()) + "', " + excessQty + ", "
-							+ item.getRate() + ", " + 1 + ");";
-					if (!db.executeUpdate(sql, true)) {
-						outObj.put("message", "Offer could not be applied. Please contact support. Code 50");
-						db.rollbackTransaction();
-						return outObj;
-					}
-				}
-			}
-
-			balancePoints = customer.getPoints() - requiredPoints;
-			String sql = "UPDATE Customers SET points = " + balancePoints + " WHERE mobileNo = '"
-					+ customer.getMobileNo() + "' AND hotelId = '" + hotelId + "';";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Customer wallet could not be updated. Please contact support.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-
-			sql = "UPDATE Orders SET loyaltyId = " + loyaltyId + ", loyaltyPaid = " + redeemablePoints
-					+ " WHERE orderId = '" + orderId + "' AND hotelId = '" + hotelId + "';";
-
-			if (!db.executeUpdate(sql, true)) {
-				outObj.put("message", "Loyalty could not be added to order. Please contact support.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-
-			if (!this.updateOfferUsageLimit(hotelId, loyalty.getUsageLimit() - 1, loyaltyId)) {
-				outObj.put("message", "Usage Limit could not be updated. Please contact support.");
-				db.rollbackTransaction();
-				return outObj;
-			}
-			/*
-			 * SendSMS sms = new SendSMS();
-			 * 
-			 * String message = "Dear " + customer.getCustomer() + "! Greetings from " +
-			 * hotel.getHotelName() +
-			 * ". Thank you for dining with us. It was a pleasure to have you over. Have a great day!"
-			 * ;
-			 * 
-			 * sms.sendSms(message, customer.getMobileNo());
-			 */
-			outObj.put("status", true);
-
-		} catch (ParseException e) {
-			db.rollbackTransaction();
-			e.printStackTrace();
-		} catch (JSONException e1) {
-			db.rollbackTransaction();
-			e1.printStackTrace();
-		}
-		return outObj;
-	}
-
-	private int getRequiredLoyaltyPoints(String hotelId, int loyaltyId) {
-		String sql = "SELECT points AS entityId FROM LoyaltyOffers WHERE id=" + loyaltyId + " AND hotelId='" + hotelId
-				+ "'";
-
-		EntityId entity = db.getOneRecord(sql, EntityId.class, hotelId);
-
-		return entity.getId();
-	}
-
-	public Boolean addLoyaltyPoints(String hotelId, int points, String mobileNo) {
-
-		int loyaltyPoints = this.getCustomerPoints(hotelId, mobileNo) + points;
-		String sql = "SELECT * FROM LoyaltySettings WHERE hotelId = '" + hotelId
-				+ "' AND userType != 'All' ORDER BY requiredPoints DESC;";
-		ArrayList<LoyaltySetting> loyaltySettings = db.getRecords(sql, LoyaltySetting.class, hotelId);
-		String userType = "";
-		for (LoyaltySetting setting : loyaltySettings) {
-			if (loyaltyPoints < setting.getRequiredPoints()) {
-				continue;
-			} else {
-				userType = setting.getUserType();
-				break;
-			}
-		}
-
-		sql = "UPDATE Customers SET userType = '" + userType + "', points=" + loyaltyPoints + " WHERE mobileNo='"
-				+ escapeString(mobileNo) + "' AND hotelId='" + escapeString(hotelId) + "';";
-		return db.executeUpdate(sql, true);
-	}
-
-	// -------------------------------------------Loyalty Settings
-
-	public ArrayList<LoyaltySetting> getLoyaltySettings(String hotelId) {
-		String sql = "SELECT * FROM LoyaltySettings WHERE hotelId = '" + hotelId + "' ORDER BY requiredPoints DESC;";
-
-		return db.getRecords(sql, LoyaltySetting.class, hotelId);
-	}
-
-	public LoyaltySetting getBaseLoyaltySetting(String hotelId) {
-		String sql = "SELECT * FROM LoyaltySettings WHERE hotelId = '" + hotelId + "' AND requiredPoints = 0 AND userType != 'All';";
-
-		return db.getOneRecord(sql, LoyaltySetting.class, hotelId);
-	}
-
-	public LoyaltySetting getLoyaltySettingByUserType(String hotelId, String userType) {
-		String sql = "SELECT * FROM LoyaltySettings WHERE hotelId = '" + hotelId + "' AND userType = '"
-				+ (userType == "" ? "Prime" : userType) + "';";
-
-		return db.getOneRecord(sql, LoyaltySetting.class, hotelId);
-	}
-
-	public Boolean editLoyaltySettings(String hotelId, String userType, int requiredPoints, BigDecimal pointToRupee) {
-
-		String sql = "UPDATE LoyaltySettings SET requiredPoints = " + requiredPoints + ", pointToRupee = "
-				+ pointToRupee + " WHERE hotelId = '" + hotelId + "' AND userType = '" + userType + "';";
-
-		return db.executeUpdate(sql, true);
-	}
-
-	public ArrayList<IncentiveReport> getIncentivisedItemReport(String hotelId) {
-		String sql = "SELECT title, incentive, hasIncentive AS qty FROM MenuItems WHERE hasIncentive != 0 AND hotelId = '" + hotelId + "' "
-				+ "ORDER BY title";
-		
-		return db.getRecords(sql, IncentiveReport.class, hotelId);
-	}
-	public IncentiveReport getIncentiveForEmployee(String hotelId, String userId, boolean isBar, String startDate,
-			String endDate) {
-
-		String sql = "SELECT SUM(sale) AS sale, SUM(incentive) AS incentive "
-				+ "FROM (SELECT (SUM(OrderItems.qty)/MenuItems.hasIncentive)*MenuItems.incentive AS incentive, "
-				+ "SUM(OrderItems.rate*OrderItems.qty) AS sale FROM OrderItems, MenuItems, Orders "
-				+ "WHERE OrderItems.menuId == MenuItems.menuId AND MenuItems.hasIncentive !=0 "
-				+ "AND OrderItems.waiterId = '" + userId + "' AND OrderItems.hotelId = '" + hotelId + "' "
-				+ "AND Orders.hotelId == OrderItems.hotelId AND Orders.orderId == OrderItems.orderId "
-				+ "AND OrderItems.hotelId == MenuItems.hotelId AND Orders.orderDate ";
-		if (startDate.equals(endDate))
-			sql += " LIKE '" + startDate + "%' ";
-		else
-			sql += " BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-
-		if (isBar)
-			sql += "AND MenuItems.vegType = 3 ";
-		else
-			sql += "AND MenuItems.vegType != 3 ";
-
-		sql += "GROUP BY Orders.orderId, MenuItems.menuId " + "ORDER BY Orders.orderId) WHERE incentive>0;";
-		System.out.println(sql);
-
-		return db.getOneRecord(sql, IncentiveReport.class, hotelId);
-	}
-
-	public ArrayList<IncentiveReport> getItemwiseIncentiveReport(String hotelId, String userId, String startDate,
-			String endDate, boolean isBar) {
-
-		String sql = "SELECT title, orderId, SUM(qty) AS qty, SUM(incentive) AS incentive FROM (SELECT MenuItems.title AS title, Orders.orderId, SUM(OrderItems.qty) AS qty,"
-				+ "(SUM(OrderItems.qty)/MenuItems.hasIncentive)*MenuItems.incentive AS incentive, "
-				+ "OrderItems.waiterId AS userId FROM OrderItems, MenuItems, Orders WHERE OrderItems.menuId == MenuItems.menuId AND MenuItems.hasIncentive !=0 "
-				+ "AND OrderItems.waiterId = '" + userId + "' AND OrderItems.hotelId = '" + hotelId + "' "
-				+ "AND Orders.hotelId == OrderItems.hotelId AND Orders.orderId == OrderItems.orderId "
-				+ "AND OrderItems.hotelId == MenuItems.hotelId AND Orders.orderDate ";
-
-		if (startDate.equals(endDate))
-			sql += " LIKE '" + startDate + "%' ";
-		else
-			sql += " BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-
-		if (isBar)
-			sql += "AND MenuItems.vegType = 3 ";
-		else
-			sql += "AND MenuItems.vegType != 3 ";
-
-		sql += "GROUP BY Orders.orderId, MenuItems.menuId "
-				+ "ORDER BY Orders.orderId) WHERE incentive>0 GROUP BY title ORDER BY title;";
-
-		System.out.println(sql);
-
-		return db.getRecords(sql, IncentiveReport.class, hotelId);
-	}
-
-	public ArrayList<DeliveryReport> getDeliveryReport(String hotelId, String userId, String startDate,
-			String endDate, boolean visible) {
-
-		String billNo = visible?"Orders.billNo2 AS billNo":"Orders.billNo";
-		
-		String sql = "SELECT "+billNo+", Orders.deliveryBoy, deliveryTimeStamp AS dispatchtime, Payment.total FROM Orders, Payment " + 
-				"WHERE Orders.orderId == Payment.orderId AND Orders.inhouse == 0 "
-				+ "AND Orders.deliveryBoy = '" + userId + "' AND Orders.hotelId = '" + hotelId + "' "
-				+ "AND Orders.orderDate ";
-
-		if (startDate.equals(endDate))
-			sql += " LIKE '" + startDate + "%' ";
-		else
-			sql += " BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-
-		sql += "ORDER BY Orders.id;";
-
-		System.out.println(sql);
-
-		return db.getRecords(sql, DeliveryReport.class, hotelId);
-	}
-
-	public ArrayList<EntityString> getCaptainOrderService(String hotelId, String startDate, String endDate) {
-		String sql = "SELECT DISTINCT waiterId AS entityId FROM OrderItems WHERE OrderItems.subOrderDate";
-		if (startDate.equals(endDate))
-			sql += " LIKE '" + startDate + "%';";
-		else
-			sql += " BETWEEN '" + startDate + "' AND '" + endDate + "';";
-
-		System.out.println(sql);
-		return db.getRecords(sql, EntityString.class, hotelId);
+		return db.executeUpdate(sql, hotelId, true);
 	}
 	
-	public ArrayList<ConsumptionReport> getConsumptionReport(String hotelId, String startDate, String endDate, int department) {
+	public static String toTitleCase(String init) {
+		if (init == null)
+		    return null;
 		
-		String depSql = "";
-		if(department == DEPARTMENT_FOOD)
-			depSql = " (MenuItems.vegType == 1 OR MenuItems.vegType == 2) ";
-		else if(department == DEPARTMENT_NON_ALCOHOLIC_BEVERAGE)
-			depSql = " (MenuItems.vegType == 4) ";
-		else
-			depSql = " (MenuItems.vegType == 3) ";
+		StringBuilder ret = new StringBuilder(init.length());
 		
-		String date = "";
-		if (startDate.equals(endDate))
-			date = " = '" + startDate + "' ";
-		else
-			date = " BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-		
-		String sql ="SELECT *, (totalSaleQty+totalCompQty) AS totalQty, "
-				+ "ROUND(totalAfterDiscount*100*1000/departmentSale)/1000 AS percentOfDepartmentSale, "
-				+ "ROUND(totalAfterDiscount*100*1000/totalSale)/1000 AS percentOfTotalSale,"
-				+ "ROUND((qty+compQty)*100*100/(totalSaleQty+totalCompQty))/100 AS percentOfTotalQty "
-				+ "FROM "
-				+ "(SELECT category, title, vegType, IFNULL(SUM(qty), 0) AS qty, IFNULL(SUM(compQty), 0) AS compQty, rate, ROUND(SUM(total)*100)/100 AS total, ROUND(SUM(totalAfterDiscount)*100)/100 AS totalAfterDiscount,"
-				+ "(SELECT ROUND(SUM(foodBill-foodDiscount)*100)/100 FROM Payment WHERE orderDate "+date+") AS departmentSale,"
-				+ "(SELECT ROUND(SUM(foodBill+barBill-foodDiscount-barDiscount)*100)/100 FROM Payment WHERE orderDate BETWEEN '" + startDate + "' AND '" + endDate + "') AS totalSale,"
-				+ "(SELECT IFNULL(SUM(qty), 0) FROM OrderItems, Orders, MenuItems WHERE orderDate " + date + " AND Orders.orderId == OrderItems.orderId AND MenuItems.menuId == OrderItems.menuId AND "+depSql+") AS totalSaleQty,"
-				+ "(SELECT IFNULL(SUM(quantity), 0) FROM OrderItemLog, Orders, MenuItems WHERE orderDate " + date + " AND "
-				+ "Orders.orderId == OrderItemLog.orderId AND OrderItemLog.state == 50 AND MenuItems.menuId == OrderItemLog.menuId AND "+depSql+") AS totalCompQty "
-				+ "FROM "
-				+ "(SELECT category, title, vegType, MenuItems.menuId, OrderItems.qty, 0 AS compQty, OrderItems.rate, OrderItems.qty*OrderItems.rate AS total, "
-				+ "(CASE "
-				+ "WHEN Orders.discountCode != '' "
-				+ "THEN "
-				+ "(CASE "
-				+ "WHEN (SELECT type FROM Discount WHERE Orders.discountCode == name) == 0 "
-				+ "THEN (OrderItems.qty*OrderItems.rate) - ((SELECT foodValue FROM Discount WHERE Orders.discountCode == name)*OrderItems.rate/100)*OrderItems.qty "
-				+ "ELSE (OrderItems.qty*OrderItems.rate) - (SELECT foodValue FROM Discount WHERE Orders.discountCode == name)*OrderItems.qty "
-				+ "END) "
-				+ "ELSE "
-				+ "OrderItems.qty*OrderItems.rate "
-				+ "END) AS totalAfterDiscount "
-				+ "FROM Orders, OrderItems, MenuItems "
-				+ "WHERE Orders.orderId == OrderItems.orderId "
-				+ "AND MenuItems.menuId == OrderItems.menuId "
-				+ "AND Orders.orderDate " + date + " "
-				+ "AND " + depSql
-				+ "UNION ALL "
-				+ "SELECT category, title, vegType, MenuItems.menuId, 0 AS qty, OrderItemLog.quantity AS compQty, OrderItemLog.rate, OrderItemLog.quantity*OrderItemLog.rate AS total, "
-				+ "0 AS totalAfterDiscount "
-				+ "FROM Orders, OrderItemLog, MenuItems "
-				+ "WHERE Orders.orderId == OrderItemLog.orderId "
-				+ "AND MenuItems.menuId == OrderItemLog.menuId "
-				+ "AND Orders.orderDate " + date + " "
-				+ "AND " + depSql
-				+ "AND OrderItemLog.state == 50) "
-				+ "GROUP BY menuId "
-				+ "ORDER BY category, vegType, title)";
-
-		System.out.println(sql);
-		return db.getRecords(sql, ConsumptionReport.class, hotelId);
-	}
-
-	// -------------------------------------------Reservation
-	
-	public Boolean createNewReservation(String hotelId, int maleCount, int femaleCount,
-			int childrenCount, String bookingTime, String customerName, String mobileNumber, Boolean isPriorityCust) {
-		
-		Customer customer = this.getCustomerDetails(hotelId, mobileNumber);
-		if(customer == null) {
-			this.addCustomer(hotelId, customerName, mobileNumber, "", "", "", "", false, isPriorityCust);
-			customer = this.getCustomerDetails(hotelId, mobileNumber);
-		}else if(isPriorityCust) {
-			String sql = "UPDATE Customer SET isPriority = '" +true+ "' WHERE id = "+customer.getId()+";";
-			db.executeUpdate(sql, true);
+		for (String word : init.split(" ")) {
+			if (!word.isEmpty()) {
+			    ret.append(Character.toUpperCase(word.charAt(0)));
+			    ret.append(word.substring(1).toLowerCase());
+			}
+			if (!(ret.length() == init.length()))
+			    ret.append(" ");
 		}
 		
-		String sql = "INSERT INTO Reservations(hotelId, customerId, maleCount, femaleCount, childrenCount, bookingTime, timeStamp, state, type)"
-				+ "VALUES('" + hotelId + "', " + customer.getId() + ", " + maleCount
-				+ ", " + femaleCount + ", " + childrenCount + ", '" + bookingTime + "', '" + LocalDateTime.now()
-				+ "', " + RESERVATION_STATE_BOOKED + ", " + TYPE_RESERVATION + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean createNewWaitList(String hotelId, int maleCount, int femaleCount,
-			int childrenCount, String customerName, String mobileNumber, Boolean isPriorityCust) {
-
-		Customer customer = this.getCustomerDetails(hotelId, mobileNumber);
-		if(customer == null) {
-			this.addCustomer(hotelId, customerName, mobileNumber, "", "", "", "", false, isPriorityCust);
-			customer = this.getCustomerDetails(hotelId, mobileNumber);
-		}else if(isPriorityCust) {
-			String sql = "UPDATE Customer SET isPriority = '" +true+ "' WHERE id = "+customer.getId()+";";
-			db.executeUpdate(sql, true);
-		}
-		
-		String sql = "INSERT INTO Reservations(hotelId, customerId, maleCount, femaleCount, childrenCount, bookingTime, bookingDate, timeStamp, state, type)"
-				+ "VALUES('" + hotelId + "', " + customer.getId() + ", " + maleCount
-				+ ", " + femaleCount + ", " + childrenCount + ", '" + parseTime("HH:mm") + "', '" + LocalDateTime.now()
-				+ "', " + RESERVATION_STATE_WAITING + ", " + TYPE_WAITLIST + "');";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean editReservation(String hotelId, int reservationId, int maleCount, int femaleCount,
-			int childrenCount, String bookingTime) {
-
-		String sql = "UPDATE Reservations SET maleCount = " + maleCount + ", femaleCount = "
-				+ femaleCount + ", childrenCount = " + childrenCount + ", bookingTime = '" + bookingTime
-				+ "' WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean updateReservationState(String hotelId, int reservationId, int state) {
-
-		String sql = "UPDATE Reservations SET state = " + state + " WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
-	}
-
-	public Boolean assignOrderToReservation(String hotelId, int reservationId, int state, String orderId) {
-
-		String sql = "UPDATE Reservations SET state = " + state 
-				+ ", orderId = '"+orderId+"' WHERE  hotelId='" + hotelId + "' AND reservationId = " + reservationId + ";";
-		return db.executeUpdate(sql, true);
-	}
-	
-	public ArrayList<Reservation> getReservations(String hotelId, String bookingDate){
-		
-		String sql = "SELECT Reservations.*, Customers.mobileNo, Customers.customer, Customers.isPriority FROM Reservations, "
-				+ "Customers WHERE Customers.Id == Reservations.customerId AND hotelId='" + hotelId + "' AND bookingDate = " + bookingDate 
-				+ " AND type = "+TYPE_RESERVATION+";";
-		return db.getRecords(sql, Reservation.class, hotelId);
-	}
-	
-	public ArrayList<Reservation> getWaitList(String hotelId, String bookingDate){
-		
-		String sql = "SELECT Reservations.*, Customers.mobileNo, Customers.customer, Customers.isPriority FROM Reservations, "
-				+ "Customers WHERE Customers.Id == Reservations.customerId AND hotelId='" + hotelId + "' AND bookingDate = " + bookingDate 
-				+ " AND type = "+TYPE_WAITLIST+";";
-		return db.getRecords(sql, Reservation.class, hotelId);
-	}
-	
-	public Reservation getReservation(String hotelId, int reservationId){
-		
-		String sql = "SELECT Reservations.*, Customers.mobileNo, Customers.customer, Customers.isPriority FROM Reservations, "
-				+ "Customers WHERE Reservations.id == "+reservationId+" AND hotelId='" + hotelId +"';";
-		return db.getOneRecord(sql, Reservation.class, hotelId);
-	}
-
-	// -------------------------------------------Common
-	private String getPreviousDateString(int day) {
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
-		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.DATE, day * (-1));
-		return dateFormat.format(cal.getTime());
-	}
-
-	public static void main(String args[]) {
-		// dynamic testcases
-		//AccessManager dao = new AccessManager(false);
-		//dao.hideOrder("h0002", "f", "", "", 25000.0);
-
-	}
-	
-	public void loadShortForms(String hotelId) {
-
-		ArrayList<MenuItem> menuItems = this.getMenu(hotelId);
-		for (MenuItem menuItem : menuItems) {
-			String sql = "UPDATE MenuItems SET shortform = '" + this.generateShortForm(menuItem.getTitle())
-					+ "' WHERE menuId = '" + menuItem.getMenuId() + "';";
-			db.executeUpdate(sql, false);
-		}
-	}
-
-	// Convert DateTime string to the requested format.
-	public String parseTime(String time, String format) {
-		LocalDateTime now = LocalDateTime.parse(time);
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-		return now.format(formatter);
-	}
-
-	// Returns current time in the requested format.
-	public String parseTime(String format) {
-		LocalDateTime now = LocalDateTime.now();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-		return now.format(formatter);
-	}
-	
-	public String formatDate(String dateStr, String oldFormat, String newFormat) throws ParseException {
-
-		DateFormat df = new SimpleDateFormat(oldFormat);
-		DateFormat df2 = new SimpleDateFormat(newFormat);
-		Date date = df.parse(dateStr);
-		return df2.format(date);
-	}
-
-	public String getOrderType(int orderTypeCode){
-		if(orderTypeCode == INHOUSE)
-			return "Inhouse";
-		else if(orderTypeCode == HOME_DELIVERY)
-			return "Home Delivery";
-		else if(orderTypeCode == BAR)
-			return "Bar";
-		else
-			return "Take Away";
+		return ret.toString();
 	}
 }
