@@ -31,7 +31,7 @@ public class Configurator {
 	}
 	
 	private static String getConfigFile() {
-		return System.getenv("ORDERON_CONFIG_V4");
+		return System.getenv("ORDERON_CONFIG");
 	}
 	
 	public static String getDBConnectionString() {
