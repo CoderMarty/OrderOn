@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -19,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class EncryptDecryptString {
     
-    private static final String encryptionKey           = "ABCDEFGHIJKLMNOP";
+    private static final String encryptionKey           = "TOMTech$1234asdf";
     private static final String characterEncoding       = "UTF-8";
     private static final String cipherTransformation    = "AES/CBC/PKCS5PADDING";
     private static final String aesEncryptionAlgorithem = "AES";
@@ -89,7 +89,7 @@ public class EncryptDecryptString {
      * @param plainText
      * @return encryptedText
      */
-    public String encrypt(byte[] plainText) {
+    public static String encrypt(byte[] plainText) {
         String encryptedText = "";
         try {
             Cipher cipher   = Cipher.getInstance(cipherTransformation);
@@ -112,7 +112,7 @@ public class EncryptDecryptString {
      * @param encryptedText
      * @return decryptedText
      */
-    public String decrypt(String encryptedText) {
+    public static String decrypt(String encryptedText) {
         String decryptedText = "";
         try {
             Cipher cipher = Cipher.getInstance(cipherTransformation);
@@ -139,7 +139,11 @@ public class EncryptDecryptString {
         byte[] hash = eds.hash(plainString.toCharArray(), salt);
         
         System.out.println("Plain   String  : "+plainString);
-        System.out.println("password is match  : "+eds.isExpectedPassword(plainString.toCharArray(), 
+        String enc = EncryptDecryptString.encrypt(plainString.getBytes());
+        System.out.println("Encrypted   String  : "+enc);
+        String dec = EncryptDecryptString.decrypt(plainString);
+        System.out.println("Decrypted   String  : "+dec);
+        System.out.println("password match  : "+eds.isExpectedPassword(plainString.toCharArray(), 
         		salt, hash));
-    }   
+    }
 }

@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -38,7 +38,7 @@ public class FileServlet extends HttpServlet {
     public void init() throws ServletException {
 
         // Define base path somehow. You can define it as init-param of the servlet.
-        this.filePath = Configurator.getImagesLocation();
+        this.filePath = "http://"+Configurator.getIp()+":8080/Images";
 
         // In a Windows environment with the Applicationserver running on the
         // c: volume, the above path is exactly the same as "c:\files".

@@ -1,4 +1,4 @@
-package com.orderon;
+package com.orderon.commons;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
@@ -14,7 +14,7 @@ import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.text.html.HTMLEditorKit;
 
-import com.orderon.Services.Printer;
+import com.orderon.services.Services.Printer;
 
 public class PrintHtml{	
 	

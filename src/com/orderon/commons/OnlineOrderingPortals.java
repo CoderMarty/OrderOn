@@ -1,9 +1,9 @@
-package com.orderon;
+package com.orderon.commons;
 
 public enum OnlineOrderingPortals {
 
 	NONE(0, ""), COUNTER(100, "Counter Parcel"), ZOMATO(1, "Zomato"), SWIGGY(2, "Swiggy"), 
-	FOODPANDA(3, "Food Panda"), UBEREATS(4, "Uber Eats"), FOODILOO(5, "Foodiloo");
+	FOODPANDA(3, "Food Panda"), UBEREATS(4, "Uber Eats"), FOODILOO(5, "Foodiloo"), ZOMATO_PICKUP(6, "Zomato Pickup");
 	
 	private int value;
 	private String name;
@@ -34,6 +34,8 @@ public enum OnlineOrderingPortals {
 			return OnlineOrderingPortals.UBEREATS;
 		else if(value == 5)
 			return OnlineOrderingPortals.FOODILOO;
+		else if(value == 6)
+			return OnlineOrderingPortals.ZOMATO_PICKUP;
 		else
 			return OnlineOrderingPortals.NONE;
 	}
